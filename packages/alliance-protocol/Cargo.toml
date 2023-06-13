@@ -1,0 +1,18 @@
+[package]
+name = "alliance-protocol"
+version = "0.1.0"
+authors = ["Terra Money <core@terra.money>"]
+edition = "2018"
+
+exclude = [
+]
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cosmwasm-storage = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-asset = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }

@@ -1,0 +1,32 @@
+[workspace]
+members = [
+    "contracts/*",
+    "packages/*",
+]
+exclude = [
+]
+
+[profile.dev]
+overflow-checks = false
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = false
+
+[workspace.dependencies]
+cosmwasm-std = "1.1.10"
+cosmwasm-storage = "1.1.10"
+cosmwasm-schema = "1.1.10"
+cw-storage-plus = "0.16.0"
+cw-asset = "2.4.0"
+schemars = "0.8.8"
+serde = { version = "1.0.137", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.31" }
+alliance-protocol = { path = "./packages/alliance-protocol" }
