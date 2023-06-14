@@ -18,8 +18,10 @@ name = "alliance-hub"
 version = "0.1.0"
 dependencies = [
  "alliance-protocol",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "cw-asset",
  "cw-storage-plus 0.16.0",
  "cw2 1.0.1",
  "schemars",

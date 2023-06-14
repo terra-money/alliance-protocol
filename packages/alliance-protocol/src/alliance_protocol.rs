@@ -4,6 +4,8 @@ use cw_asset::{Asset, AssetInfo};
 
 #[cw_serde]
 pub struct InstantiateMsg {
+    pub governance_address: String,
+    pub controller_address: String,
 }
 
 #[cw_serde]
@@ -14,8 +16,8 @@ pub enum ExecuteMsg {
     ClaimRewards(AssetInfo),
 
     // Privileged functions
-    WhitelistAsset(Vec<AssetInfo>),
-    RemoveAsset(Vec<AssetInfo>),
+    WhitelistAssets(Vec<AssetInfo>),
+    RemoveAssets(Vec<AssetInfo>),
     UpdateRewards,
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
@@ -25,30 +27,30 @@ pub enum ExecuteMsg {
 
 #[cw_serde]
 pub struct AllianceDelegation {
-    validator: String,
-    amount: Uint128,
+    pub validator: String,
+    pub amount: Uint128,
 }
 
 #[cw_serde]
 pub struct AllianceDelegateMsg {
-    delegations: Vec<AllianceDelegation>
+    pub delegations: Vec<AllianceDelegation>,
 }
 
 #[cw_serde]
 pub struct AllianceUndelegateMsg {
-    undelegations: Vec<AllianceDelegation>
+    pub undelegations: Vec<AllianceDelegation>,
 }
 
 #[cw_serde]
 pub struct AllianceRedelegation {
-    src_validator: String,
-    dst_validator: String,
-    amount: Uint128,
+    pub src_validator: String,
+    pub dst_validator: String,
+    pub amount: Uint128,
 }
 
 #[cw_serde]
 pub struct AllianceRedelegateMsg {
-    redelegations: Vec<AllianceRedelegation>
+    pub redelegations: Vec<AllianceRedelegation>,
 }
 
 #[cw_serde]
@@ -62,10 +64,9 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct AssetQuery {
-    address: String,
-    asset: AssetInfo,
+    pub address: String,
+    pub asset: AssetInfo,
 }
 
 #[cw_serde]
-pub struct MigrateMsg {
-}
+pub struct MigrateMsg {}
