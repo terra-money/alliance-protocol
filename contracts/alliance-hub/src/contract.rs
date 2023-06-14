@@ -109,8 +109,11 @@ fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Contrac
     if info.funds.len() != 1 {
         return Err(ContractError::OnlySingleAssetAllowed {});
     }
-    let asset = AssetInfo::native(info.funds[0].denom.clone());
-    let asset_key = AssetInfoKey::from(asset);
+    if info.funds[0].amount.is_zero() {
+        return Err(ContractError::AmountCannotBeZero {});
+    }
+    let asset = AssetInfo::native(&info.funds[0].denom);
+    let asset_key = AssetInfoKey::from(&asset);
     let whitelisted = WHITELIST
         .load(deps.storage, asset_key.clone())
         .unwrap_or(false);
@@ -133,7 +136,7 @@ fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Contrac
     Ok(Response::new().add_attributes(vec![
         ("action", "stake"),
         ("user", &info.sender.to_string()),
-        ("asset", &info.funds[0].denom),
+        ("asset", &asset.to_string()),
         ("amount", &info.funds[0].amount.to_string()),
     ]))
 }
@@ -146,6 +149,9 @@ fn unstake(
 ) -> Result<Response, ContractError> {
     let asset_key = AssetInfoKey::from(asset.info.clone());
     let sender = info.sender.clone();
+    if asset.amount.is_zero() {
+        return Err(ContractError::AmountCannotBeZero {});
+    }
 
     // TODO: Calculate rewards accured and claim it
 

@@ -21,4 +21,7 @@ pub enum ContractError {
 
     #[error("Insufficient balance")]
     InsufficientBalance {},
+
+    #[error("Amount cannot be zero")]
+    AmountCannotBeZero {},
 }
