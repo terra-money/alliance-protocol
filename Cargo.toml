@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "contracts/alliance-hub",
-    "contracts/cw-alliance-oracle",
+    "contracts/alliance-oracle",
     "packages/alliance-protocol",
 ]
 exclude = []
