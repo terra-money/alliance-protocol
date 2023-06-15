@@ -38,3 +38,10 @@ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   ${image}:0.12.12
 """
+
+
+[tasks.deploy-oracle]
+script = """
+npm install -g ts-node
+ts-node ./scripts/deploy-oracle.ts
+"""
