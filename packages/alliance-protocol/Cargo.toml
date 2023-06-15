@@ -4,8 +4,7 @@ version = "0.1.0"
 authors = ["Terra Money <core@terra.money>"]
 edition = "2018"
 
-exclude = [
-]
+exclude = []
 
 [dependencies]
 cosmwasm-std = { workspace = true }

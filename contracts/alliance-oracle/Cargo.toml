@@ -1,5 +1,5 @@
 [package]
-name = "alliance-hub"
+name = "alliance-oracle"
 version = "0.1.0"
 authors = ["Terra Money <core@terra.money>"]
 edition = "2018"
@@ -25,7 +25,6 @@ cw-asset = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+cw2 = { workspace = true }
+terra-proto-rs = { workspace = true }
 alliance-protocol = { workspace = true }
-
-cw2 = "1.0.1"
-cw-utils = "1.0.1"
