@@ -21,6 +21,6 @@ cw-asset = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+cw2 = { workspace = true }
+terra-proto-rs = { workspace = true }
 alliance-oracle = { workspace = true }
-
-cw2 = "1.0.1"

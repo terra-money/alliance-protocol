@@ -1,13 +1,14 @@
-use alliance_oracle::alliance_oracle::{ExecuteMsg, InstantiateMsg, QueryMsg, ChainInfo};
+use alliance_oracle::alliance_oracle::{
+    ChainId, ChainInfo, ChainInfoMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
+};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, to_binary,
-};
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::state::{Config, CONFIG};
+use crate::state::{Config, CHAINS_INFO, CONFIG};
+use crate::utils;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-oracle";
@@ -21,13 +22,21 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let controller_address = deps.api.addr_validate(&msg.controller_address)?;
+    let controller_addr = deps.api.addr_validate(&msg.controller_addr)?;
+    let governance_addr = deps.api.addr_validate(&msg.governance_addr)?;
 
-    CONFIG.save(deps.storage, &Config {
-        controller_address,
-    })?;
+    CONFIG.save(
+        deps.storage,
+        &Config {
+            governance_addr,
+            controller_addr,
+        },
+    )?;
 
-    Ok(Response::new().add_attribute("action", "instantiate"))
+    Ok(Response::new()
+        .add_attribute("action", "instantiate")
+        .add_attribute("controller_addr", msg.controller_addr)
+        .add_attribute("governance_addr", msg.governance_addr))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -38,7 +47,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateChainsInfo{chains_info} => update_chains_info(deps, env, info, chains_info),
+        ExecuteMsg::UpdateChainsInfo { chains_info } => {
+            update_chains_info(deps, env, info, chains_info)
+        }
     }
 }
 
@@ -46,15 +57,18 @@ fn update_chains_info(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    assets: Vec<ChainInfo>,
+    chains_info: Vec<ChainInfoMsg>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.controller_address {
-        return Err(ContractError::Unauthorized {});
+    utils::authorize_execution(config, info.sender)?;
+
+    for chain_info in chains_info {
+        let (chain_id, chain_info) = chain_info.to_chain_info(env.block.time);
+
+        CHAINS_INFO.save(deps.storage, chain_id, &chain_info)?;
     }
-    
-    Ok(Response::new()
-        .add_attribute("action", "update_chains_info"))
+
+    Ok(Response::new().add_attribute("action", "update_chains_info"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -63,12 +77,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Config => {
             return to_binary(&CONFIG.load(deps.storage)?);
         },
+
+        QueryMsg::ChainsInfo => {
+            return to_binary(&CHAINS_INFO.load(deps.storage)?);
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::testing::{mock_dependencies, mock_info, mock_env};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 
     use super::*;
 
@@ -76,7 +94,8 @@ mod tests {
     fn proper_initialization() {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
-            controller_address: "controller_address".to_string(),
+            controller_addr: "controller_addr".to_string(),
+            governance_addr: "governance_addr".to_string(),
         };
         let info = mock_info("creator", &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
