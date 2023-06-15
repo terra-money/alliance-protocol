@@ -3,7 +3,9 @@ use alliance_oracle::alliance_oracle::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
@@ -64,7 +66,6 @@ fn update_chains_info(
 
     for chain_info in chains_info {
         let (chain_id, chain_info) = chain_info.to_chain_info(env.block.time);
-
         CHAINS_INFO.save(deps.storage, chain_id, &chain_info)?;
     }
 
@@ -76,10 +77,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config => {
             return to_binary(&CONFIG.load(deps.storage)?);
-        },
-
+        }
+        QueryMsg::ChainInfo { chain_id } => {
+            return to_binary(&CHAINS_INFO.load(deps.storage, chain_id)?);
+        }
         QueryMsg::ChainsInfo => {
-            return to_binary(&CHAINS_INFO.load(deps.storage)?);
+            let items = CHAINS_INFO
+                .range(deps.storage, None, None, Order::Ascending)
+                .collect::<StdResult<Vec<(ChainId, ChainInfo)>>>()?;
+
+            return to_binary(&items);
         }
     }
 }
