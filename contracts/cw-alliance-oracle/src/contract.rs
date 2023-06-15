@@ -1,4 +1,4 @@
-use alliance_oracle::alliance_oracle::{
+use alliance_protocol::alliance_oracle_types::{
     ChainId, ChainInfo, ChainInfoMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
 };
 #[cfg(not(feature = "library"))]
@@ -75,18 +75,14 @@ fn update_chains_info(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config => {
-            return to_binary(&CONFIG.load(deps.storage)?);
-        }
-        QueryMsg::ChainInfo { chain_id } => {
-            return to_binary(&CHAINS_INFO.load(deps.storage, chain_id)?);
-        }
+        QueryMsg::Config => to_binary(&CONFIG.load(deps.storage)?),
+        QueryMsg::ChainInfo { chain_id } => to_binary(&CHAINS_INFO.load(deps.storage, chain_id)?),
         QueryMsg::ChainsInfo => {
             let items = CHAINS_INFO
                 .range(deps.storage, None, None, Order::Ascending)
                 .collect::<StdResult<Vec<(ChainId, ChainInfo)>>>()?;
 
-            return to_binary(&items);
+            to_binary(&items)
         }
     }
 }

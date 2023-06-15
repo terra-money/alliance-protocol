@@ -65,9 +65,7 @@ pub struct LunaAlliance {
 pub enum QueryMsg {
     Config,
     ChainsInfo,
-    ChainInfo {
-        chain_id: ChainId,
-    },
+    ChainInfo { chain_id: ChainId },
 }
 
 #[cw_serde]

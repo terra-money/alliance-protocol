@@ -1,16 +1,20 @@
 [package]
-name = "alliance-oracle-contract"
+name = "cw-alliance-oracle"
 version = "0.1.0"
 authors = ["Terra Money <core@terra.money>"]
 edition = "2018"
 
 exclude = [
-  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
   "contract.wasm",
   "hash.txt",
 ]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+library = []
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -23,4 +27,4 @@ serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 cw2 = { workspace = true }
 terra-proto-rs = { workspace = true }
-alliance-oracle = { workspace = true }
+alliance-protocol = { workspace = true }

@@ -1,10 +1,19 @@
 [workspace]
 members = [
-    "contracts/*",
-    "packages/*",
+    "contracts/alliance-hub",
+    "contracts/cw-alliance-oracle",
+    "packages/alliance-protocol",
 ]
-exclude = [
-]
+exclude = []
+
+[workspace.package]
+version       = "0.1.0"
+edition       = "2021"
+license       = "Apache-2.0"
+repository    = "https://github.com/terra-money/alliance-protocol"
+homepage      = "https://github.com/terra-money/alliance-protocol"
+documentation = "https://github.com/terra-money/alliance-protocol"
+rust-version  = "1.68.2"
 
 [profile.dev]
 overflow-checks = false
@@ -32,4 +41,3 @@ terra-proto-rs = { version = "3.0.1", default-features = false}
 thiserror = { version = "1.0.38" }
 cw2 = "1.0.1"
 alliance-protocol = { path = "./packages/alliance-protocol" }
-alliance-oracle = { path = "./packages/alliance-oracle" }

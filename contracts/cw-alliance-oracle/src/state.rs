@@ -1,4 +1,4 @@
-use alliance_oracle::alliance_oracle::{ChainInfo, ChainId};
+use alliance_protocol::alliance_oracle_types::{ChainId, ChainInfo};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};

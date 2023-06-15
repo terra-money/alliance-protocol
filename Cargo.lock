@@ -30,37 +30,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alliance-oracle"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-asset",
- "cw-storage-plus 1.1.0",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "alliance-oracle-contract"
-version = "0.1.0"
-dependencies = [
- "alliance-oracle",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-asset",
- "cw-storage-plus 1.1.0",
- "cw2 1.0.1",
- "schemars",
- "serde",
- "terra-proto-rs",
- "thiserror",
-]
-
-[[package]]
 name = "alliance-protocol"
 version = "0.1.0"
 dependencies = [
@@ -279,6 +248,23 @@ dependencies = [
  "rand_core 0.5.1",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "cw-alliance-oracle"
+version = "0.1.0"
+dependencies = [
+ "alliance-protocol",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-asset",
+ "cw-storage-plus 1.1.0",
+ "cw2 1.0.1",
+ "schemars",
+ "serde",
+ "terra-proto-rs",
+ "thiserror",
 ]
 
 [[package]]
