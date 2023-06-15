@@ -1,10 +1,11 @@
 use crate::contract::{execute, instantiate};
+use crate::token_factory::CustomExecuteMsg;
 use alliance_protocol::alliance_protocol::{ExecuteMsg, InstantiateMsg};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, DepsMut, Response};
 use cw_asset::{Asset, AssetInfo};
 
-pub fn setup_contract(deps: DepsMut) {
+pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
     let info = mock_info("admin", &vec![]);
     let env = mock_env();
 
@@ -12,7 +13,7 @@ pub fn setup_contract(deps: DepsMut) {
         governance_address: "gov".to_string(),
         controller_address: "controller".to_string(),
     };
-    instantiate(deps, env, info, init_msg).unwrap();
+    instantiate(deps, env, info, init_msg).unwrap()
 }
 
 pub fn whitelist_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {

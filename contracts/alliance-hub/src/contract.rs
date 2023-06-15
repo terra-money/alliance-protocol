@@ -1,29 +1,55 @@
 use alliance_protocol::alliance_protocol::{ExecuteMsg, InstantiateMsg, QueryMsg};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
+use cosmwasm_std::CosmosMsg::Custom;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Timestamp, Uint128,
+    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
+    StdResult, SubMsg, Timestamp, Uint128,
 };
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
+use cw_utils::parse_instantiate_response_data;
 
 use crate::error::ContractError;
 use crate::state::{Config, BALANCES, CONFIG, WHITELIST};
+use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-protocol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const CREATE_REPLY_ID: u64 = 1;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<CustomExecuteMsg>, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let governance_address = deps.api.addr_validate(&msg.governance_address)?;
     let controller_address = deps.api.addr_validate(&msg.controller_address)?;
+    let denom = "ualliance";
+    let symbol = "ALLIANCE";
+    let create_msg = TokenExecuteMsg::CreateDenom {
+        subdenom: denom.to_string(),
+        metadata: Metadata {
+            description: "Staking token for the alliance protocol".to_string(),
+            denom_units: vec![DenomUnit {
+                denom: "ualliance".to_string(),
+                exponent: 0,
+                aliases: vec![],
+            }],
+            base: denom.to_string(),
+            display: symbol.to_string(),
+            name: "Alliance Token".to_string(),
+            symbol: symbol.to_string(),
+        },
+    };
+    let sub_msg = SubMsg::reply_on_success(
+        CosmosMsg::Custom(CustomExecuteMsg::Token(create_msg)),
+        CREATE_REPLY_ID,
+    );
     let config = Config {
         governance_address,
         controller_address,
@@ -32,7 +58,9 @@ pub fn instantiate(
         last_reward_update_timestamp: Timestamp::default(),
     };
     CONFIG.save(deps.storage, &config)?;
-    Ok(Response::new().add_attributes(vec![("action", "instantiate")]))
+    Ok(Response::new()
+        .add_attributes(vec![("action", "instantiate")])
+        .add_submessage(sub_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -192,6 +220,43 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::PendingRewards(_) => {}
     }
     Ok(Binary::default())
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(
+    deps: DepsMut,
+    env: Env,
+    reply: Reply,
+) -> Result<Response<CustomExecuteMsg>, ContractError> {
+    match reply.id {
+        CREATE_REPLY_ID => {
+            let response = reply.result.unwrap();
+            // It works because the response data is a protobuf encoded string that contains the denom in the first slot (similar to the contract instantiation response)
+            let denom = parse_instantiate_response_data(response.data.unwrap().as_slice())
+                .map_err(|_| ContractError::Std(StdError::generic_err("parse error".to_string())))?
+                .contract_address;
+            let total_supply = Uint128::from(1000_000_000_000u128);
+            let sub_msg = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
+                TokenExecuteMsg::MintTokens {
+                    denom: denom.clone(),
+                    amount: total_supply.clone(),
+                    mint_to_address: env.contract.address.to_string(),
+                },
+            )));
+            CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
+                config.alliance_token_denom = denom.clone();
+                config.alliance_token_supply = total_supply.clone();
+                Ok(config)
+            })?;
+            Ok(Response::new()
+                .add_attributes(vec![
+                    ("alliance_token_denom", denom.clone()),
+                    ("alliance_token_total_supply", total_supply.to_string()),
+                ])
+                .add_submessage(sub_msg))
+        }
+        _ => Err(ContractError::InvalidReplyId(reply.id)),
+    }
 }
 
 #[cfg(test)]

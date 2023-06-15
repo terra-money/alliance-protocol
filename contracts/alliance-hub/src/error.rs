@@ -24,4 +24,7 @@ pub enum ContractError {
 
     #[error("Amount cannot be zero")]
     AmountCannotBeZero {},
+
+    #[error("Invalid reply id {0}")]
+    InvalidReplyId(u64),
 }
