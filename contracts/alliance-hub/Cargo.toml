@@ -24,3 +24,4 @@ thiserror = { workspace = true }
 alliance-protocol = { workspace = true }
 
 cw2 = "1.0.1"
+cw-utils = "1.0.1"
