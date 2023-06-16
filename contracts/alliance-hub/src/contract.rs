@@ -1,5 +1,5 @@
 use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
+    AllianceDelegateMsg, AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -87,7 +87,7 @@ pub fn execute(
 
         ExecuteMsg::UpdateRewards => Ok(Response::new()),
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
-        ExecuteMsg::AllianceUndelegate(_) => Ok(Response::new()),
+        ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(_) => Ok(Response::new()),
         ExecuteMsg::RebalanceEmissions => Ok(Response::new()),
     }
@@ -254,14 +254,17 @@ fn alliance_undelegate(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: AllianceDelegateMsg,
+    msg: AllianceUndelegateMsg,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if info.sender != config.controller_address {
         return Err(ContractError::Unauthorized {});
     }
+    if msg.undelegations.is_empty() {
+        return Err(ContractError::EmptyDelegation {});
+    }
     let mut msgs = vec![];
-    for delegation in msg.delegations {
+    for delegation in msg.undelegations {
         let undelegate_msg = MsgUndelegate {
             amount: Some(Coin {
                 denom: config.alliance_token_denom.clone(),

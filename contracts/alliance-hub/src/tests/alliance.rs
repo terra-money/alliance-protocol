@@ -1,8 +1,10 @@
 use crate::contract::execute;
 use crate::error::ContractError;
 use crate::state::{Config, CONFIG};
-use crate::tests::helpers::{alliance_delegate, setup_contract};
-use alliance_protocol::alliance_protocol::{AllianceDelegateMsg, AllianceDelegation, ExecuteMsg};
+use crate::tests::helpers::{alliance_delegate, alliance_undelegate, setup_contract};
+use alliance_protocol::alliance_protocol::{
+    AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg, ExecuteMsg,
+};
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{Binary, CosmosMsg, StdResult, SubMsg, Uint128};
 use terra_proto_rs::alliance::alliance::MsgDelegate;
@@ -103,6 +105,108 @@ fn test_alliance_delegation_invalid() {
         mock_env(),
         info,
         ExecuteMsg::AllianceDelegate(msg),
+    )
+    .unwrap_err();
+    assert_eq!(err, ContractError::EmptyDelegation {});
+}
+
+#[test]
+fn test_alliance_undelegate() {
+    let mut deps = mock_dependencies();
+    setup_contract(deps.as_mut());
+    let denom = "token_factory/token";
+    // set alliance token denom
+    CONFIG
+        .update(deps.as_mut().storage, |c| -> StdResult<_> {
+            Ok(Config {
+                alliance_token_denom: denom.to_string(),
+                alliance_token_supply: Uint128::new(1000000000000),
+                ..c
+            })
+        })
+        .unwrap();
+
+    let res = alliance_undelegate(
+        deps.as_mut(),
+        vec![("validator1", 100), ("validator2", 400)],
+    );
+
+    assert_eq!(res.messages.len(), 2);
+    assert_eq!(
+        res.messages,
+        vec![
+            SubMsg::new(CosmosMsg::Stargate {
+                type_url: "/alliance.alliance.MsgUndelegate".to_string(),
+                value: Binary::from(
+                    MsgDelegate {
+                        amount: Some(Coin {
+                            denom: denom.to_string(),
+                            amount: "100".to_string(),
+                        }),
+                        delegator_address: "cosmos2contract".to_string(),
+                        validator_address: "validator1".to_string(),
+                    }
+                    .encode_to_vec()
+                ),
+            }),
+            SubMsg::new(CosmosMsg::Stargate {
+                type_url: "/alliance.alliance.MsgUndelegate".to_string(),
+                value: Binary::from(
+                    MsgDelegate {
+                        amount: Some(Coin {
+                            denom: denom.to_string(),
+                            amount: "400".to_string(),
+                        }),
+                        delegator_address: "cosmos2contract".to_string(),
+                        validator_address: "validator2".to_string(),
+                    }
+                    .encode_to_vec()
+                ),
+            }),
+        ]
+    );
+}
+
+#[test]
+fn test_alliance_undelegation_invalid() {
+    let mut deps = mock_dependencies();
+    setup_contract(deps.as_mut());
+    let denom = "token_factory/token";
+    // set alliance token denom
+    CONFIG
+        .update(deps.as_mut().storage, |c| -> StdResult<_> {
+            Ok(Config {
+                alliance_token_denom: denom.to_string(),
+                alliance_token_supply: Uint128::new(1000000000000),
+                ..c
+            })
+        })
+        .unwrap();
+    let info = mock_info("user", &vec![]);
+    let msg = AllianceUndelegateMsg {
+        undelegations: vec![AllianceDelegation {
+            validator: "validator1".to_string(),
+            amount: Uint128::new(100),
+        }],
+    };
+    let err = execute(
+        deps.as_mut(),
+        mock_env(),
+        info,
+        ExecuteMsg::AllianceUndelegate(msg),
+    )
+    .unwrap_err();
+    assert_eq!(err, ContractError::Unauthorized {});
+
+    let info = mock_info("controller", &vec![]);
+    let msg = AllianceUndelegateMsg {
+        undelegations: vec![],
+    };
+    let err = execute(
+        deps.as_mut(),
+        mock_env(),
+        info,
+        ExecuteMsg::AllianceUndelegate(msg),
     )
     .unwrap_err();
     assert_eq!(err, ContractError::EmptyDelegation {});
