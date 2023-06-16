@@ -1,14 +1,20 @@
-use alliance_protocol::alliance_protocol::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use alliance_protocol::alliance_protocol::{
+    AllianceDelegateMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
+};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::CosmosMsg::Custom;
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsg, Timestamp, Uint128,
+    coin, to_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Timestamp, Uint128,
 };
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
+
+use terra_proto_rs::alliance::alliance::{MsgDelegate, MsgUndelegate};
+use terra_proto_rs::cosmos::base::v1beta1::Coin;
+use terra_proto_rs::traits::Message;
 
 use crate::error::ContractError;
 use crate::state::{Config, BALANCES, CONFIG, WHITELIST};
@@ -18,6 +24,7 @@ use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMs
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-protocol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
+const CLAIM_REWARD_REPLY_ID: u64 = 2;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -79,7 +86,7 @@ pub fn execute(
         ExecuteMsg::ClaimRewards(_) => Ok(Response::new()),
 
         ExecuteMsg::UpdateRewards => Ok(Response::new()),
-        ExecuteMsg::AllianceDelegate(_) => Ok(Response::new()),
+        ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(_) => Ok(Response::new()),
         ExecuteMsg::AllianceRedelegate(_) => Ok(Response::new()),
         ExecuteMsg::RebalanceEmissions => Ok(Response::new()),
@@ -210,11 +217,75 @@ fn unstake(
         .add_message(msg))
 }
 
+fn alliance_delegate(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: AllianceDelegateMsg,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    if info.sender != config.controller_address {
+        return Err(ContractError::Unauthorized {});
+    }
+    if msg.delegations.is_empty() {
+        return Err(ContractError::EmptyDelegation {});
+    }
+    let mut msgs: Vec<CosmosMsg<Empty>> = vec![];
+    for delegation in msg.delegations {
+        let delegate_msg = MsgDelegate {
+            amount: Some(Coin {
+                denom: config.alliance_token_denom.clone(),
+                amount: delegation.amount.to_string(),
+            }),
+            delegator_address: env.contract.address.to_string(),
+            validator_address: delegation.validator.to_string(),
+        };
+        msgs.push(CosmosMsg::Stargate {
+            type_url: "/alliance.alliance.MsgDelegate".to_string(),
+            value: Binary::from(delegate_msg.encode_to_vec()),
+        });
+    }
+    Ok(Response::new()
+        .add_attributes(vec![("action", "alliance_delegate")])
+        .add_messages(msgs))
+}
+
+fn alliance_undelegate(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: AllianceDelegateMsg,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    if info.sender != config.controller_address {
+        return Err(ContractError::Unauthorized {});
+    }
+    let mut msgs = vec![];
+    for delegation in msg.delegations {
+        let undelegate_msg = MsgUndelegate {
+            amount: Some(Coin {
+                denom: config.alliance_token_denom.clone(),
+                amount: delegation.amount.to_string(),
+            }),
+            delegator_address: env.contract.address.to_string(),
+            validator_address: delegation.validator.to_string(),
+        };
+        let msg = CosmosMsg::Stargate {
+            type_url: "/alliance.alliance.MsgUndelegate".to_string(),
+            value: Binary::from(undelegate_msg.encode_to_vec()),
+        };
+        msgs.push(msg);
+    }
+    Ok(Response::new()
+        .add_attributes(vec![("action", "alliance_undelegate")])
+        .add_messages(msgs))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config => {}
-        QueryMsg::WhitelistedCoins => {}
+        QueryMsg::WhitelistedAssets => {}
         QueryMsg::RewardDistribution => {}
         QueryMsg::StakedBalance(_) => {}
         QueryMsg::PendingRewards(_) => {}

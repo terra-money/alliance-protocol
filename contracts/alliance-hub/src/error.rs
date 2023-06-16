@@ -27,4 +27,7 @@ pub enum ContractError {
 
     #[error("Invalid reply id {0}")]
     InvalidReplyId(u64),
+
+    #[error("Empty delegation")]
+    EmptyDelegation {},
 }
