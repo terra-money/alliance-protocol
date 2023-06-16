@@ -1,7 +1,8 @@
 use crate::contract::{execute, instantiate};
 use crate::token_factory::CustomExecuteMsg;
 use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg,
+    AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg, AllianceRedelegation,
+    AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg,
 };
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, DepsMut, Response, Uint128};
@@ -75,5 +76,20 @@ pub fn alliance_undelegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Res
     let msg = ExecuteMsg::AllianceUndelegate(AllianceUndelegateMsg {
         undelegations: delegations,
     });
+    execute(deps, env, info, msg).unwrap()
+}
+
+pub fn alliance_redelegate(deps: DepsMut, redelegations: Vec<(&str, &str, u128)>) -> Response {
+    let info = mock_info("controller", &vec![]);
+    let env = mock_env();
+    let redelegations: Vec<AllianceRedelegation> = redelegations
+        .iter()
+        .map(|(src, dst, amount)| AllianceRedelegation {
+            src_validator: src.to_string(),
+            dst_validator: dst.to_string(),
+            amount: Uint128::new(amount.clone()),
+        })
+        .collect();
+    let msg = ExecuteMsg::AllianceRedelegate(AllianceRedelegateMsg { redelegations });
     execute(deps, env, info, msg).unwrap()
 }

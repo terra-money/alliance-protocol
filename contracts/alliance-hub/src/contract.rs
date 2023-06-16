@@ -1,5 +1,6 @@
 use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
+    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg,
+    QueryMsg,
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -12,7 +13,7 @@ use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
 
-use terra_proto_rs::alliance::alliance::{MsgDelegate, MsgUndelegate};
+use terra_proto_rs::alliance::alliance::{MsgDelegate, MsgRedelegate, MsgUndelegate, Redelegation};
 use terra_proto_rs::cosmos::base::v1beta1::Coin;
 use terra_proto_rs::traits::Message;
 
@@ -88,7 +89,7 @@ pub fn execute(
         ExecuteMsg::UpdateRewards => Ok(Response::new()),
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
-        ExecuteMsg::AllianceRedelegate(_) => Ok(Response::new()),
+        ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
         ExecuteMsg::RebalanceEmissions => Ok(Response::new()),
     }
 }
@@ -281,6 +282,41 @@ fn alliance_undelegate(
     }
     Ok(Response::new()
         .add_attributes(vec![("action", "alliance_undelegate")])
+        .add_messages(msgs))
+}
+
+fn alliance_redelegate(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: AllianceRedelegateMsg,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    if info.sender != config.controller_address {
+        return Err(ContractError::Unauthorized {});
+    }
+    if msg.redelegations.is_empty() {
+        return Err(ContractError::EmptyDelegation {});
+    }
+    let mut msgs = vec![];
+    for redelegation in msg.redelegations {
+        let redelegate_msg = MsgRedelegate {
+            amount: Some(Coin {
+                denom: config.alliance_token_denom.clone(),
+                amount: redelegation.amount.to_string(),
+            }),
+            delegator_address: env.contract.address.to_string(),
+            validator_src_address: redelegation.src_validator.to_string(),
+            validator_dst_address: redelegation.dst_validator.to_string(),
+        };
+        let msg = CosmosMsg::Stargate {
+            type_url: "/alliance.alliance.MsgRedelegate".to_string(),
+            value: Binary::from(redelegate_msg.encode_to_vec()),
+        };
+        msgs.push(msg);
+    }
+    Ok(Response::new()
+        .add_attributes(vec![("action", "alliance_redelegate")])
         .add_messages(msgs))
 }
 
