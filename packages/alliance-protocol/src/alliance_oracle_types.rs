@@ -1,4 +1,4 @@
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Timestamp, Decimal, Addr, StdError};
 
 #[cw_serde]
@@ -121,11 +121,16 @@ pub struct LunaAlliance {
 }
 
 #[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
-    Config,
-    ChainsInfo,
-    LunaInfo,
-    ChainInfo { chain_id: ChainId },
+    #[returns(Config)]
+    QueryConfig,
+    #[returns(ChainsInfo)]
+    QueryChainsInfo,
+    #[returns(LunaInfo)]
+    QueryLunaInfo,
+    #[returns(Vec<(ChainId, ChainInfo)>)]
+    QueryChainInfo { chain_id: ChainId },
 }
 
 #[cw_serde]

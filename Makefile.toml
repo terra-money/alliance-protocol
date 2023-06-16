@@ -18,12 +18,17 @@ args = ["clippy", "--tests", "--", "-D", "warnings"]
 
 [tasks.build]
 command = "cargo"
-args = [
-  "build",
-  "--release",
-  "--locked",
-  "--target", "wasm32-unknown-unknown",
-]
+args = ["build", "--release", "--locked", "--target", "wasm32-unknown-unknown"]
+
+[tasks.schema]
+script = """
+for d in contracts/alliance-oracle; do
+  if [ -d "$d" ]; then
+    cd $d
+    cargo schema
+  fi
+done
+"""
 
 [tasks.optimize]
 script = """

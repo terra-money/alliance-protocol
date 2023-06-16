@@ -15,7 +15,7 @@ pub fn setup_contract() ->  OwnedDeps<MockStorage, MockApi, MockQuerier, Empty> 
     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(0, res.messages.len());
 
-    let cfg = query(deps.as_ref(), mock_env(), QueryMsg::Config).unwrap();
+    let cfg = query(deps.as_ref(), mock_env(), QueryMsg::QueryConfig).unwrap();
 
     let cfg: Config = from_binary(&cfg).unwrap();
     assert_eq!("controller_addr", cfg.controller_addr);

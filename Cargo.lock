@@ -14,6 +14,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "alliance-hub"
+version = "0.1.0"
+dependencies = [
+ "alliance-protocol",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-asset",
+ "cw-storage-plus 1.1.0",
+ "cw-utils 1.0.1",
+ "cw2 1.0.1",
+ "schemars",
+ "serde",
+ "terra-proto-rs",
+ "thiserror",
+]
+
+[[package]]
 name = "alliance-oracle"
 version = "0.1.0"
 dependencies = [
@@ -302,6 +320,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-utils"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c80e93d1deccb8588db03945016a292c3c631e6325d349ebb35d2db6f4f946f7"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw2 1.0.1",
+ "schemars",
+ "semver",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "cw1155"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -309,7 +342,7 @@ checksum = "4be0ebb4d95abc0e3f8ea00fbcf10afec5416b0aa1122c703de69850296897c5"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-utils",
+ "cw-utils 0.16.0",
  "schemars",
  "serde",
 ]
@@ -348,7 +381,7 @@ checksum = "a45a8794a5dd33b66af34caee52a7beceb690856adcc1682b6e3db88b2cdee62"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-utils",
+ "cw-utils 0.16.0",
  "schemars",
  "serde",
 ]

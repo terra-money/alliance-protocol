@@ -83,10 +83,10 @@ fn update_chains_info(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config => to_binary(&CONFIG.load(deps.storage)?),
-        QueryMsg::LunaInfo => get_luna_info(deps,env),
-        QueryMsg::ChainInfo { chain_id } => get_chain_info(deps, env, chain_id),
-        QueryMsg::ChainsInfo => get_chains_info(deps, env),
+        QueryMsg::QueryConfig => to_binary(&CONFIG.load(deps.storage)?),
+        QueryMsg::QueryLunaInfo => get_luna_info(deps,env),
+        QueryMsg::QueryChainInfo { chain_id } => get_chain_info(deps, env, chain_id),
+        QueryMsg::QueryChainsInfo => get_chains_info(deps, env),
     }
 }
 

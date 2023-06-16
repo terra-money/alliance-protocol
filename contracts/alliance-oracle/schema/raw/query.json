@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "string",
+      "enum": [
+        "query_config",
+        "query_chains_info",
+        "query_luna_info"
+      ]
+    },
+    {
+      "type": "object",
+      "required": [
+        "query_chain_info"
+      ],
+      "properties": {
+        "query_chain_info": {
+          "type": "object",
+          "required": [
+            "chain_id"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

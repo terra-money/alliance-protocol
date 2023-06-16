@@ -25,6 +25,11 @@ Lint the code
 $ cargo make lint
 ```
 
+Generate json Schemas for each smart contract
+```sh
+$ cargo make schema
+```
+
 Build the code
 ```sh
 $ cargo make build

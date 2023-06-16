@@ -57,6 +57,7 @@ const init = async () => {
             {
                 "controller_addr": accAddress,
                 "governance_addr": accAddress,
+                "data_expiry_seconds": 600,
             },
             new Coins(),
             "Create an oracle contract"
