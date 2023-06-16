@@ -1,10 +1,13 @@
-use alliance_protocol::alliance_oracle_types::{InstantiateMsg, QueryMsg, Config};
-use cosmwasm_std::{testing::{mock_dependencies, mock_info, mock_env, MockStorage, MockApi, MockQuerier}, from_binary, OwnedDeps, Empty};
+use alliance_protocol::alliance_oracle_types::{Config, InstantiateMsg, QueryMsg};
+use cosmwasm_std::{
+    from_binary,
+    testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
+    Empty, OwnedDeps,
+};
 
 use crate::contract::{instantiate, query};
 
-
-pub fn setup_contract() ->  OwnedDeps<MockStorage, MockApi, MockQuerier, Empty> {
+pub fn setup_contract() -> OwnedDeps<MockStorage, MockApi, MockQuerier, Empty> {
     let mut deps = mock_dependencies();
     let msg = InstantiateMsg {
         data_expiry_seconds: 60,

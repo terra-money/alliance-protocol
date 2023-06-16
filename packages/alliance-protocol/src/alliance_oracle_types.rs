@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Timestamp, Decimal, Addr, StdError};
+use cosmwasm_std::{Addr, Decimal, StdError, Timestamp};
 
 #[cw_serde]
 pub struct Config {
@@ -32,11 +32,10 @@ pub enum ExecuteMsg {
     UpdateChainsInfo { chains_info: ChainsInfo },
 }
 
-
 #[cw_serde]
 pub struct ChainsInfo {
     pub luna_price: Decimal,
-    pub protocols_info : Vec<ChainInfoMsg>
+    pub protocols_info: Vec<ChainInfoMsg>,
 }
 
 impl ChainsInfo {
@@ -87,14 +86,19 @@ impl Expire for ChainInfo {
 pub trait Expire {
     fn get_update_timestamp(&self) -> Timestamp;
 
-    fn is_expired(&self, data_expiry_seconds: u64, current_blocktime: Timestamp ) -> Result<(), StdError> {
-        let data_expiry_time = self.get_update_timestamp().plus_seconds(data_expiry_seconds);
+    fn is_expired(
+        &self,
+        data_expiry_seconds: u64,
+        current_blocktime: Timestamp,
+    ) -> Result<(), StdError> {
+        let data_expiry_time = self
+            .get_update_timestamp()
+            .plus_seconds(data_expiry_seconds);
 
         if data_expiry_time < current_blocktime {
             let string_error = format!(
                 "Data expired, current_blocktime: {}, data_expiry_time: {}",
-                current_blocktime, 
-                data_expiry_time,
+                current_blocktime, data_expiry_time,
             );
 
             return Err(StdError::generic_err(string_error));

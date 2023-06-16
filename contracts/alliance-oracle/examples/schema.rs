@@ -1,6 +1,5 @@
-use alliance_protocol::alliance_oracle_types::{InstantiateMsg, ExecuteMsg, QueryMsg};
+use alliance_protocol::alliance_oracle_types::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_schema::write_api;
-
 
 fn main() {
     write_api! {

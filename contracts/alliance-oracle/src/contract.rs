@@ -1,8 +1,7 @@
 use std::env;
 
 use alliance_protocol::alliance_oracle_types::{
-    ChainId, ChainInfo, ChainsInfo, Config, ExecuteMsg, InstantiateMsg, QueryMsg,
-    Expire
+    ChainId, ChainInfo, ChainsInfo, Config, ExecuteMsg, Expire, InstantiateMsg, QueryMsg,
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -84,16 +83,16 @@ fn update_chains_info(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::QueryConfig => to_binary(&CONFIG.load(deps.storage)?),
-        QueryMsg::QueryLunaInfo => get_luna_info(deps,env),
+        QueryMsg::QueryLunaInfo => get_luna_info(deps, env),
         QueryMsg::QueryChainInfo { chain_id } => get_chain_info(deps, env, chain_id),
         QueryMsg::QueryChainsInfo => get_chains_info(deps, env),
     }
 }
 
-pub fn get_luna_info(deps: Deps, env: Env) -> StdResult<Binary>{
+pub fn get_luna_info(deps: Deps, env: Env) -> StdResult<Binary> {
     let luna_info = &LUNA_INFO.load(deps.storage)?;
     let cfg = CONFIG.load(deps.storage)?;
-    
+
     luna_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
 
     to_binary(luna_info)

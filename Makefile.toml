@@ -8,6 +8,10 @@ skip_core_tasks = true
 command = "cargo"
 args = ["fmt", "--all", "--check"]
 
+[tasks.fmt-apply]
+command = "cargo"
+args = ["fmt"]
+
 [tasks.test]
 command = "cargo"
 args = ["test", "--locked"]
