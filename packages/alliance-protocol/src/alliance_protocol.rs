@@ -56,7 +56,7 @@ pub struct AllianceRedelegateMsg {
 #[cw_serde]
 pub enum QueryMsg {
     Config,
-    WhitelistedCoins,
+    WhitelistedAssets,
     RewardDistribution,
     StakedBalance(AssetQuery),
     PendingRewards(AssetQuery),
