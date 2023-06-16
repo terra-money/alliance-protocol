@@ -1,3 +1,4 @@
+mod alliance;
 mod assets;
 mod helpers;
 mod instantiate;

@@ -27,6 +27,7 @@ dependencies = [
  "cw2 1.0.1",
  "schemars",
  "serde",
+ "terra-proto-rs",
  "thiserror",
 ]
 

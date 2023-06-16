@@ -1,8 +1,10 @@
 use crate::contract::{execute, instantiate};
 use crate::token_factory::CustomExecuteMsg;
-use alliance_protocol::alliance_protocol::{ExecuteMsg, InstantiateMsg};
+use alliance_protocol::alliance_protocol::{
+    AllianceDelegateMsg, AllianceDelegation, ExecuteMsg, InstantiateMsg,
+};
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{coin, DepsMut, Response};
+use cosmwasm_std::{coin, DepsMut, Response, Uint128};
 use cw_asset::{Asset, AssetInfo};
 
 pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
@@ -43,5 +45,19 @@ pub fn unstake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response
     let info = mock_info(user, &vec![]);
     let env = mock_env();
     let msg = ExecuteMsg::Unstake(Asset::native(denom, amount));
+    execute(deps, env, info, msg).unwrap()
+}
+
+pub fn alliance_delegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Response {
+    let info = mock_info("controller", &vec![]);
+    let env = mock_env();
+    let delegations: Vec<AllianceDelegation> = delegations
+        .iter()
+        .map(|(addr, amount)| AllianceDelegation {
+            validator: addr.to_string(),
+            amount: Uint128::new(amount.clone()),
+        })
+        .collect();
+    let msg = ExecuteMsg::AllianceDelegate(AllianceDelegateMsg { delegations });
     execute(deps, env, info, msg).unwrap()
 }
