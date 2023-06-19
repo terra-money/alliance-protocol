@@ -56,16 +56,13 @@ pub struct ChainInfoMsg {
 }
 
 impl ChainInfoMsg {
-    pub fn to_chain_info(&self, update_timestamp: Timestamp) -> (ChainId, ChainInfo) {
-        (
-            self.chain_id.clone(),
-            ChainInfo {
-                chain_id: self.chain_id.clone(),
-                native_token: self.native_token.clone(),
-                luna_alliances: self.luna_alliances.clone(),
-                update_timestamp,
-            },
-        )
+    pub fn to_chain_info(&self, update_timestamp: Timestamp) -> ChainInfo {
+        ChainInfo {
+            chain_id: self.chain_id.clone(),
+            native_token: self.native_token.clone(),
+            luna_alliances: self.luna_alliances.clone(),
+            update_timestamp,
+        }
     }
 }
 
@@ -128,13 +125,13 @@ pub struct LunaAlliance {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(Config)]
-    QueryConfig{},
+    QueryConfig {},
     #[returns(LunaInfo)]
-    QueryLunaInfo{},
+    QueryLunaInfo {},
     #[returns(ChainInfo)]
     QueryChainInfo { chain_id: ChainId },
     #[returns(Vec<ChainInfo>)]
-    QueryChainsInfo{},
+    QueryChainsInfo {},
 }
 
 #[cw_serde]

@@ -6,7 +6,7 @@ use alliance_protocol::alliance_oracle_types::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
+    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 use cw2::set_contract_version;
 
@@ -67,14 +67,17 @@ fn update_chains_info(
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     utils::authorize_execution(config, info.sender)?;
+    let mut parsed_chains_info: Vec<ChainInfo> = vec![];
 
     for chain_info in &chains_info.protocols_info {
-        let (chain_id, chain_info) = chain_info.to_chain_info(env.block.time);
-        CHAINS_INFO.save(deps.storage, chain_id, &chain_info)?;
+        let chain_info = chain_info.to_chain_info(env.block.time);
+        
+        parsed_chains_info.push(chain_info);
     }
 
     let luna_info = chains_info.to_luna_info(env.block.time);
     LUNA_INFO.save(deps.storage, &luna_info)?;
+    CHAINS_INFO.save(deps.storage,&parsed_chains_info)?;
 
     Ok(Response::new().add_attribute("action", "update_chains_info"))
 }
@@ -105,33 +108,27 @@ pub fn get_luna_info(deps: Deps, env: Env) -> StdResult<Binary> {
 }
 
 pub fn get_chain_info(deps: Deps, env: Env, chain_id: ChainId) -> StdResult<Binary> {
-    match CHAINS_INFO.load(deps.storage, chain_id.clone()) {
-        Ok(chain_info) => {
-            let cfg = CONFIG.load(deps.storage)?;
+    let chains_info = CHAINS_INFO.load(deps.storage)?;
+    let cfg = CONFIG.load(deps.storage)?;
+
+    for chain_info in &chains_info {
+        if chain_info.chain_id == chain_id {
             chain_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
-
-            to_binary(&chain_info)
-        }
-        Err(_) => {
-            let string_error = format!("Chain is not available by id: {:?}", chain_id);
-
-            return Err(StdError::generic_err(string_error));
+            return to_binary(&chain_info);
         }
     }
+
+    let string_error = format!("Chain not available by id: {:?}", chain_id);
+    return Err(StdError::generic_err(string_error));
 }
 
 pub fn get_chains_info(deps: Deps, env: Env) -> StdResult<Binary> {
-    let items = CHAINS_INFO
-        .range(deps.storage, None, None, Order::Ascending)
-        .map(|item| {
-            let (_, chain_info) = item?;
-            let cfg = CONFIG.load(deps.storage)?;
+    let chains_info = CHAINS_INFO.load(deps.storage)?;
 
-            chain_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
+    for chain_info in &chains_info {
+        let cfg = CONFIG.load(deps.storage)?;
+        chain_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
+    }
 
-            Ok(chain_info)
-        })
-        .collect::<StdResult<Vec<ChainInfo>>>()?;
-
-    to_binary(&items)
+    to_binary(&chains_info)
 }

@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    #"contracts/alliance-hub",
+    "contracts/alliance-hub",
     "contracts/alliance-oracle",
     "packages/alliance-protocol",
 ]
