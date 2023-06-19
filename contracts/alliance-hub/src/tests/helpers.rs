@@ -1,12 +1,15 @@
 use crate::contract::{execute, instantiate};
+use crate::state::{Config, CONFIG};
 use crate::token_factory::CustomExecuteMsg;
 use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg, AllianceRedelegation,
     AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg,
 };
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{coin, DepsMut, Response, Uint128};
+use cosmwasm_std::{coin, DepsMut, Response, StdResult, Uint128};
 use cw_asset::{Asset, AssetInfo};
+
+pub const DENOM: &str = "token_factory/token";
 
 pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
     let info = mock_info("admin", &vec![]);
@@ -15,8 +18,21 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
     let init_msg = InstantiateMsg {
         governance_address: "gov".to_string(),
         controller_address: "controller".to_string(),
+        reward_denom: "uluna".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()
+}
+
+pub fn set_alliance_asset(deps: DepsMut) {
+    CONFIG
+        .update(deps.storage, |c| -> StdResult<_> {
+            Ok(Config {
+                alliance_token_denom: DENOM.to_string(),
+                alliance_token_supply: Uint128::new(1000000000000),
+                ..c
+            })
+        })
+        .unwrap();
 }
 
 pub fn whitelist_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {

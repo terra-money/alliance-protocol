@@ -1,6 +1,6 @@
 use crate::contract::execute;
 use crate::error::ContractError;
-use crate::state::{Config, CONFIG};
+use crate::state::{Config, CONFIG, TOTAL_BALANCES, VALIDATORS};
 use crate::tests::helpers::{
     alliance_delegate, alliance_redelegate, alliance_undelegate, setup_contract,
 };
@@ -8,7 +8,9 @@ use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg, ExecuteMsg,
 };
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::{Binary, CosmosMsg, StdResult, SubMsg, Uint128};
+use cosmwasm_std::{Addr, Binary, CosmosMsg, StdResult, SubMsg, Uint128};
+use cw_asset::{AssetInfo, AssetInfoKey};
+use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::{MsgDelegate, MsgRedelegate};
 use terra_proto_rs::cosmos::base::v1beta1::Coin;
 use terra_proto_rs::traits::Message;
@@ -64,6 +66,12 @@ fn test_alliance_delegate() {
                 value: Binary::from(delegate_msg_2.encode_to_vec()),
             }),
         ]
+    );
+
+    let validators = VALIDATORS.load(deps.as_ref().storage).unwrap();
+    assert_eq!(
+        validators,
+        HashSet::from([Addr::unchecked("validator1"), Addr::unchecked("validator2")])
     );
 }
 
@@ -273,5 +281,10 @@ fn test_alliance_redelegate() {
                 ),
             }),
         ]
+    );
+    let validators = VALIDATORS.load(deps.as_ref().storage).unwrap();
+    assert_eq!(
+        validators,
+        HashSet::from([Addr::unchecked("validator2"), Addr::unchecked("validator3")])
     );
 }

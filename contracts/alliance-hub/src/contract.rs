@@ -1,24 +1,34 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+use std::borrow::Borrow;
+
 use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg,
     QueryMsg,
 };
-#[cfg(not(feature = "library"))]
-use cosmwasm_std::entry_point;
 use cosmwasm_std::CosmosMsg::Custom;
 use cosmwasm_std::{
-    coin, to_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response,
-    StdError, StdResult, SubMsg, Timestamp, Uint128,
+    coin, to_binary, Binary, Coin as CwCoin, CosmosMsg, Decimal, Deps, DepsMut, Empty, Env,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
+use std::collections::HashSet;
 
-use terra_proto_rs::alliance::alliance::{MsgDelegate, MsgRedelegate, MsgUndelegate, Redelegation};
+use terra_proto_rs::alliance::alliance::{
+    MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate, Redelegation,
+};
 use terra_proto_rs::cosmos::base::v1beta1::Coin;
+use terra_proto_rs::cosmos::distribution::v1beta1::MsgWithdrawDelegatorReward;
 use terra_proto_rs::traits::Message;
 
 use crate::error::ContractError;
-use crate::state::{Config, BALANCES, CONFIG, WHITELIST};
+use crate::error::ContractError::DecimalRangeExceeded;
+use crate::state::{
+    Config, ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
+    TOTAL_BALANCES, VALIDATORS, WHITELIST,
+};
 use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg};
 
 // version info for migration info
@@ -35,8 +45,8 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response<CustomExecuteMsg>, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let governance_address = deps.api.addr_validate(&msg.governance_address)?;
-    let controller_address = deps.api.addr_validate(&msg.controller_address)?;
+    let governance_address = deps.api.addr_validate(msg.governance_address.as_str())?;
+    let controller_address = deps.api.addr_validate(msg.controller_address.as_str())?;
     let denom = "ualliance";
     let symbol = "ALLIANCE";
     let create_msg = TokenExecuteMsg::CreateDenom {
@@ -64,8 +74,11 @@ pub fn instantiate(
         alliance_token_denom: "".to_string(),
         alliance_token_supply: Uint128::zero(),
         last_reward_update_timestamp: Timestamp::default(),
+        reward_denom: msg.reward_denom,
     };
     CONFIG.save(deps.storage, &config)?;
+
+    VALIDATORS.save(deps.storage, &HashSet::new())?;
     Ok(Response::new()
         .add_attributes(vec![("action", "instantiate")])
         .add_submessage(sub_msg))
@@ -86,11 +99,13 @@ pub fn execute(
         ExecuteMsg::Unstake(asset) => unstake(deps, env, info, asset),
         ExecuteMsg::ClaimRewards(_) => Ok(Response::new()),
 
-        ExecuteMsg::UpdateRewards => Ok(Response::new()),
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
+        ExecuteMsg::UpdateRewards => update_rewards(deps, env, info),
         ExecuteMsg::RebalanceEmissions => Ok(Response::new()),
+
+        ExecuteMsg::UpdateRewardsCallback => Ok(Response::new()),
     }
 }
 
@@ -169,6 +184,14 @@ fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Contrac
             }
         },
     )?;
+    TOTAL_BALANCES.update(
+        deps.storage,
+        asset_key.clone(),
+        |balance| -> Result<_, ContractError> {
+            Ok(balance.unwrap_or(Uint128::zero()) + info.funds[0].amount)
+        },
+    )?;
+
     Ok(Response::new().add_attributes(vec![
         ("action", "stake"),
         ("user", &info.sender.to_string()),
@@ -206,6 +229,18 @@ fn unstake(
             }
         },
     )?;
+    TOTAL_BALANCES.update(
+        deps.storage,
+        asset_key.clone(),
+        |balance| -> Result<_, ContractError> {
+            let balance = balance.unwrap_or(Uint128::zero());
+            if balance < asset.amount {
+                return Err(ContractError::InsufficientBalance {});
+            }
+            Ok(balance - asset.amount)
+        },
+    )?;
+
     let msg = asset.transfer_msg(&info.sender)?;
 
     Ok(Response::new()
@@ -231,21 +266,25 @@ fn alliance_delegate(
     if msg.delegations.is_empty() {
         return Err(ContractError::EmptyDelegation {});
     }
+    let mut validators = VALIDATORS.load(deps.storage)?;
     let mut msgs: Vec<CosmosMsg<Empty>> = vec![];
     for delegation in msg.delegations {
+        let validator = deps.api.addr_validate(&delegation.validator)?;
         let delegate_msg = MsgDelegate {
             amount: Some(Coin {
                 denom: config.alliance_token_denom.clone(),
                 amount: delegation.amount.to_string(),
             }),
             delegator_address: env.contract.address.to_string(),
-            validator_address: delegation.validator.to_string(),
+            validator_address: validator.to_string(),
         };
         msgs.push(CosmosMsg::Stargate {
             type_url: "/alliance.alliance.MsgDelegate".to_string(),
             value: Binary::from(delegate_msg.encode_to_vec()),
         });
+        validators.insert(validator);
     }
+    VALIDATORS.save(deps.storage, &validators)?;
     Ok(Response::new()
         .add_attributes(vec![("action", "alliance_delegate")])
         .add_messages(msgs))
@@ -299,37 +338,114 @@ fn alliance_redelegate(
         return Err(ContractError::EmptyDelegation {});
     }
     let mut msgs = vec![];
+    let mut validators = VALIDATORS.load(deps.storage)?;
     for redelegation in msg.redelegations {
+        let src_validator = deps.api.addr_validate(&redelegation.src_validator)?;
+        let dst_validator = deps.api.addr_validate(&redelegation.dst_validator)?;
         let redelegate_msg = MsgRedelegate {
             amount: Some(Coin {
                 denom: config.alliance_token_denom.clone(),
                 amount: redelegation.amount.to_string(),
             }),
             delegator_address: env.contract.address.to_string(),
-            validator_src_address: redelegation.src_validator.to_string(),
-            validator_dst_address: redelegation.dst_validator.to_string(),
+            validator_src_address: src_validator.to_string(),
+            validator_dst_address: dst_validator.to_string(),
         };
         let msg = CosmosMsg::Stargate {
             type_url: "/alliance.alliance.MsgRedelegate".to_string(),
             value: Binary::from(redelegate_msg.encode_to_vec()),
         };
         msgs.push(msg);
+        validators.insert(dst_validator);
     }
+    VALIDATORS.save(deps.storage, &validators)?;
     Ok(Response::new()
         .add_attributes(vec![("action", "alliance_redelegate")])
         .add_messages(msgs))
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::Config => {}
-        QueryMsg::WhitelistedAssets => {}
-        QueryMsg::RewardDistribution => {}
-        QueryMsg::StakedBalance(_) => {}
-        QueryMsg::PendingRewards(_) => {}
+fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+
+    let reward_sent_in_tx: Option<&CwCoin> =
+        info.funds.iter().find(|c| c.denom == config.reward_denom);
+    let sent_balance = if let Some(coin) = reward_sent_in_tx {
+        coin.amount
+    } else {
+        Uint128::zero()
+    };
+    let reward_asset = AssetInfo::native(config.reward_denom.clone());
+    let contract_balance =
+        reward_asset.query_balance(&deps.querier, env.contract.address.clone())?;
+
+    // Contract balance is guaranteed to be greater than sent balance
+    TEMP_BALANCE.save(deps.storage, &(contract_balance - sent_balance))?;
+    let validators = VALIDATORS.load(deps.storage)?;
+    let sub_msgs: Vec<SubMsg> = validators
+        .iter()
+        .map(|v| {
+            let msg = MsgClaimDelegationRewards {
+                delegator_address: env.contract.address.to_string(),
+                validator_address: v.to_string(),
+                denom: config.alliance_token_denom.clone(),
+            };
+            let msg = CosmosMsg::Stargate {
+                type_url: "/alliance.alliance.MsgWithdrawDelegatorReward".to_string(),
+                value: Binary::from(msg.encode_to_vec()),
+            };
+            SubMsg::new(msg)
+        })
+        .collect();
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.contract.address.to_string(),
+        msg: to_binary(&ExecuteMsg::UpdateRewardsCallback).unwrap(),
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_attributes(vec![("action", "update_rewards")])
+        .add_submessages(sub_msgs)
+        .add_message(msg))
+}
+
+fn update_reward_callback(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    if info.sender != env.contract.address {
+        return Err(ContractError::Unauthorized {});
     }
-    Ok(Binary::default())
+    let config = CONFIG.load(deps.storage)?;
+    let reward_asset = AssetInfo::native(config.reward_denom.clone());
+    let current_balance =
+        reward_asset.query_balance(&deps.querier, env.contract.address.clone())?;
+    let previous_balance = TEMP_BALANCE.load(deps.storage)?;
+    let rewards_collected = current_balance - previous_balance;
+
+    let asset_reward_distribution = ASSET_REWARD_DISTRIBUTION.load(deps.storage)?;
+    let total_distribution = asset_reward_distribution
+        .iter()
+        .map(|a| a.distribution)
+        .fold(Decimal::zero(), |acc, v| acc + v);
+
+    for asset_distribution in asset_reward_distribution {
+        let asset_key = AssetInfoKey::from(asset_distribution.asset);
+        let total_reward_distributed = Decimal::from_atomics(rewards_collected, 0)?
+            * asset_distribution.distribution
+            / total_distribution;
+        let total_balance = TOTAL_BALANCES.load(deps.storage, asset_key.clone())?;
+
+        let rate_to_update = total_reward_distributed / Decimal::from_atomics(total_balance, 0)?;
+        if rate_to_update > Decimal::zero() {
+            ASSET_REWARD_RATE.update(deps.storage, asset_key.clone(), |rate| -> StdResult<_> {
+                Ok(rate.unwrap_or(Decimal::zero()) + rate_to_update)
+            })?;
+        }
+    }
+    TEMP_BALANCE.remove(deps.storage);
+
+    Ok(Response::new().add_attributes(vec![("action", "update_rewards")]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
