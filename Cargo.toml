@@ -30,12 +30,12 @@ incremental = false
 overflow-checks = false
 
 [workspace.dependencies]
-cosmwasm-std = "1.1.10"
-cosmwasm-storage = "1.1.10"
-cosmwasm-schema = "1.1.10"
-cw-storage-plus = "1.1.0"
+cosmwasm-std = "1.1.3"
+cosmwasm-storage = "1.1.3"
+cosmwasm-schema = "1.1.3"
+cw-storage-plus = "1.0.1"
 cw-asset = "2.4.0"
-schemars = "0.8.12"
+schemars = "0.8.11"
 serde = { version = "1.0.152", default-features = false, features = ["derive"] }
 terra-proto-rs = { version = "3.0.1", default-features = false}
 thiserror = { version = "1.0.38" }
