@@ -4,8 +4,10 @@ use cw_asset::{Asset, AssetInfo};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub governance_address: String,
-    pub controller_address: String,
+    pub governance: String,
+    pub controller: String,
+    pub oracle: String,
+    pub reward_denom: String,
 }
 
 #[cw_serde]
@@ -19,6 +21,7 @@ pub enum ExecuteMsg {
     WhitelistAssets(Vec<AssetInfo>),
     RemoveAssets(Vec<AssetInfo>),
     UpdateRewards,
+    UpdateRewardsCallback,
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),

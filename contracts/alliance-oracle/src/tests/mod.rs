@@ -50,13 +50,10 @@ fn test_update_oracle_data() {
 
     // Query the chains info to validate the data was stored correctly in the contract
     let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryChainsInfo{}).unwrap();
-    let res: Vec<(ChainId, ChainInfo)> = from_binary(&res).unwrap();
+    let res: Vec<ChainInfo> = from_binary(&res).unwrap();
     assert_eq!(1, res.len());
 
-    let key = res[0].0.clone();
-    assert_eq!("chain-1", key);
-
-    let chain_info = res[0].1.clone();
+    let chain_info = res[0].clone();
     assert_eq!(
         NativeToken {
             denom: "udenom".to_string(),

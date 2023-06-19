@@ -1,6 +1,6 @@
 use crate::contract::execute;
 use crate::error::ContractError;
-use crate::state::BALANCES;
+use crate::state::{BALANCES, TOTAL_BALANCES};
 use crate::tests::helpers::{setup_contract, stake, unstake, whitelist_assets};
 use alliance_protocol::alliance_protocol::ExecuteMsg;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -56,6 +56,14 @@ fn test_stake() {
         )
         .unwrap();
     assert_eq!(balance, Uint128::new(200));
+
+    let total_balance = TOTAL_BALANCES
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("asset1".to_string())),
+        )
+        .unwrap();
+    assert_eq!(total_balance, Uint128::new(200));
 }
 
 #[test]
@@ -150,6 +158,14 @@ fn test_unstake() {
         )
         .unwrap();
     assert_eq!(balance, Uint128::new(0));
+
+    let total_balance = TOTAL_BALANCES
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("asset1".to_string())),
+        )
+        .unwrap();
+    assert_eq!(total_balance, Uint128::new(0));
 }
 
 #[test]
