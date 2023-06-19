@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "controller_addr",
+    "data_expiry_seconds",
+    "governance_addr"
+  ],
+  "properties": {
+    "controller_addr": {
+      "type": "string"
+    },
+    "data_expiry_seconds": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "governance_addr": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

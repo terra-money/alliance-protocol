@@ -36,6 +36,7 @@ use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMs
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-protocol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
+const CLAIM_REWARD_REPLY_ID: u64 = 2;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(

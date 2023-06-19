@@ -1,0 +1,466 @@
+{
+  "contract_name": "alliance-oracle",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "controller_addr",
+      "data_expiry_seconds",
+      "governance_addr"
+    ],
+    "properties": {
+      "controller_addr": {
+        "type": "string"
+      },
+      "data_expiry_seconds": {
+        "type": "integer",
+        "format": "uint64",
+        "minimum": 0.0
+      },
+      "governance_addr": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "update_chains_info"
+        ],
+        "properties": {
+          "update_chains_info": {
+            "type": "object",
+            "required": [
+              "chains_info"
+            ],
+            "properties": {
+              "chains_info": {
+                "$ref": "#/definitions/ChainsInfo"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "ChainInfoMsg": {
+        "type": "object",
+        "required": [
+          "chain_id",
+          "luna_alliances",
+          "native_token"
+        ],
+        "properties": {
+          "chain_id": {
+            "type": "string"
+          },
+          "luna_alliances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/LunaAlliance"
+            }
+          },
+          "native_token": {
+            "$ref": "#/definitions/NativeToken"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChainsInfo": {
+        "type": "object",
+        "required": [
+          "luna_price",
+          "protocols_info"
+        ],
+        "properties": {
+          "luna_price": {
+            "$ref": "#/definitions/Decimal"
+          },
+          "protocols_info": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/ChainInfoMsg"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      },
+      "LunaAlliance": {
+        "type": "object",
+        "required": [
+          "annual_take_rate",
+          "ibc_denom",
+          "normalized_reward_weight",
+          "rebase_factor",
+          "total_lsd_staked"
+        ],
+        "properties": {
+          "annual_take_rate": {
+            "$ref": "#/definitions/Decimal"
+          },
+          "ibc_denom": {
+            "type": "string"
+          },
+          "normalized_reward_weight": {
+            "$ref": "#/definitions/Decimal"
+          },
+          "rebase_factor": {
+            "$ref": "#/definitions/Decimal"
+          },
+          "total_lsd_staked": {
+            "$ref": "#/definitions/Decimal"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NativeToken": {
+        "type": "object",
+        "required": [
+          "annual_inflation",
+          "denom",
+          "token_price"
+        ],
+        "properties": {
+          "annual_inflation": {
+            "$ref": "#/definitions/Decimal"
+          },
+          "denom": {
+            "type": "string"
+          },
+          "token_price": {
+            "$ref": "#/definitions/Decimal"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "string",
+        "enum": [
+          "query_config",
+          "query_chains_info",
+          "query_luna_info"
+        ]
+      },
+      {
+        "type": "object",
+        "required": [
+          "query_chain_info"
+        ],
+        "properties": {
+          "query_chain_info": {
+            "type": "object",
+            "required": [
+              "chain_id"
+            ],
+            "properties": {
+              "chain_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": null,
+  "sudo": null,
+  "responses": {
+    "query_chain_info": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Array_of_Tuple_of_String_and_ChainInfo",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/ChainInfo"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
+      },
+      "definitions": {
+        "ChainInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "luna_alliances",
+            "native_token",
+            "update_timestamp"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "luna_alliances": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/LunaAlliance"
+              }
+            },
+            "native_token": {
+              "$ref": "#/definitions/NativeToken"
+            },
+            "update_timestamp": {
+              "$ref": "#/definitions/Timestamp"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "LunaAlliance": {
+          "type": "object",
+          "required": [
+            "annual_take_rate",
+            "ibc_denom",
+            "normalized_reward_weight",
+            "rebase_factor",
+            "total_lsd_staked"
+          ],
+          "properties": {
+            "annual_take_rate": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "ibc_denom": {
+              "type": "string"
+            },
+            "normalized_reward_weight": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "rebase_factor": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "total_lsd_staked": {
+              "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NativeToken": {
+          "type": "object",
+          "required": [
+            "annual_inflation",
+            "denom",
+            "token_price"
+          ],
+          "properties": {
+            "annual_inflation": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "denom": {
+              "type": "string"
+            },
+            "token_price": {
+              "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "query_chains_info": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChainsInfo",
+      "type": "object",
+      "required": [
+        "luna_price",
+        "protocols_info"
+      ],
+      "properties": {
+        "luna_price": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "protocols_info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ChainInfoMsg"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "ChainInfoMsg": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "luna_alliances",
+            "native_token"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "luna_alliances": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/LunaAlliance"
+              }
+            },
+            "native_token": {
+              "$ref": "#/definitions/NativeToken"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "LunaAlliance": {
+          "type": "object",
+          "required": [
+            "annual_take_rate",
+            "ibc_denom",
+            "normalized_reward_weight",
+            "rebase_factor",
+            "total_lsd_staked"
+          ],
+          "properties": {
+            "annual_take_rate": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "ibc_denom": {
+              "type": "string"
+            },
+            "normalized_reward_weight": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "rebase_factor": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "total_lsd_staked": {
+              "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NativeToken": {
+          "type": "object",
+          "required": [
+            "annual_inflation",
+            "denom",
+            "token_price"
+          ],
+          "properties": {
+            "annual_inflation": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "denom": {
+              "type": "string"
+            },
+            "token_price": {
+              "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "query_config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Config",
+      "type": "object",
+      "required": [
+        "controller_addr",
+        "data_expiry_seconds",
+        "governance_addr"
+      ],
+      "properties": {
+        "controller_addr": {
+          "$ref": "#/definitions/Addr"
+        },
+        "data_expiry_seconds": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "governance_addr": {
+          "$ref": "#/definitions/Addr"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        }
+      }
+    },
+    "query_luna_info": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LunaInfo",
+      "type": "object",
+      "required": [
+        "luna_price",
+        "update_timestamp"
+      ],
+      "properties": {
+        "luna_price": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "update_timestamp": {
+          "$ref": "#/definitions/Timestamp"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    }
+  }
+}
