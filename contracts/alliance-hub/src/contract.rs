@@ -8,8 +8,9 @@ use alliance_protocol::alliance_protocol::{
 };
 use cosmwasm_std::CosmosMsg::Custom;
 use cosmwasm_std::{
-    coin, to_binary, Binary, Coin as CwCoin, CosmosMsg, Decimal, Deps, DepsMut, Empty, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
+    coin, to_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, Deps, DepsMut, Empty, Env,
+    MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128,
+    WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
@@ -27,7 +28,7 @@ use crate::error::ContractError;
 use crate::error::ContractError::DecimalRangeExceeded;
 use crate::state::{
     Config, ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
-    TOTAL_BALANCES, VALIDATORS, WHITELIST,
+    TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
 use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg};
 
@@ -97,7 +98,7 @@ pub fn execute(
 
         ExecuteMsg::Stake => stake(deps, env, info),
         ExecuteMsg::Unstake(asset) => unstake(deps, env, info, asset),
-        ExecuteMsg::ClaimRewards(_) => Ok(Response::new()),
+        ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, env, info, asset),
 
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
@@ -176,7 +177,7 @@ fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Contrac
     // TODO: Before updating the balance, we need to calculate of amount of rewards accured for this user
     BALANCES.update(
         deps.storage,
-        (sender, asset_key.clone()),
+        (sender.clone(), asset_key.clone()),
         |balance| -> Result<_, ContractError> {
             match balance {
                 Some(balance) => Ok(balance + info.funds[0].amount),
@@ -190,6 +191,15 @@ fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Contrac
         |balance| -> Result<_, ContractError> {
             Ok(balance.unwrap_or(Uint128::zero()) + info.funds[0].amount)
         },
+    )?;
+
+    let asset_reward_rate = ASSET_REWARD_RATE
+        .load(deps.storage, asset_key.clone())
+        .unwrap_or(Decimal::zero());
+    USER_ASSET_REWARD_RATE.save(
+        deps.storage,
+        (sender.clone(), asset_key.clone()),
+        &asset_reward_rate,
     )?;
 
     Ok(Response::new().add_attributes(vec![
@@ -251,6 +261,56 @@ fn unstake(
             ("amount", &asset.amount.to_string()),
         ])
         .add_message(msg))
+}
+
+fn claim_rewards(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    asset: AssetInfo,
+) -> Result<Response, ContractError> {
+    let user = info.sender.clone();
+    let config = CONFIG.load(deps.storage)?;
+    let rewards = _claim_reward(deps.storage, user.clone(), asset.clone())?;
+    let response = Response::new().add_attributes(vec![
+        ("action", "claim_rewards"),
+        ("user", &user.to_string()),
+        ("asset", &asset.to_string()),
+        ("reward_amount", &rewards.to_string()),
+    ]);
+    if !rewards.is_zero() {
+        let rewards_asset = Asset {
+            info: AssetInfo::Native(config.reward_denom),
+            amount: rewards,
+        };
+        Ok(response.add_message(rewards_asset.transfer_msg(&user)?))
+    } else {
+        Ok(response)
+    }
+}
+
+fn _claim_reward(
+    storage: &mut dyn Storage,
+    user: Addr,
+    asset: AssetInfo,
+) -> Result<Uint128, ContractError> {
+    let asset_key = AssetInfoKey::from(&asset);
+    let user_reward_rate =
+        USER_ASSET_REWARD_RATE.load(storage, (user.clone(), asset_key.clone()))?;
+    let asset_reward_rate = ASSET_REWARD_RATE.load(storage, asset_key.clone())?;
+    let user_staked = BALANCES.load(storage, (user.clone(), asset_key.clone()))?;
+    let rewards = ((asset_reward_rate - user_reward_rate) * Decimal::from_atomics(user_staked, 0)?)
+        .to_uint_floor();
+    if rewards.is_zero() {
+        Ok(Uint128::zero())
+    } else {
+        USER_ASSET_REWARD_RATE.save(
+            storage,
+            (user.clone(), asset_key.clone()),
+            &asset_reward_rate,
+        )?;
+        Ok(rewards)
+    }
 }
 
 fn alliance_delegate(

@@ -31,5 +31,7 @@ pub const VALIDATORS: Item<HashSet<Addr>> = Item::new("validators");
 pub const ASSET_REWARD_DISTRIBUTION: Item<Vec<AssetDistribution>> =
     Item::new("asset_reward_distribution");
 pub const ASSET_REWARD_RATE: Map<AssetInfoKey, Decimal> = Map::new("asset_reward_rate");
+pub const USER_ASSET_REWARD_RATE: Map<(Addr, AssetInfoKey), Decimal> =
+    Map::new("user_asset_reward_rate");
 
 pub const TEMP_BALANCE: Item<Uint128> = Item::new("temp_balance");

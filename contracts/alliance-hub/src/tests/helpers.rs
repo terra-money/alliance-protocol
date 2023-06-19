@@ -109,3 +109,10 @@ pub fn alliance_redelegate(deps: DepsMut, redelegations: Vec<(&str, &str, u128)>
     let msg = ExecuteMsg::AllianceRedelegate(AllianceRedelegateMsg { redelegations });
     execute(deps, env, info, msg).unwrap()
 }
+
+pub fn claim_rewards(deps: DepsMut, user: &str, denom: &str) -> Response {
+    let info = mock_info(user, &vec![]);
+    let env = mock_env();
+    let msg = ExecuteMsg::ClaimRewards(AssetInfo::Native(denom.to_string()));
+    execute(deps, env, info, msg).unwrap()
+}

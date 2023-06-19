@@ -1,16 +1,18 @@
 use crate::contract::execute;
 use crate::state::{
     AssetDistribution, Config, ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, CONFIG, TEMP_BALANCE,
-    TOTAL_BALANCES, VALIDATORS,
+    TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS,
 };
-use crate::tests::helpers::{set_alliance_asset, setup_contract, DENOM};
+use crate::tests::helpers::{
+    claim_rewards, set_alliance_asset, setup_contract, stake, whitelist_assets, DENOM,
+};
 use alliance_protocol::alliance_protocol::ExecuteMsg;
 use cosmwasm_std::testing::{
     mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
 };
 use cosmwasm_std::{
-    coin, to_binary, Addr, Binary, CosmosMsg, Decimal, Response, StdError, StdResult, SubMsg,
-    Uint128, WasmMsg,
+    coin, coins, to_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, StdError,
+    StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashSet;
@@ -171,5 +173,114 @@ fn update_reward_callback() {
     assert_eq!(
         res,
         Response::new().add_attributes(vec![("action", "update_rewards_callback"),])
+    );
+}
+
+#[test]
+fn claim_user_rewards() {
+    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    setup_contract(deps.as_mut());
+    set_alliance_asset(deps.as_mut());
+    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("aWHALE".to_string())]);
+    stake(deps.as_mut(), "user1", 1000000, "aWHALE");
+    stake(deps.as_mut(), "user2", 4000000, "aWHALE");
+
+    ASSET_REWARD_DISTRIBUTION
+        .save(
+            deps.as_mut().storage,
+            &vec![
+                AssetDistribution {
+                    asset: AssetInfo::Native("aWHALE".to_string()),
+                    distribution: Decimal::percent(50),
+                },
+                AssetDistribution {
+                    asset: AssetInfo::Native("bWHALE".to_string()),
+                    distribution: Decimal::percent(50),
+                },
+            ],
+        )
+        .unwrap();
+    TEMP_BALANCE
+        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .unwrap();
+    execute(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("cosmos2contract", &[]),
+        ExecuteMsg::UpdateRewardsCallback {},
+    )
+    .unwrap();
+
+    let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
+    assert_eq!(
+        res,
+        Response::new()
+            .add_attributes(vec![
+                ("action", "claim_rewards"),
+                ("user", "user1"),
+                ("asset", "native:aWHALE"),
+                ("reward_amount", "100000"),
+            ])
+            .add_message(CosmosMsg::Bank(BankMsg::Send {
+                to_address: "user1".to_string(),
+                amount: coins(100000, "uluna"),
+            }))
+    );
+
+    let user_reward_rate = USER_ASSET_REWARD_RATE
+        .load(
+            deps.as_ref().storage,
+            (
+                Addr::unchecked("user1"),
+                AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            ),
+        )
+        .unwrap();
+    let asset_reward_rate = ASSET_REWARD_RATE
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+        )
+        .unwrap();
+    assert_eq!(user_reward_rate, asset_reward_rate);
+
+    let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
+    assert_eq!(
+        res,
+        Response::new().add_attributes(vec![
+            ("action", "claim_rewards"),
+            ("user", "user1"),
+            ("asset", "native:aWHALE"),
+            ("reward_amount", "0"),
+        ])
+    );
+
+    // Update more rewards
+    deps.querier
+        .update_balance("cosmos2contract", vec![coin(1900000 + 100000, "uluna")]);
+    TEMP_BALANCE
+        .save(deps.as_mut().storage, &Uint128::new(1900000))
+        .unwrap();
+    execute(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("cosmos2contract", &[]),
+        ExecuteMsg::UpdateRewardsCallback {},
+    )
+    .unwrap();
+    let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
+    assert_eq!(
+        res,
+        Response::new()
+            .add_attributes(vec![
+                ("action", "claim_rewards"),
+                ("user", "user1"),
+                ("asset", "native:aWHALE"),
+                ("reward_amount", "10000"),
+            ])
+            .add_message(CosmosMsg::Bank(BankMsg::Send {
+                to_address: "user1".to_string(),
+                amount: coins(10000, "uluna"),
+            }))
     );
 }
