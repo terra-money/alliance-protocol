@@ -69,10 +69,10 @@ const init = async () => {
             chainID: process.env.CHAIN_ID as string,
         });
         const result = await lcd.tx.broadcastBlock(tx, process.env.CHAIN_ID as string);
-        console.log(JSON.stringify(result, null, 2))
         console.log(`Smart contract instantiated with 
         - Code ID: ${codeId}
-        - Tx Hash: ${result.txhash}`);
+        - Tx Hash: ${result.txhash}
+        - Contract Address: ${result.logs[0].events[0].attributes[0].value}`);
     }
     catch (e) {
         console.log(e)

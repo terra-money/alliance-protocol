@@ -128,13 +128,13 @@ pub struct LunaAlliance {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(Config)]
-    QueryConfig,
-    #[returns(ChainsInfo)]
-    QueryChainsInfo,
+    QueryConfig{},
     #[returns(LunaInfo)]
-    QueryLunaInfo,
-    #[returns(Vec<(ChainId, ChainInfo)>)]
+    QueryLunaInfo{},
+    #[returns(ChainInfo)]
     QueryChainInfo { chain_id: ChainId },
+    #[returns(Vec<ChainInfo>)]
+    QueryChainsInfo{},
 }
 
 #[cw_serde]

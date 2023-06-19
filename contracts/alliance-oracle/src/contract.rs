@@ -81,21 +81,27 @@ fn update_chains_info(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::QueryConfig => to_binary(&CONFIG.load(deps.storage)?),
-        QueryMsg::QueryLunaInfo => get_luna_info(deps, env),
-        QueryMsg::QueryChainInfo { chain_id } => get_chain_info(deps, env, chain_id),
-        QueryMsg::QueryChainsInfo => get_chains_info(deps, env),
-    }
+    Ok(match msg {
+        QueryMsg::QueryConfig {} => get_config(deps)?,
+        QueryMsg::QueryLunaInfo {} => get_luna_info(deps, env)?,
+        QueryMsg::QueryChainInfo { chain_id } => get_chain_info(deps, env, chain_id)?,
+        QueryMsg::QueryChainsInfo {} => get_chains_info(deps, env)?,
+    })
+}
+
+pub fn get_config(deps: Deps) -> StdResult<Binary> {
+    let cfg = CONFIG.load(deps.storage)?;
+    
+    to_binary(&cfg)
 }
 
 pub fn get_luna_info(deps: Deps, env: Env) -> StdResult<Binary> {
-    let luna_info = &LUNA_INFO.load(deps.storage)?;
+    let luna_info = LUNA_INFO.load(deps.storage)?;
     let cfg = CONFIG.load(deps.storage)?;
 
     luna_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
 
-    to_binary(luna_info)
+    to_binary(&luna_info)
 }
 
 pub fn get_chain_info(deps: Deps, env: Env, chain_id: ChainId) -> StdResult<Binary> {
@@ -118,14 +124,14 @@ pub fn get_chains_info(deps: Deps, env: Env) -> StdResult<Binary> {
     let items = CHAINS_INFO
         .range(deps.storage, None, None, Order::Ascending)
         .map(|item| {
-            let (chain_id, chain_info) = item?;
+            let (_, chain_info) = item?;
             let cfg = CONFIG.load(deps.storage)?;
 
             chain_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
 
-            Ok((chain_id, chain_info))
+            Ok(chain_info)
         })
-        .collect::<StdResult<Vec<(ChainId, ChainInfo)>>>()?;
+        .collect::<StdResult<Vec<ChainInfo>>>()?;
 
     to_binary(&items)
 }
