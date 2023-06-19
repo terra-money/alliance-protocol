@@ -105,7 +105,7 @@ pub fn execute(
         ExecuteMsg::UpdateRewards => update_rewards(deps, env, info),
         ExecuteMsg::RebalanceEmissions => Ok(Response::new()),
 
-        ExecuteMsg::UpdateRewardsCallback => Ok(Response::new()),
+        ExecuteMsg::UpdateRewardsCallback => update_reward_callback(deps, env, info),
     }
 }
 
@@ -434,18 +434,26 @@ fn update_reward_callback(
         let total_reward_distributed = Decimal::from_atomics(rewards_collected, 0)?
             * asset_distribution.distribution
             / total_distribution;
-        let total_balance = TOTAL_BALANCES.load(deps.storage, asset_key.clone())?;
 
-        let rate_to_update = total_reward_distributed / Decimal::from_atomics(total_balance, 0)?;
-        if rate_to_update > Decimal::zero() {
-            ASSET_REWARD_RATE.update(deps.storage, asset_key.clone(), |rate| -> StdResult<_> {
-                Ok(rate.unwrap_or(Decimal::zero()) + rate_to_update)
-            })?;
+        // If there are no balances, we stop updating the rate. This means that the emissions are not directed to any stakers.
+        let total_balance = TOTAL_BALANCES
+            .load(deps.storage, asset_key.clone())
+            .unwrap_or(Uint128::zero());
+        if !total_balance.is_zero() {
+            let rate_to_update =
+                total_reward_distributed / Decimal::from_atomics(total_balance, 0)?;
+            if rate_to_update > Decimal::zero() {
+                ASSET_REWARD_RATE.update(
+                    deps.storage,
+                    asset_key.clone(),
+                    |rate| -> StdResult<_> { Ok(rate.unwrap_or(Decimal::zero()) + rate_to_update) },
+                )?;
+            }
         }
     }
     TEMP_BALANCE.remove(deps.storage);
 
-    Ok(Response::new().add_attributes(vec![("action", "update_rewards")]))
+    Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
