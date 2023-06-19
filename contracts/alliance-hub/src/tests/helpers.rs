@@ -12,7 +12,7 @@ use cw_asset::{Asset, AssetInfo};
 pub const DENOM: &str = "token_factory/token";
 
 pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
-    let info = mock_info("admin", &vec![]);
+    let info = mock_info("admin", &[]);
     let env = mock_env();
 
     let init_msg = InstantiateMsg {
@@ -37,7 +37,7 @@ pub fn set_alliance_asset(deps: DepsMut) {
 }
 
 pub fn whitelist_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {
-    let info = mock_info("gov", &vec![]);
+    let info = mock_info("gov", &[]);
     let env = mock_env();
 
     let msg = ExecuteMsg::WhitelistAssets(assets);
@@ -45,7 +45,7 @@ pub fn whitelist_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {
 }
 
 pub fn remove_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {
-    let info = mock_info("gov", &vec![]);
+    let info = mock_info("gov", &[]);
     let env = mock_env();
 
     let msg = ExecuteMsg::RemoveAssets(assets);
@@ -53,27 +53,27 @@ pub fn remove_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {
 }
 
 pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
-    let info = mock_info(user, &vec![coin(amount, denom)]);
+    let info = mock_info(user, &[coin(amount, denom)]);
     let env = mock_env();
     let msg = ExecuteMsg::Stake;
     execute(deps, env, info, msg).unwrap()
 }
 
 pub fn unstake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
-    let info = mock_info(user, &vec![]);
+    let info = mock_info(user, &[]);
     let env = mock_env();
     let msg = ExecuteMsg::Unstake(Asset::native(denom, amount));
     execute(deps, env, info, msg).unwrap()
 }
 
 pub fn alliance_delegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Response {
-    let info = mock_info("controller", &vec![]);
+    let info = mock_info("controller", &[]);
     let env = mock_env();
     let delegations: Vec<AllianceDelegation> = delegations
         .iter()
         .map(|(addr, amount)| AllianceDelegation {
             validator: addr.to_string(),
-            amount: Uint128::new(amount.clone()),
+            amount: Uint128::new(*amount),
         })
         .collect();
     let msg = ExecuteMsg::AllianceDelegate(AllianceDelegateMsg { delegations });
@@ -81,13 +81,13 @@ pub fn alliance_delegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Respo
 }
 
 pub fn alliance_undelegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Response {
-    let info = mock_info("controller", &vec![]);
+    let info = mock_info("controller", &[]);
     let env = mock_env();
     let delegations: Vec<AllianceDelegation> = delegations
         .iter()
         .map(|(addr, amount)| AllianceDelegation {
             validator: addr.to_string(),
-            amount: Uint128::new(amount.clone()),
+            amount: Uint128::new(*amount),
         })
         .collect();
     let msg = ExecuteMsg::AllianceUndelegate(AllianceUndelegateMsg {
@@ -97,14 +97,14 @@ pub fn alliance_undelegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Res
 }
 
 pub fn alliance_redelegate(deps: DepsMut, redelegations: Vec<(&str, &str, u128)>) -> Response {
-    let info = mock_info("controller", &vec![]);
+    let info = mock_info("controller", &[]);
     let env = mock_env();
     let redelegations: Vec<AllianceRedelegation> = redelegations
         .iter()
         .map(|(src, dst, amount)| AllianceRedelegation {
             src_validator: src.to_string(),
             dst_validator: dst.to_string(),
-            amount: Uint128::new(amount.clone()),
+            amount: Uint128::new(*amount),
         })
         .collect();
     let msg = ExecuteMsg::AllianceRedelegate(AllianceRedelegateMsg { redelegations });
@@ -112,7 +112,7 @@ pub fn alliance_redelegate(deps: DepsMut, redelegations: Vec<(&str, &str, u128)>
 }
 
 pub fn claim_rewards(deps: DepsMut, user: &str, denom: &str) -> Response {
-    let info = mock_info(user, &vec![]);
+    let info = mock_info(user, &[]);
     let env = mock_env();
     let msg = ExecuteMsg::ClaimRewards(AssetInfo::Native(denom.to_string()));
     execute(deps, env, info, msg).unwrap()

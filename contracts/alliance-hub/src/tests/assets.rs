@@ -41,7 +41,7 @@ fn test_whitelist_assets() {
             AssetInfoKey::from(AssetInfo::Native("asset2".to_string())),
         )
         .unwrap();
-    assert_eq!(found, true);
+    assert!(found);
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn test_remove_assets() {
             AssetInfoKey::from(AssetInfo::Native("asset1".to_string())),
         )
         .unwrap_or(false);
-    assert_eq!(found, false);
+    assert!(!found);
 }
 
 #[test]

@@ -1,48 +1,32 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Array_of_Tuple_of_String_and_ChainInfo",
-  "type": "array",
-  "items": {
-    "type": "array",
-    "items": [
-      {
-        "type": "string"
-      },
-      {
-        "$ref": "#/definitions/ChainInfo"
-      }
-    ],
-    "maxItems": 2,
-    "minItems": 2
-  },
-  "definitions": {
-    "ChainInfo": {
-      "type": "object",
-      "required": [
-        "chain_id",
-        "luna_alliances",
-        "native_token",
-        "update_timestamp"
-      ],
-      "properties": {
-        "chain_id": {
-          "type": "string"
-        },
-        "luna_alliances": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/LunaAlliance"
-          }
-        },
-        "native_token": {
-          "$ref": "#/definitions/NativeToken"
-        },
-        "update_timestamp": {
-          "$ref": "#/definitions/Timestamp"
-        }
-      },
-      "additionalProperties": false
+  "title": "ChainInfo",
+  "type": "object",
+  "required": [
+    "chain_id",
+    "luna_alliances",
+    "native_token",
+    "update_timestamp"
+  ],
+  "properties": {
+    "chain_id": {
+      "type": "string"
     },
+    "luna_alliances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/LunaAlliance"
+      }
+    },
+    "native_token": {
+      "$ref": "#/definitions/NativeToken"
+    },
+    "update_timestamp": {
+      "$ref": "#/definitions/Timestamp"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
     "Decimal": {
       "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
       "type": "string"

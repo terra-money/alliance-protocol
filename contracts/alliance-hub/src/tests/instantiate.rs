@@ -30,7 +30,7 @@ fn test_setup_contract() {
 fn test_reply_create_token() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
-    
+
     // Build reply message
     let msg = Reply {
         id: 1,

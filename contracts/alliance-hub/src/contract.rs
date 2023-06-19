@@ -1,16 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use std::borrow::Borrow;
 
 use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg,
-    QueryMsg,
 };
-use cosmwasm_std::CosmosMsg::Custom;
 use cosmwasm_std::{
-    coin, to_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, Deps, DepsMut, Empty, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128,
-    WasmMsg,
+    to_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo,
+    Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
@@ -18,14 +14,12 @@ use cw_utils::parse_instantiate_response_data;
 use std::collections::HashSet;
 
 use terra_proto_rs::alliance::alliance::{
-    MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate, Redelegation,
+    MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate,
 };
 use terra_proto_rs::cosmos::base::v1beta1::Coin;
-use terra_proto_rs::cosmos::distribution::v1beta1::MsgWithdrawDelegatorReward;
 use terra_proto_rs::traits::Message;
 
 use crate::error::ContractError;
-use crate::error::ContractError::DecimalRangeExceeded;
 use crate::state::{
     Config, ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
     TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
@@ -36,13 +30,13 @@ use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMs
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-protocol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
-const CLAIM_REWARD_REPLY_ID: u64 = 2;
+const _CLAIM_REWARD_REPLY_ID: u64 = 2;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
+    _env: Env,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response<CustomExecuteMsg>, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -100,7 +94,7 @@ pub fn execute(
 
 fn whitelist_assets(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     assets: Vec<AssetInfo>,
 ) -> Result<Response, ContractError> {
@@ -128,7 +122,7 @@ fn whitelist_assets(
 
 fn remove_assets(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     assets: Vec<AssetInfo>,
 ) -> Result<Response, ContractError> {
@@ -148,7 +142,7 @@ fn remove_assets(
     Ok(Response::new().add_attributes(vec![("action", "remove_assets"), ("assets", &assets_str)]))
 }
 
-fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+fn stake(deps: DepsMut, _env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     if info.funds.len() != 1 {
         return Err(ContractError::OnlySingleAssetAllowed {});
     }
@@ -197,15 +191,11 @@ fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Contrac
     let asset_reward_rate = ASSET_REWARD_RATE
         .load(deps.storage, asset_key.clone())
         .unwrap_or(Decimal::zero());
-    USER_ASSET_REWARD_RATE.save(
-        deps.storage,
-        (sender.clone(), asset_key.clone()),
-        &asset_reward_rate,
-    )?;
+    USER_ASSET_REWARD_RATE.save(deps.storage, (sender, asset_key), &asset_reward_rate)?;
 
     Ok(Response::new().add_attributes(vec![
         ("action", "stake"),
-        ("user", &info.sender.to_string()),
+        ("user", info.sender.as_ref()),
         ("asset", &asset.to_string()),
         ("amount", &info.funds[0].amount.to_string()),
     ]))
@@ -213,7 +203,7 @@ fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Contrac
 
 fn unstake(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     asset: Asset,
 ) -> Result<Response, ContractError> {
@@ -251,7 +241,7 @@ fn unstake(
     )?;
     TOTAL_BALANCES.update(
         deps.storage,
-        asset_key.clone(),
+        asset_key,
         |balance| -> Result<_, ContractError> {
             let balance = balance.unwrap_or(Uint128::zero());
             if balance < asset.amount {
@@ -266,7 +256,7 @@ fn unstake(
     Ok(Response::new()
         .add_attributes(vec![
             ("action", "unstake"),
-            ("user", &info.sender.to_string()),
+            ("user", info.sender.as_ref()),
             ("asset", &asset.info.to_string()),
             ("amount", &asset.amount.to_string()),
         ])
@@ -275,11 +265,11 @@ fn unstake(
 
 fn claim_rewards(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     asset: AssetInfo,
 ) -> Result<Response, ContractError> {
-    let user = info.sender.clone();
+    let user = info.sender;
     let config = CONFIG.load(deps.storage)?;
     let rewards = _claim_reward(deps.storage, user.clone(), asset.clone())?;
     let unclaimed_rewards = UNCLAIMED_REWARDS
@@ -288,7 +278,7 @@ fn claim_rewards(
     let final_rewards = rewards + unclaimed_rewards;
     let response = Response::new().add_attributes(vec![
         ("action", "claim_rewards"),
-        ("user", &user.to_string()),
+        ("user", user.as_ref()),
         ("asset", &asset.to_string()),
         ("reward_amount", &final_rewards.to_string()),
     ]);
@@ -320,21 +310,14 @@ fn _claim_reward(
         if rewards.is_zero() {
             Ok(Uint128::zero())
         } else {
-            USER_ASSET_REWARD_RATE.save(
-                storage,
-                (user.clone(), asset_key.clone()),
-                &asset_reward_rate,
-            )?;
+            USER_ASSET_REWARD_RATE.save(storage, (user, asset_key), &asset_reward_rate)?;
             Ok(rewards)
         }
     } else {
         // If cannot find user_reward_rate, assume this is the first time they are staking and set it to the current asset_reward_rate
-        USER_ASSET_REWARD_RATE.save(
-            storage,
-            (user.clone(), asset_key.clone()),
-            &asset_reward_rate,
-        )?;
-        return Ok(Uint128::zero());
+        USER_ASSET_REWARD_RATE.save(storage, (user, asset_key), &asset_reward_rate)?;
+
+        Ok(Uint128::zero())
     }
 }
 
@@ -502,9 +485,8 @@ fn update_reward_callback(
         return Err(ContractError::Unauthorized {});
     }
     let config = CONFIG.load(deps.storage)?;
-    let reward_asset = AssetInfo::native(config.reward_denom.clone());
-    let current_balance =
-        reward_asset.query_balance(&deps.querier, env.contract.address.clone())?;
+    let reward_asset = AssetInfo::native(config.reward_denom);
+    let current_balance = reward_asset.query_balance(&deps.querier, env.contract.address)?;
     let previous_balance = TEMP_BALANCE.load(deps.storage)?;
     let rewards_collected = current_balance - previous_balance;
 
@@ -541,7 +523,7 @@ fn update_reward_callback(
     Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
 }
 
-fn rebalance_emissions(
+/*fn rebalance_emissions(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -553,15 +535,15 @@ fn rebalance_emissions(
     }
 
     // Query oracle contract for current distribution
-    let new_distribution = deps.querier.query_wasm_smart(
-        &config.oracle,
+    deps.querier.query_wasm_smart(
+        config.oracle,
         &Binary::default(), // TODO: Fill in with the correct query
     )?;
 
     // TODO: Update the asset reward distribution
 
     Ok(Response::new().add_attributes(vec![("action", "rebalance_emissions")]))
-}
+}*/
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(
@@ -576,22 +558,22 @@ pub fn reply(
             let denom = parse_instantiate_response_data(response.data.unwrap().as_slice())
                 .map_err(|_| ContractError::Std(StdError::generic_err("parse error".to_string())))?
                 .contract_address;
-            let total_supply = Uint128::from(1000_000_000_000u128);
+            let total_supply = Uint128::from(1_000_000_000_000_u128);
             let sub_msg_mint = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
                 TokenExecuteMsg::MintTokens {
                     denom: denom.clone(),
-                    amount: total_supply.clone(),
+                    amount: total_supply,
                     mint_to_address: env.contract.address.to_string(),
                 },
             )));
             CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
                 config.alliance_token_denom = denom.clone();
-                config.alliance_token_supply = total_supply.clone();
+                config.alliance_token_supply = total_supply;
                 Ok(config)
             })?;
             let symbol = "ALLIANCE";
             let mut denom = String::from("factory/");
-            denom.push_str(&env.contract.address.to_string());
+            denom.push_str(env.contract.address.as_ref());
             denom.push_str("/ualliance");
 
             let sub_msg_metadata = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
@@ -621,14 +603,4 @@ pub fn reply(
         }
         _ => Err(ContractError::InvalidReplyId(reply.id)),
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
-
-    #[test]
-    fn proper_initialization() {}
 }

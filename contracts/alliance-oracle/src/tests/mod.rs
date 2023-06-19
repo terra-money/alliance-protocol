@@ -1,7 +1,6 @@
 use crate::contract::{execute, query};
 use alliance_protocol::alliance_oracle_types::{
-    ChainId, ChainInfo, ChainInfoMsg, ChainsInfo, ExecuteMsg, LunaAlliance, LunaInfo, NativeToken,
-    QueryMsg,
+    ChainInfo, ChainInfoMsg, ChainsInfo, ExecuteMsg, LunaAlliance, LunaInfo, NativeToken, QueryMsg,
 };
 use cosmwasm_std::{
     from_binary,
@@ -49,7 +48,7 @@ fn test_update_oracle_data() {
     assert_eq!("update_chains_info", res.attributes[0].value);
 
     // Query the chains info to validate the data was stored correctly in the contract
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryChainsInfo{}).unwrap();
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryChainsInfo {}).unwrap();
     let res: Vec<ChainInfo> = from_binary(&res).unwrap();
     assert_eq!(1, res.len());
 
@@ -63,8 +62,7 @@ fn test_update_oracle_data() {
         chain_info.native_token
     );
 
-    let luna_alliances = chain_info.luna_alliances.clone();
-    assert_eq!(1, luna_alliances.len());
+    assert_eq!(1, chain_info.luna_alliances.len());
     assert_eq!(
         LunaAlliance {
             ibc_denom: String::from(
@@ -75,11 +73,11 @@ fn test_update_oracle_data() {
             total_lsd_staked: Decimal::from_str("126195.966393").unwrap(),
             rebase_factor: Decimal::from_str("1.178655688356438636").unwrap(),
         },
-        luna_alliances[0]
+        chain_info.luna_alliances[0]
     );
 
     // Query the Luna info to validate the data was stored correctly in the contract
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryLunaInfo{}).unwrap();
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryLunaInfo {}).unwrap();
     let luna_info: LunaInfo = from_binary(&res).unwrap();
     assert_eq!(
         Decimal::from_str("0.589013565473308100").unwrap(),
