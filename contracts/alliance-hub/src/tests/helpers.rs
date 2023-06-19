@@ -16,8 +16,9 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
     let env = mock_env();
 
     let init_msg = InstantiateMsg {
-        governance_address: "gov".to_string(),
-        controller_address: "controller".to_string(),
+        governance: "gov".to_string(),
+        controller: "controller".to_string(),
+        oracle: "oracle".to_string(),
         reward_denom: "uluna".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()

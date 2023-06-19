@@ -284,3 +284,57 @@ fn claim_user_rewards() {
             }))
     );
 }
+
+#[test]
+fn claim_user_rewards_after_staking() {
+    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    setup_contract(deps.as_mut());
+    set_alliance_asset(deps.as_mut());
+    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("aWHALE".to_string())]);
+    stake(deps.as_mut(), "user1", 1000000, "aWHALE");
+    stake(deps.as_mut(), "user2", 4000000, "aWHALE");
+
+    ASSET_REWARD_DISTRIBUTION
+        .save(
+            deps.as_mut().storage,
+            &vec![
+                AssetDistribution {
+                    asset: AssetInfo::Native("aWHALE".to_string()),
+                    distribution: Decimal::percent(50),
+                },
+                AssetDistribution {
+                    asset: AssetInfo::Native("bWHALE".to_string()),
+                    distribution: Decimal::percent(50),
+                },
+            ],
+        )
+        .unwrap();
+    TEMP_BALANCE
+        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .unwrap();
+    execute(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("cosmos2contract", &[]),
+        ExecuteMsg::UpdateRewardsCallback {},
+    )
+    .unwrap();
+
+    stake(deps.as_mut(), "user1", 1000000, "aWHALE");
+
+    let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
+    assert_eq!(
+        res,
+        Response::new()
+            .add_attributes(vec![
+                ("action", "claim_rewards"),
+                ("user", "user1"),
+                ("asset", "native:aWHALE"),
+                ("reward_amount", "100000"),
+            ])
+            .add_message(CosmosMsg::Bank(BankMsg::Send {
+                to_address: "user1".to_string(),
+                amount: coins(100000, "uluna"),
+            }))
+    );
+}

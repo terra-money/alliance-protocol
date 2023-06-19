@@ -28,7 +28,7 @@ use crate::error::ContractError;
 use crate::error::ContractError::DecimalRangeExceeded;
 use crate::state::{
     Config, ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
-    TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+    TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
 use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg};
 
@@ -36,7 +36,6 @@ use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMs
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-protocol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
-const CLAIM_REWARD_REPLY_ID: u64 = 2;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -46,8 +45,9 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response<CustomExecuteMsg>, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let governance_address = deps.api.addr_validate(msg.governance_address.as_str())?;
-    let controller_address = deps.api.addr_validate(msg.controller_address.as_str())?;
+    let governance_address = deps.api.addr_validate(msg.governance.as_str())?;
+    let controller_address = deps.api.addr_validate(msg.controller.as_str())?;
+    let oracle_address = deps.api.addr_validate(msg.oracle.as_str())?;
     let denom = "ualliance";
     let symbol = "ALLIANCE";
     let create_msg = TokenExecuteMsg::CreateDenom {
@@ -70,8 +70,9 @@ pub fn instantiate(
         CREATE_REPLY_ID,
     );
     let config = Config {
-        governance_address,
-        controller_address,
+        governance: governance_address,
+        controller: controller_address,
+        oracle: oracle_address,
         alliance_token_denom: "".to_string(),
         alliance_token_supply: Uint128::zero(),
         last_reward_update_timestamp: Timestamp::default(),
@@ -117,12 +118,15 @@ fn whitelist_assets(
     assets: Vec<AssetInfo>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.governance_address {
+    if info.sender != config.governance {
         return Err(ContractError::Unauthorized {});
     }
     for asset in &assets {
         let asset_key = AssetInfoKey::from(asset.clone());
-        WHITELIST.save(deps.storage, asset_key, &true)?;
+        WHITELIST.save(deps.storage, asset_key.clone(), &true)?;
+        ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
+            Ok(rate.unwrap_or(Decimal::zero()))
+        })?;
     }
     let assets_str = assets
         .iter()
@@ -142,7 +146,7 @@ fn remove_assets(
     assets: Vec<AssetInfo>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.governance_address {
+    if info.sender != config.governance {
         return Err(ContractError::Unauthorized {});
     }
     for asset in &assets {
@@ -174,7 +178,17 @@ fn stake(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Contrac
     }
     let sender = info.sender.clone();
 
-    // TODO: Before updating the balance, we need to calculate of amount of rewards accured for this user
+    let rewards = _claim_reward(deps.storage, sender.clone(), asset.clone())?;
+    if !rewards.is_zero() {
+        UNCLAIMED_REWARDS.update(
+            deps.storage,
+            sender.clone(),
+            |balance| -> Result<_, ContractError> {
+                Ok(balance.unwrap_or(Uint128::zero()) + rewards)
+            },
+        )?;
+    }
+
     BALANCES.update(
         deps.storage,
         (sender.clone(), asset_key.clone()),
@@ -222,7 +236,16 @@ fn unstake(
         return Err(ContractError::AmountCannotBeZero {});
     }
 
-    // TODO: Calculate rewards accured and claim it
+    let rewards = _claim_reward(deps.storage, sender.clone(), asset.info.clone())?;
+    if !rewards.is_zero() {
+        UNCLAIMED_REWARDS.update(
+            deps.storage,
+            sender.clone(),
+            |balance| -> Result<_, ContractError> {
+                Ok(balance.unwrap_or(Uint128::zero()) + rewards)
+            },
+        )?;
+    }
 
     BALANCES.update(
         deps.storage,
@@ -272,16 +295,20 @@ fn claim_rewards(
     let user = info.sender.clone();
     let config = CONFIG.load(deps.storage)?;
     let rewards = _claim_reward(deps.storage, user.clone(), asset.clone())?;
+    let unclaimed_rewards = UNCLAIMED_REWARDS
+        .load(deps.storage, user.clone())
+        .unwrap_or(Uint128::zero());
+    let final_rewards = rewards + unclaimed_rewards;
     let response = Response::new().add_attributes(vec![
         ("action", "claim_rewards"),
         ("user", &user.to_string()),
         ("asset", &asset.to_string()),
-        ("reward_amount", &rewards.to_string()),
+        ("reward_amount", &final_rewards.to_string()),
     ]);
-    if !rewards.is_zero() {
+    if !final_rewards.is_zero() {
         let rewards_asset = Asset {
             info: AssetInfo::Native(config.reward_denom),
-            amount: rewards,
+            amount: final_rewards,
         };
         Ok(response.add_message(rewards_asset.transfer_msg(&user)?))
     } else {
@@ -295,21 +322,32 @@ fn _claim_reward(
     asset: AssetInfo,
 ) -> Result<Uint128, ContractError> {
     let asset_key = AssetInfoKey::from(&asset);
-    let user_reward_rate =
-        USER_ASSET_REWARD_RATE.load(storage, (user.clone(), asset_key.clone()))?;
+    let user_reward_rate = USER_ASSET_REWARD_RATE.load(storage, (user.clone(), asset_key.clone()));
     let asset_reward_rate = ASSET_REWARD_RATE.load(storage, asset_key.clone())?;
-    let user_staked = BALANCES.load(storage, (user.clone(), asset_key.clone()))?;
-    let rewards = ((asset_reward_rate - user_reward_rate) * Decimal::from_atomics(user_staked, 0)?)
+
+    if let Ok(user_reward_rate) = user_reward_rate {
+        let user_staked = BALANCES.load(storage, (user.clone(), asset_key.clone()))?;
+        let rewards = ((asset_reward_rate - user_reward_rate)
+            * Decimal::from_atomics(user_staked, 0)?)
         .to_uint_floor();
-    if rewards.is_zero() {
-        Ok(Uint128::zero())
+        if rewards.is_zero() {
+            Ok(Uint128::zero())
+        } else {
+            USER_ASSET_REWARD_RATE.save(
+                storage,
+                (user.clone(), asset_key.clone()),
+                &asset_reward_rate,
+            )?;
+            Ok(rewards)
+        }
     } else {
+        // If cannot find user_reward_rate, assume this is the first time they are staking and set it to the current asset_reward_rate
         USER_ASSET_REWARD_RATE.save(
             storage,
             (user.clone(), asset_key.clone()),
             &asset_reward_rate,
         )?;
-        Ok(rewards)
+        return Ok(Uint128::zero());
     }
 }
 
@@ -320,7 +358,7 @@ fn alliance_delegate(
     msg: AllianceDelegateMsg,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.controller_address {
+    if info.sender != config.controller {
         return Err(ContractError::Unauthorized {});
     }
     if msg.delegations.is_empty() {
@@ -357,7 +395,7 @@ fn alliance_undelegate(
     msg: AllianceUndelegateMsg,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.controller_address {
+    if info.sender != config.controller {
         return Err(ContractError::Unauthorized {});
     }
     if msg.undelegations.is_empty() {
@@ -391,7 +429,7 @@ fn alliance_redelegate(
     msg: AllianceRedelegateMsg,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.controller_address {
+    if info.sender != config.controller {
         return Err(ContractError::Unauthorized {});
     }
     if msg.redelegations.is_empty() {
@@ -514,6 +552,28 @@ fn update_reward_callback(
     TEMP_BALANCE.remove(deps.storage);
 
     Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
+}
+
+fn rebalance_emissions(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+
+    if info.sender != env.contract.address {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Query oracle contract for current distribution
+    let new_distribution = deps.querier.query_wasm_smart(
+        &config.oracle,
+        &Binary::default(), // TODO: Fill in with the correct query
+    )?;
+
+    // TODO: Update the asset reward distribution
+
+    Ok(Response::new().add_attributes(vec![("action", "rebalance_emissions")]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -4,8 +4,9 @@ use cw_asset::{Asset, AssetInfo};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub governance_address: String,
-    pub controller_address: String,
+    pub governance: String,
+    pub controller: String,
+    pub oracle: String,
     pub reward_denom: String,
 }
 
