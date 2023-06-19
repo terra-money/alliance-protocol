@@ -49,22 +49,8 @@ pub fn instantiate(
     let governance_address = deps.api.addr_validate(msg.governance.as_str())?;
     let controller_address = deps.api.addr_validate(msg.controller.as_str())?;
     let oracle_address = deps.api.addr_validate(msg.oracle.as_str())?;
-    let denom = "ualliance";
-    let symbol = "ALLIANCE";
     let create_msg = TokenExecuteMsg::CreateDenom {
-        subdenom: denom.to_string(),
-        metadata: Metadata {
-            description: "Staking token for the alliance protocol".to_string(),
-            denom_units: vec![DenomUnit {
-                denom: "ualliance".to_string(),
-                exponent: 0,
-                aliases: vec![],
-            }],
-            base: denom.to_string(),
-            display: symbol.to_string(),
-            name: "Alliance Token".to_string(),
-            symbol: symbol.to_string(),
-        },
+        subdenom: "ualliance".to_string(),
     };
     let sub_msg = SubMsg::reply_on_success(
         CosmosMsg::Custom(CustomExecuteMsg::Token(create_msg)),
@@ -591,7 +577,7 @@ pub fn reply(
                 .map_err(|_| ContractError::Std(StdError::generic_err("parse error".to_string())))?
                 .contract_address;
             let total_supply = Uint128::from(1000_000_000_000u128);
-            let sub_msg = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
+            let sub_msg_mint = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
                 TokenExecuteMsg::MintTokens {
                     denom: denom.clone(),
                     amount: total_supply.clone(),
@@ -603,12 +589,35 @@ pub fn reply(
                 config.alliance_token_supply = total_supply.clone();
                 Ok(config)
             })?;
+            let symbol = "ALLIANCE";
+            let mut denom = String::from("factory/");
+            denom.push_str(&env.contract.address.to_string());
+            denom.push_str("/ualliance");
+
+            let sub_msg_metadata = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
+                TokenExecuteMsg::SetMetadata {
+                    denom: denom.clone(),
+                    metadata: Metadata {
+                        description: "Staking token for the alliance protocol".to_string(),
+                        denom_units: vec![DenomUnit {
+                            denom: denom.clone(),
+                            exponent: 0,
+                            aliases: vec![],
+                        }],
+                        base: denom.to_string(),
+                        display: denom.to_string(),
+                        name: "Alliance Token".to_string(),
+                        symbol: symbol.to_string(),
+                    },
+                },
+            )));
             Ok(Response::new()
                 .add_attributes(vec![
                     ("alliance_token_denom", denom.clone()),
                     ("alliance_token_total_supply", total_supply.to_string()),
                 ])
-                .add_submessage(sub_msg))
+                .add_submessage(sub_msg_mint)
+                .add_submessage(sub_msg_metadata))
         }
         _ => Err(ContractError::InvalidReplyId(reply.id)),
     }

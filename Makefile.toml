@@ -54,3 +54,10 @@ script = """
 npm install -g ts-node
 ts-node ./scripts/deploy-oracle.ts
 """
+
+[tasks.deploy-hub]
+script = """
+npm install -g ts-node
+ts-node ./scripts/deploy-hub.ts
+"""
+

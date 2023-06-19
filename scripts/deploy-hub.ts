@@ -5,6 +5,15 @@ import * as fs from 'fs';
 dotenv.config()
 
 const init = async () => {
+    // Check if the oracle contract is deployed
+    // and with the proper information stored in the file
+    if (!fs.existsSync('./scripts/.oracle_address.log') 
+        || fs.readFileSync('./scripts/.oracle_address.log').toString('utf-8') == "") {
+        console.log(`Pleae deploy the oracle contract first or add it's address to the ./scripts/.oracle_address.log file to run this script`);
+        return;
+    }
+
+
     // Variable will populate after storing the code on chain
     let codeId: number;
 
@@ -28,11 +37,11 @@ const init = async () => {
     try {
         const msgStoreCode = new MsgStoreCode(
             accAddress,
-            fs.readFileSync('./artifacts/alliance_oracle.wasm').toString('base64')
+            fs.readFileSync('./artifacts/alliance_hub.wasm').toString('base64')
         );
         let tx = await wallet.createAndSignTx({
             msgs: [msgStoreCode],
-            memo: "Alliance Oracle Contract",
+            memo: "Alliance Hub Contract",
             chainID: process.env.CHAIN_ID as string,
         });
 
@@ -49,33 +58,33 @@ const init = async () => {
     }
 
     try {
+        const oracleAddress = fs.readFileSync('./scripts/.oracle_address.log').toString('utf-8');
+
         // Instantiate the transaction and broadcast it on chain
         const msgInstantiateContract = new MsgInstantiateContract(
             accAddress,
             accAddress,
             codeId,
             {
-                "controller_addr": accAddress,
-                "governance_addr": accAddress,
-                "data_expiry_seconds": 600,
+                "controller": accAddress,
+                "governance": accAddress,
+                "oracle" : oracleAddress,
+                "reward_denom": "uluna",
             },
-            new Coins(),
-            "Create an oracle contract"
+            Coins.fromString("10000000uluna"),
+            "Create an Hub contract"
         );
 
         const tx = await wallet.createAndSignTx({
             msgs: [msgInstantiateContract],
-            memo: "Create an Alliance Oracle Contract",
+            memo: "Create an Alliance Hub Contract",
             chainID: process.env.CHAIN_ID as string,
         });
         const result = await lcd.tx.broadcastBlock(tx, process.env.CHAIN_ID as string);
-        const contractAddress = result.logs[0].events[0].attributes[0].value;
         console.log(`Smart contract instantiated with 
         - Code ID: ${codeId}
         - Tx Hash: ${result.txhash}
-        - Contract Address: ${contractAddress}`);
-
-        fs.writeFileSync('./scripts/.oracle_address.log', contractAddress);
+        - Contract Address: ${result.logs[0].events[0].attributes[0].value}`);
     }
     catch (e) {
         console.log(e)

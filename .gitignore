@@ -15,3 +15,6 @@ node_modules
 *.iml
 .idea
 .env
+
+# Metadata from deployments
+scripts/.oracle_address.log
