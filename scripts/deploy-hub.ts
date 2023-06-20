@@ -19,9 +19,9 @@ const init = async () => {
 
     // Create the LCD Client to interact with the blockchain
     const lcd = new LCDClient({
-        "pisco-1": {
-            lcd: "http://3.73.78.66:1317",
-            chainID: "pisco-1",
+        "test-1": {
+            lcd: "http://localhost:1316",
+            chainID: "test-1",
             gasPrices: "0.15uluna",
             gasAdjustment: "1.2",
             prefix: process.env.ACC_PREFIX as string,
@@ -67,7 +67,7 @@ const init = async () => {
             codeId,
             {
                 "controller": accAddress,
-                "governance": accAddress,
+                "governance": "terra10d07y265gmmuvt4z0w9aw880jnsr700juxf95n",
                 "oracle" : oracleAddress,
                 "reward_denom": "uluna",
             },

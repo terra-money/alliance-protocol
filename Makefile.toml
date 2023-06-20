@@ -50,6 +50,13 @@ docker run --rm -v "$(pwd)":/code \
 """
 
 
+[tasks.deploy]
+script = """
+npm install -g ts-node
+ts-node ./scripts/deploy-oracle.ts
+ts-node ./scripts/deploy-hub.ts
+"""
+
 [tasks.deploy-oracle]
 script = """
 npm install -g ts-node

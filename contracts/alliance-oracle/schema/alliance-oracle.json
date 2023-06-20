@@ -53,14 +53,37 @@
       }
     ],
     "definitions": {
+      "BaseAlliance": {
+        "type": "object",
+        "required": [
+          "ibc_denom",
+          "rebase_factor"
+        ],
+        "properties": {
+          "ibc_denom": {
+            "type": "string"
+          },
+          "rebase_factor": {
+            "$ref": "#/definitions/Decimal"
+          }
+        },
+        "additionalProperties": false
+      },
       "ChainInfoMsg": {
         "type": "object",
         "required": [
+          "chain_alliances_on_phoenix",
           "chain_id",
           "luna_alliances",
           "native_token"
         ],
         "properties": {
+          "chain_alliances_on_phoenix": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/BaseAlliance"
+            }
+          },
           "chain_id": {
             "type": "string"
           },
@@ -130,12 +153,12 @@
       "NativeToken": {
         "type": "object",
         "required": [
-          "annual_inflation",
+          "annual_provisions",
           "denom",
           "token_price"
         ],
         "properties": {
-          "annual_inflation": {
+          "annual_provisions": {
             "$ref": "#/definitions/Decimal"
           },
           "denom": {
@@ -223,12 +246,19 @@
       "title": "ChainInfo",
       "type": "object",
       "required": [
+        "chain_alliances_on_phoenix",
         "chain_id",
         "luna_alliances",
         "native_token",
         "update_timestamp"
       ],
       "properties": {
+        "chain_alliances_on_phoenix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BaseAlliance"
+          }
+        },
         "chain_id": {
           "type": "string"
         },
@@ -247,6 +277,22 @@
       },
       "additionalProperties": false,
       "definitions": {
+        "BaseAlliance": {
+          "type": "object",
+          "required": [
+            "ibc_denom",
+            "rebase_factor"
+          ],
+          "properties": {
+            "ibc_denom": {
+              "type": "string"
+            },
+            "rebase_factor": {
+              "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        },
         "Decimal": {
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
@@ -282,12 +328,12 @@
         "NativeToken": {
           "type": "object",
           "required": [
-            "annual_inflation",
+            "annual_provisions",
             "denom",
             "token_price"
           ],
           "properties": {
-            "annual_inflation": {
+            "annual_provisions": {
               "$ref": "#/definitions/Decimal"
             },
             "denom": {
@@ -321,15 +367,38 @@
         "$ref": "#/definitions/ChainInfo"
       },
       "definitions": {
+        "BaseAlliance": {
+          "type": "object",
+          "required": [
+            "ibc_denom",
+            "rebase_factor"
+          ],
+          "properties": {
+            "ibc_denom": {
+              "type": "string"
+            },
+            "rebase_factor": {
+              "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        },
         "ChainInfo": {
           "type": "object",
           "required": [
+            "chain_alliances_on_phoenix",
             "chain_id",
             "luna_alliances",
             "native_token",
             "update_timestamp"
           ],
           "properties": {
+            "chain_alliances_on_phoenix": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/BaseAlliance"
+              }
+            },
             "chain_id": {
               "type": "string"
             },
@@ -383,12 +452,12 @@
         "NativeToken": {
           "type": "object",
           "required": [
-            "annual_inflation",
+            "annual_provisions",
             "denom",
             "token_price"
           ],
           "properties": {
-            "annual_inflation": {
+            "annual_provisions": {
               "$ref": "#/definitions/Decimal"
             },
             "denom": {
