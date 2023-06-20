@@ -1,10 +1,12 @@
 use crate::contract::reply;
-use crate::state::CONFIG;
+use crate::query::query;
 use crate::tests::helpers::setup_contract;
 use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg};
+use alliance_protocol::alliance_protocol::{Config, QueryMsg};
 use cosmwasm_std::testing::{mock_dependencies, mock_env};
 use cosmwasm_std::{
-    Binary, CosmosMsg, Reply, Response, SubMsg, SubMsgResponse, SubMsgResult, Uint128,
+    from_binary, Addr, Binary, CosmosMsg, Reply, Response, SubMsg, SubMsgResponse, SubMsgResult,
+    Timestamp, Uint128,
 };
 use terra_proto_rs::traits::MessageExt;
 
@@ -24,6 +26,24 @@ fn test_setup_contract() {
                 1
             ))
     );
+
+    // Instantiate is a two steps process that's why
+    // alliance_token_denom and alliance_token_supply
+    // will be populated on reply.
+    let query_config = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+    let config: Config = from_binary(&query_config).unwrap();
+    assert_eq!(
+        config,
+        Config {
+            governance: Addr::unchecked("gov"),
+            controller: Addr::unchecked("controller"),
+            oracle: Addr::unchecked("oracle"),
+            reward_denom: "uluna".to_string(),
+            alliance_token_denom: "".to_string(),
+            alliance_token_supply: Uint128::new(0),
+            last_reward_update_timestamp: Timestamp::default(),
+        }
+    );
 }
 
 #[test]
@@ -36,14 +56,18 @@ fn test_reply_create_token() {
         id: 1,
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
-            data: Some(Binary::from(String::from("ualliance").to_bytes().unwrap())),
+            data: Some(Binary::from(
+                String::from("factory/cosmos2contract/ualliance")
+                    .to_bytes()
+                    .unwrap(),
+            )),
         }),
     };
     let res = reply(deps.as_mut(), mock_env(), msg).unwrap();
     let sub_msg = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
         TokenExecuteMsg::MintTokens {
             amount: Uint128::from(1000000000000u128),
-            denom: "ualliance".to_string(),
+            denom: "factory/cosmos2contract/ualliance".to_string(),
             mint_to_address: "cosmos2contract".to_string(),
         },
     )));
@@ -75,10 +99,18 @@ fn test_reply_create_token() {
             .add_submessage(sub_msg_metadata)
     );
 
-    let config = CONFIG.load(deps.as_ref().storage).unwrap();
-    assert_eq!(config.alliance_token_denom, "ualliance");
+    let query_config = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+    let config: Config = from_binary(&query_config).unwrap();
     assert_eq!(
-        config.alliance_token_supply,
-        Uint128::from(1000000000000u128)
+        config,
+        Config {
+            governance: Addr::unchecked("gov"),
+            controller: Addr::unchecked("controller"),
+            oracle: Addr::unchecked("oracle"),
+            reward_denom: "uluna".to_string(),
+            alliance_token_denom: "factory/cosmos2contract/ualliance".to_string(),
+            alliance_token_supply: Uint128::new(1000000000000),
+            last_reward_update_timestamp: Timestamp::default(),
+        }
     );
 }

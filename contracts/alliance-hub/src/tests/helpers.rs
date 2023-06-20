@@ -1,9 +1,9 @@
 use crate::contract::{execute, instantiate};
-use crate::state::{Config, CONFIG};
+use crate::state::CONFIG;
 use crate::token_factory::CustomExecuteMsg;
 use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg, AllianceRedelegation,
-    AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg,
+    AllianceUndelegateMsg, Config, ExecuteMsg, InstantiateMsg,
 };
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, DepsMut, Response, StdResult, Uint128};

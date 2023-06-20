@@ -2,7 +2,8 @@
 use cosmwasm_std::entry_point;
 
 use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, ExecuteMsg, InstantiateMsg,
+    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, Config, ExecuteMsg,
+    InstantiateMsg,
 };
 use cosmwasm_std::{
     to_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo,
@@ -21,8 +22,8 @@ use terra_proto_rs::traits::Message;
 
 use crate::error::ContractError;
 use crate::state::{
-    Config, ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
-    TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE, TOTAL_BALANCES,
+    UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
 use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg};
 
@@ -75,12 +76,12 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::WhitelistAssets(assets) => whitelist_assets(deps, env, info, assets),
-        ExecuteMsg::RemoveAssets(assets) => remove_assets(deps, env, info, assets),
+        ExecuteMsg::WhitelistAssets(assets) => whitelist_assets(deps, info, assets),
+        ExecuteMsg::RemoveAssets(assets) => remove_assets(deps, info, assets),
 
         ExecuteMsg::Stake => stake(deps, env, info),
-        ExecuteMsg::Unstake(asset) => unstake(deps, env, info, asset),
-        ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, env, info, asset),
+        ExecuteMsg::Unstake(asset) => unstake(deps, info, asset),
+        ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, info, asset),
 
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
@@ -94,7 +95,6 @@ pub fn execute(
 
 fn whitelist_assets(
     deps: DepsMut,
-    _env: Env,
     info: MessageInfo,
     assets: Vec<AssetInfo>,
 ) -> Result<Response, ContractError> {
@@ -122,7 +122,6 @@ fn whitelist_assets(
 
 fn remove_assets(
     deps: DepsMut,
-    _env: Env,
     info: MessageInfo,
     assets: Vec<AssetInfo>,
 ) -> Result<Response, ContractError> {
@@ -201,12 +200,7 @@ fn stake(deps: DepsMut, _env: Env, info: MessageInfo) -> Result<Response, Contra
     ]))
 }
 
-fn unstake(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    asset: Asset,
-) -> Result<Response, ContractError> {
+fn unstake(deps: DepsMut, info: MessageInfo, asset: Asset) -> Result<Response, ContractError> {
     let asset_key = AssetInfoKey::from(asset.info.clone());
     let sender = info.sender.clone();
     if asset.amount.is_zero() {
@@ -265,7 +259,6 @@ fn unstake(
 
 fn claim_rewards(
     deps: DepsMut,
-    _env: Env,
     info: MessageInfo,
     asset: AssetInfo,
 ) -> Result<Response, ContractError> {
@@ -572,9 +565,6 @@ pub fn reply(
                 Ok(config)
             })?;
             let symbol = "ALLIANCE";
-            let mut denom = String::from("factory/");
-            denom.push_str(env.contract.address.as_ref());
-            denom.push_str("/ualliance");
 
             let sub_msg_metadata = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
                 TokenExecuteMsg::SetMetadata {
@@ -595,7 +585,7 @@ pub fn reply(
             )));
             Ok(Response::new()
                 .add_attributes(vec![
-                    ("alliance_token_denom", denom.clone()),
+                    ("alliance_token_denom", denom),
                     ("alliance_token_total_supply", total_supply.to_string()),
                 ])
                 .add_submessage(sub_msg_mint)

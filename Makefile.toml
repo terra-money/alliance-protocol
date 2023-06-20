@@ -26,10 +26,11 @@ args = ["build", "--release", "--locked", "--target", "wasm32-unknown-unknown"]
 
 [tasks.schema]
 script = """
-for d in contracts/alliance-oracle; do
+for d in contracts/*; do
   if [ -d "$d" ]; then
     cd $d
     cargo schema
+    cd ../..
   fi
 done
 """
