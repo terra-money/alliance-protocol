@@ -1,17 +1,17 @@
-use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
+use std::collections::HashMap;
 use std::env;
-use std::hash::Hash;
 
 use alliance_protocol::alliance_oracle_types::{
     AssetStaked, ChainId, ChainInfo, ChainsInfo, Config, EmissionsDistribution, ExecuteMsg, Expire,
     InstantiateMsg, QueryMsg,
 };
+use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Decimal256};
+use cosmwasm_std::{
+    to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+};
 use cw2::set_contract_version;
-use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 
 use crate::error::ContractError;
 use crate::state::{CHAINS_INFO, CONFIG, LUNA_INFO};
@@ -92,7 +92,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::QueryLunaInfo {} => get_luna_info(deps, env)?,
         QueryMsg::QueryChainInfo { chain_id } => get_chain_info(deps, env, chain_id)?,
         QueryMsg::QueryChainsInfo {} => get_chains_info(deps, env)?,
-        QueryMsg::QueryChainsInfoUnsafe {} => get_chains_info_unsafe(deps, env)?,
+        QueryMsg::QueryChainsInfoUnsafe {} => get_chains_info_unsafe(deps)?,
         QueryMsg::QueryEmissionsDistributions(query) => {
             get_emissions_distribution_info(deps, env, query)?
         }
@@ -140,7 +140,7 @@ pub fn get_chains_info(deps: Deps, env: Env) -> StdResult<Binary> {
     to_binary(&chains_info)
 }
 
-pub fn get_chains_info_unsafe(deps: Deps, env: Env) -> StdResult<Binary> {
+pub fn get_chains_info_unsafe(deps: Deps) -> StdResult<Binary> {
     let chains_info = CHAINS_INFO.load(deps.storage)?;
     to_binary(&chains_info)
 }
@@ -151,14 +151,13 @@ pub fn get_emissions_distribution_info(
     chains: HashMap<ChainId, Vec<AssetStaked>>,
 ) -> StdResult<Binary> {
     let chains_info = CHAINS_INFO.load(deps.storage)?;
-    let cfg = CONFIG.load(deps.storage)?;
     let luna = LUNA_INFO.load(deps.storage)?;
 
     let mut chain_aprs: Vec<(ChainInfo, SignedDecimal)> = vec![];
     let mut denom_rebase: HashMap<String, Decimal> = HashMap::new();
 
     // First go through all chains and calculate the average yield for all alliances that accepts LUNA as a staking asset
-    for chain_info in chains_info.clone() {
+    for chain_info in chains_info {
         if chains.contains_key(&chain_info.chain_id) {
             let mut apr_sum = SignedDecimal::zero();
             let mut total_staked = SignedDecimal::zero();
@@ -167,20 +166,21 @@ pub fn get_emissions_distribution_info(
                     * alliance.normalized_reward_weight
                     * chain_info.native_token.token_price;
                 let staked = alliance.total_lsd_staked * alliance.rebase_factor;
-                let apr = SignedDecimal::from_decimal(numerator / luna.luna_price, Sign::Positive) - (alliance.annual_take_rate * staked);
+                let apr = SignedDecimal::from_decimal(numerator / luna.luna_price, Sign::Positive)
+                    - (alliance.annual_take_rate * staked);
                 apr_sum += apr;
                 total_staked += staked;
             }
             let average_apr = apr_sum / total_staked;
             chain_aprs.push((chain_info.clone(), average_apr));
         }
-        denom_rebase = HashMap::from(chain_info.chain_alliances_on_phoenix.iter().fold(
+        denom_rebase = chain_info.chain_alliances_on_phoenix.iter().fold(
             HashMap::new(),
             |mut acc, alliance| {
-                acc.insert(alliance.ibc_denom.clone(), alliance.rebase_factor.clone());
+                acc.insert(alliance.ibc_denom.clone(), alliance.rebase_factor);
                 acc
             },
-        ));
+        );
     }
 
     let mut emission_distribution = vec![];
@@ -203,7 +203,7 @@ pub fn get_emissions_distribution_info(
                 denom: asset.denom.to_string(),
                 distribution: apr
                     * Decimal::from_atomics(asset.amount, 0).unwrap_or(Decimal::zero())
-                    * denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one()).clone()
+                    * *denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one())
                     / total_staked,
             });
         }

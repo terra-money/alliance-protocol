@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Array_of_EmissionsDistribution",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/EmissionsDistribution"
+  },
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "EmissionsDistribution": {
+      "type": "object",
+      "required": [
+        "denom",
+        "distribution"
+      ],
+      "properties": {
+        "denom": {
+          "type": "string"
+        },
+        "distribution": {
+          "$ref": "#/definitions/SignedDecimal"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Sign": {
+      "type": "string",
+      "enum": [
+        "Positive",
+        "Negative"
+      ]
+    },
+    "SignedDecimal": {
+      "type": "object",
+      "required": [
+        "sign",
+        "value"
+      ],
+      "properties": {
+        "sign": {
+          "$ref": "#/definitions/Sign"
+        },
+        "value": {
+          "$ref": "#/definitions/Decimal"
+        }
+      }
+    }
+  }
+}

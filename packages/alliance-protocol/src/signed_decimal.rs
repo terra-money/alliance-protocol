@@ -1,10 +1,10 @@
-use std::fmt;
-use std::fmt::Write;
 use cosmwasm_std::{Decimal, DecimalRangeExceeded, StdError, Uint128};
 use schemars::JsonSchema;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
+use serde::{de, ser, Deserialize, Deserializer, Serialize};
+use std::fmt;
+use std::fmt::Write;
+use std::ops::{Add, AddAssign, Div, Mul, Sub};
 use std::str::FromStr;
-use serde::{ser, Deserialize, Deserializer, Serialize, de};
 
 #[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
 pub enum Sign {
@@ -16,20 +16,30 @@ pub enum Sign {
 #[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
 pub struct SignedDecimal {
     value: Decimal,
-    sign: Sign
+    sign: Sign,
 }
 
 impl SignedDecimal {
-   pub fn from_atomics(atomics: impl Into<Uint128>, decimal_places: u32, sign: Sign) -> Result<Self, DecimalRangeExceeded> {
-         let value = Decimal::from_atomics(atomics.into(), decimal_places)?;
-         Ok(Self { value, sign })
-   }
+    pub fn from_atomics(
+        atomics: impl Into<Uint128>,
+        decimal_places: u32,
+        sign: Sign,
+    ) -> Result<Self, DecimalRangeExceeded> {
+        let value = Decimal::from_atomics(atomics.into(), decimal_places)?;
+        Ok(Self { value, sign })
+    }
 
     pub fn from_decimal(decimal: Decimal, sign: Sign) -> Self {
         if decimal.is_zero() {
-            return Self { value: Decimal::zero(), sign: Sign::Positive };
+            return Self {
+                value: Decimal::zero(),
+                sign: Sign::Positive,
+            };
         }
-        Self { value: decimal, sign }
+        Self {
+            value: decimal,
+            sign,
+        }
     }
 
     pub fn is_positive(&self) -> bool {
@@ -47,7 +57,10 @@ impl SignedDecimal {
     }
 
     pub fn zero() -> Self {
-        Self { value: Decimal::zero(), sign: Sign::Positive }
+        Self {
+            value: Decimal::zero(),
+            sign: Sign::Positive,
+        }
     }
 }
 
@@ -72,7 +85,7 @@ impl Add for SignedDecimal {
                 return Self::from_decimal(rhs.value - self.value, Sign::Negative);
             }
         }
-        return Self::from_decimal(self.value + rhs.value, Sign::Positive);
+        Self::from_decimal(self.value + rhs.value, Sign::Positive)
     }
 }
 
@@ -120,9 +133,9 @@ impl Sub for SignedDecimal {
             return Self::from_decimal(self.value + rhs.value, Sign::Positive);
         }
         if self.value > rhs.value {
-            return Self::from_decimal(self.value - rhs.value, Sign::Positive);
+            Self::from_decimal(self.value - rhs.value, Sign::Positive)
         } else {
-            return Self::from_decimal(rhs.value - self.value, Sign::Negative);
+            Self::from_decimal(rhs.value - self.value, Sign::Negative)
         }
     }
 }
@@ -140,14 +153,14 @@ impl Mul for SignedDecimal {
         if self.is_positive() && rhs.is_negative() {
             return Self::from_decimal(self.value * rhs.value, Sign::Negative);
         }
-        return Self::from_decimal(self.value * rhs.value, Sign::Positive);
+        Self::from_decimal(self.value * rhs.value, Sign::Positive)
     }
 }
 
 impl Mul<Decimal> for SignedDecimal {
-   type Output = Self;
+    type Output = Self;
     fn mul(self, rhs: Decimal) -> Self::Output {
-         self * Self::from_decimal(rhs, Sign::Positive)
+        self * Self::from_decimal(rhs, Sign::Positive)
     }
 }
 
@@ -164,7 +177,7 @@ impl Div for SignedDecimal {
         if self.is_positive() && rhs.is_negative() {
             return Self::from_decimal(self.value / rhs.value, Sign::Negative);
         }
-        return Self::from_decimal(self.value / rhs.value, Sign::Positive);
+        Self::from_decimal(self.value / rhs.value, Sign::Positive)
     }
 }
 
@@ -186,7 +199,7 @@ impl fmt::Display for SignedDecimal {
         if self.is_negative() && self.value != Decimal::zero() {
             f.write_char('-')?;
         }
-        f.write_str(&self.value.to_string());
+        let _ = f.write_str(&self.value.to_string());
         Ok(())
     }
 }
@@ -207,8 +220,8 @@ impl FromStr for SignedDecimal {
 
 impl Serialize for SignedDecimal {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: ser::Serializer,
+    where
+        S: ser::Serializer,
     {
         serializer.serialize_str(&self.to_string())
     }
@@ -216,8 +229,8 @@ impl Serialize for SignedDecimal {
 
 impl<'de> Deserialize<'de> for SignedDecimal {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_str(DecimalVisitor)
     }
@@ -233,8 +246,8 @@ impl<'de> de::Visitor<'de> for DecimalVisitor {
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
+    where
+        E: de::Error,
     {
         match SignedDecimal::from_str(v) {
             Ok(d) => Ok(d),
@@ -245,20 +258,29 @@ impl<'de> de::Visitor<'de> for DecimalVisitor {
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
-    use cosmwasm_std::Decimal;
     use crate::signed_decimal::{Sign, SignedDecimal};
+    use cosmwasm_std::Decimal;
+    use std::str::FromStr;
 
     #[test]
     fn test_from_to_str() {
         let test_cases = [
-            (SignedDecimal::from_decimal(Decimal::zero(), Sign::Positive), "0"),
-            (SignedDecimal::from_decimal(Decimal::from_str("1.1").unwrap(), Sign::Negative), "-1.1"),
-            (SignedDecimal::from_decimal(Decimal::from_str("1.1").unwrap(), Sign::Positive), "1.1"),
+            (
+                SignedDecimal::from_decimal(Decimal::zero(), Sign::Positive),
+                "0",
+            ),
+            (
+                SignedDecimal::from_decimal(Decimal::from_str("1.1").unwrap(), Sign::Negative),
+                "-1.1",
+            ),
+            (
+                SignedDecimal::from_decimal(Decimal::from_str("1.1").unwrap(), Sign::Positive),
+                "1.1",
+            ),
         ];
         for (input, expected) in test_cases.iter() {
             assert_eq!(input.to_string(), *expected);
-            assert_eq!(SignedDecimal::from_str(*expected).unwrap(), *input);
+            assert_eq!(SignedDecimal::from_str(expected).unwrap(), *input);
         }
     }
 
@@ -272,7 +294,11 @@ mod test {
             ("1.1", "1.1", "2.2"),
         ];
         for test_case in test_cases {
-            assert_eq!(SignedDecimal::from_str(test_case.0).unwrap() + SignedDecimal::from_str(test_case.1).unwrap(), SignedDecimal::from_str(test_case.2).unwrap());
+            assert_eq!(
+                SignedDecimal::from_str(test_case.0).unwrap()
+                    + SignedDecimal::from_str(test_case.1).unwrap(),
+                SignedDecimal::from_str(test_case.2).unwrap()
+            );
         }
 
         let test_cases_for_decimal = vec![
@@ -281,7 +307,11 @@ mod test {
             ("1.1", "1.1", "2.2"),
         ];
         for test_case in test_cases_for_decimal {
-            assert_eq!(SignedDecimal::from_str(test_case.0).unwrap() + Decimal::from_str(test_case.1).unwrap(), SignedDecimal::from_str(test_case.2).unwrap());
+            assert_eq!(
+                SignedDecimal::from_str(test_case.0).unwrap()
+                    + Decimal::from_str(test_case.1).unwrap(),
+                SignedDecimal::from_str(test_case.2).unwrap()
+            );
         }
     }
 
@@ -295,7 +325,11 @@ mod test {
             ("1.1", "1.1", "0.0"),
         ];
         for test_case in test_cases {
-            assert_eq!(SignedDecimal::from_str(test_case.0).unwrap() - SignedDecimal::from_str(test_case.1).unwrap(), SignedDecimal::from_str(test_case.2).unwrap());
+            assert_eq!(
+                SignedDecimal::from_str(test_case.0).unwrap()
+                    - SignedDecimal::from_str(test_case.1).unwrap(),
+                SignedDecimal::from_str(test_case.2).unwrap()
+            );
         }
 
         let test_cases_for_decimal = vec![
@@ -304,7 +338,11 @@ mod test {
             ("1.1", "1.1", "0.0"),
         ];
         for test_case in test_cases_for_decimal {
-            assert_eq!(SignedDecimal::from_str(test_case.0).unwrap() - Decimal::from_str(test_case.1).unwrap(), SignedDecimal::from_str(test_case.2).unwrap());
+            assert_eq!(
+                SignedDecimal::from_str(test_case.0).unwrap()
+                    - Decimal::from_str(test_case.1).unwrap(),
+                SignedDecimal::from_str(test_case.2).unwrap()
+            );
         }
     }
 
@@ -318,7 +356,11 @@ mod test {
             ("1.1", "1.1", "1.21"),
         ];
         for test_case in test_cases {
-            assert_eq!(SignedDecimal::from_str(test_case.0).unwrap() * SignedDecimal::from_str(test_case.1).unwrap(), SignedDecimal::from_str(test_case.2).unwrap());
+            assert_eq!(
+                SignedDecimal::from_str(test_case.0).unwrap()
+                    * SignedDecimal::from_str(test_case.1).unwrap(),
+                SignedDecimal::from_str(test_case.2).unwrap()
+            );
         }
 
         let test_cases_for_decimal = vec![
@@ -327,7 +369,11 @@ mod test {
             ("1.1", "1.1", "1.21"),
         ];
         for test_case in test_cases_for_decimal {
-            assert_eq!(SignedDecimal::from_str(test_case.0).unwrap() * Decimal::from_str(test_case.1).unwrap(), SignedDecimal::from_str(test_case.2).unwrap());
+            assert_eq!(
+                SignedDecimal::from_str(test_case.0).unwrap()
+                    * Decimal::from_str(test_case.1).unwrap(),
+                SignedDecimal::from_str(test_case.2).unwrap()
+            );
         }
     }
 
@@ -341,7 +387,11 @@ mod test {
             ("1.1", "1.1", "1.0"),
         ];
         for test_case in test_cases {
-            assert_eq!(SignedDecimal::from_str(test_case.0).unwrap() / SignedDecimal::from_str(test_case.1).unwrap(), SignedDecimal::from_str(test_case.2).unwrap());
+            assert_eq!(
+                SignedDecimal::from_str(test_case.0).unwrap()
+                    / SignedDecimal::from_str(test_case.1).unwrap(),
+                SignedDecimal::from_str(test_case.2).unwrap()
+            );
         }
     }
 }
