@@ -3,12 +3,30 @@
   "title": "QueryMsg",
   "oneOf": [
     {
-      "type": "string",
-      "enum": [
-        "query_config",
-        "query_chains_info",
+      "type": "object",
+      "required": [
+        "query_config"
+      ],
+      "properties": {
+        "query_config": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "query_luna_info"
-      ]
+      ],
+      "properties": {
+        "query_luna_info": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     },
     {
       "type": "object",
@@ -26,6 +44,19 @@
               "type": "string"
             }
           },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "query_chains_info"
+      ],
+      "properties": {
+        "query_chains_info": {
+          "type": "object",
           "additionalProperties": false
         }
       },

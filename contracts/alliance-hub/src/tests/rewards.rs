@@ -1,18 +1,16 @@
 use crate::contract::execute;
 use crate::state::{
-    AssetDistribution, Config, ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, CONFIG, TEMP_BALANCE,
-    TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS,
+    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES,
+    USER_ASSET_REWARD_RATE, VALIDATORS,
 };
 use crate::tests::helpers::{
     claim_rewards, set_alliance_asset, setup_contract, stake, whitelist_assets, DENOM,
 };
-use alliance_protocol::alliance_protocol::ExecuteMsg;
-use cosmwasm_std::testing::{
-    mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
-};
+use alliance_protocol::alliance_protocol::{AssetDistribution, ExecuteMsg};
+use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
-    coin, coins, to_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, StdError,
-    StdResult, SubMsg, Uint128, WasmMsg,
+    coin, coins, to_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg, Uint128,
+    WasmMsg,
 };
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashSet;

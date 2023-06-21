@@ -53,6 +53,7 @@ pub struct ChainInfoMsg {
     pub chain_id: ChainId,
     pub native_token: NativeToken,
     pub luna_alliances: Vec<LunaAlliance>,
+    pub chain_alliances_on_phoenix: Vec<BaseAlliance>,
 }
 
 impl ChainInfoMsg {
@@ -61,6 +62,7 @@ impl ChainInfoMsg {
             chain_id: self.chain_id.clone(),
             native_token: self.native_token.clone(),
             luna_alliances: self.luna_alliances.clone(),
+            chain_alliances_on_phoenix: self.chain_alliances_on_phoenix.clone(),
             update_timestamp,
         }
     }
@@ -72,6 +74,7 @@ pub struct ChainInfo {
     pub update_timestamp: Timestamp,
     pub native_token: NativeToken,
     pub luna_alliances: Vec<LunaAlliance>,
+    pub chain_alliances_on_phoenix: Vec<BaseAlliance>,
 }
 
 impl Expire for ChainInfo {
@@ -109,7 +112,13 @@ pub trait Expire {
 pub struct NativeToken {
     pub denom: String,
     pub token_price: Decimal,
-    pub annual_inflation: Decimal,
+    pub annual_provisions: Decimal,
+}
+
+#[cw_serde]
+pub struct BaseAlliance {
+    pub ibc_denom: String,
+    pub rebase_factor: Decimal,
 }
 
 #[cw_serde]

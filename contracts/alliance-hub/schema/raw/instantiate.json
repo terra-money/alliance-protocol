@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "controller",
+    "governance",
+    "oracle",
+    "reward_denom"
+  ],
+  "properties": {
+    "controller": {
+      "type": "string"
+    },
+    "governance": {
+      "type": "string"
+    },
+    "oracle": {
+      "type": "string"
+    },
+    "reward_denom": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

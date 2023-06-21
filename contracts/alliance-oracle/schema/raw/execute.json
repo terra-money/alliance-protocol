@@ -25,14 +25,37 @@
     }
   ],
   "definitions": {
+    "BaseAlliance": {
+      "type": "object",
+      "required": [
+        "ibc_denom",
+        "rebase_factor"
+      ],
+      "properties": {
+        "ibc_denom": {
+          "type": "string"
+        },
+        "rebase_factor": {
+          "$ref": "#/definitions/Decimal"
+        }
+      },
+      "additionalProperties": false
+    },
     "ChainInfoMsg": {
       "type": "object",
       "required": [
+        "chain_alliances_on_phoenix",
         "chain_id",
         "luna_alliances",
         "native_token"
       ],
       "properties": {
+        "chain_alliances_on_phoenix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BaseAlliance"
+          }
+        },
         "chain_id": {
           "type": "string"
         },
@@ -102,12 +125,12 @@
     "NativeToken": {
       "type": "object",
       "required": [
-        "annual_inflation",
+        "annual_provisions",
         "denom",
         "token_price"
       ],
       "properties": {
-        "annual_inflation": {
+        "annual_provisions": {
           "$ref": "#/definitions/Decimal"
         },
         "denom": {

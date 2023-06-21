@@ -1,15 +1,14 @@
 use crate::contract::execute;
 use crate::error::ContractError;
-use crate::state::{Config, CONFIG, TOTAL_BALANCES, VALIDATORS};
+use crate::state::{CONFIG, VALIDATORS};
 use crate::tests::helpers::{
     alliance_delegate, alliance_redelegate, alliance_undelegate, setup_contract,
 };
 use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg, ExecuteMsg,
+    AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg, Config, ExecuteMsg,
 };
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{Addr, Binary, CosmosMsg, StdResult, SubMsg, Uint128};
-use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::{MsgDelegate, MsgRedelegate};
 use terra_proto_rs::cosmos::base::v1beta1::Coin;
@@ -90,7 +89,7 @@ fn test_alliance_delegation_invalid() {
             })
         })
         .unwrap();
-    let info = mock_info("user", &vec![]);
+    let info = mock_info("user", &[]);
     let msg = AllianceDelegateMsg {
         delegations: vec![AllianceDelegation {
             validator: "validator1".to_string(),
@@ -106,7 +105,7 @@ fn test_alliance_delegation_invalid() {
     .unwrap_err();
     assert_eq!(err, ContractError::Unauthorized {});
 
-    let info = mock_info("controller", &vec![]);
+    let info = mock_info("controller", &[]);
     let msg = AllianceDelegateMsg {
         delegations: vec![],
     };
@@ -192,7 +191,7 @@ fn test_alliance_undelegation_invalid() {
             })
         })
         .unwrap();
-    let info = mock_info("user", &vec![]);
+    let info = mock_info("user", &[]);
     let msg = AllianceUndelegateMsg {
         undelegations: vec![AllianceDelegation {
             validator: "validator1".to_string(),
@@ -208,7 +207,7 @@ fn test_alliance_undelegation_invalid() {
     .unwrap_err();
     assert_eq!(err, ContractError::Unauthorized {});
 
-    let info = mock_info("controller", &vec![]);
+    let info = mock_info("controller", &[]);
     let msg = AllianceUndelegateMsg {
         undelegations: vec![],
     };

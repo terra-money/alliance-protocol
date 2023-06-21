@@ -1,6 +1,12 @@
 # Based on https://github.com/actions-rs/example/blob/master/.github/workflows/quickstart.yml
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 name: Basic
 
@@ -17,25 +23,18 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.58.1
+          toolchain: 1.68.2
           target: wasm32-unknown-unknown
           override: true
 
-      - name: Run unit tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: unit-test
-          args: --locked
-        env:
-          RUST_BACKTRACE: 1
-
-      - name: Compile WASM contract
-        uses: actions-rs/cargo@v1
-        with:
-          command: wasm
-          args: --locked
-        env:
-          RUSTFLAGS: "-C link-arg=-s"
+      - name: Install Cargo Make
+        uses: davidB/rust-cargo-make@v1
+        
+      - name: Run test
+        run: cargo make test
+        
+      - name: Build
+        run: cargo make build
 
   lints:
     name: Lints
@@ -48,28 +47,22 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.58.1
+          toolchain: 1.68.2
+          target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy
 
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
-
-      - name: Generate Schema
-        uses: actions-rs/cargo@v1
-        with:
-          command: schema
-          args: --locked
-
+      - name: Install Cargo Make
+        uses: davidB/rust-cargo-make@v1
+        
+      - name: Run format
+        run: cargo make fmt
+        
+      - name: Run lint
+        run: cargo make lint
+      
+      - name: Run Schema
+        run: cargo make schema
+  
       - name: Schema Changes
-        # fails if any changes not committed
-        run: git diff --exit-code schema
+        run: git diff --exit-code contracts/alliance-oracle/schema

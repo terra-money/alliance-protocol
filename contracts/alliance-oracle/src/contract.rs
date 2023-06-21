@@ -71,13 +71,13 @@ fn update_chains_info(
 
     for chain_info in &chains_info.protocols_info {
         let chain_info = chain_info.to_chain_info(env.block.time);
-        
+
         parsed_chains_info.push(chain_info);
     }
 
     let luna_info = chains_info.to_luna_info(env.block.time);
     LUNA_INFO.save(deps.storage, &luna_info)?;
-    CHAINS_INFO.save(deps.storage,&parsed_chains_info)?;
+    CHAINS_INFO.save(deps.storage, &parsed_chains_info)?;
 
     Ok(Response::new().add_attribute("action", "update_chains_info"))
 }
@@ -94,7 +94,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 pub fn get_config(deps: Deps) -> StdResult<Binary> {
     let cfg = CONFIG.load(deps.storage)?;
-    
+
     to_binary(&cfg)
 }
 
@@ -119,7 +119,7 @@ pub fn get_chain_info(deps: Deps, env: Env, chain_id: ChainId) -> StdResult<Bina
     }
 
     let string_error = format!("Chain not available by id: {:?}", chain_id);
-    return Err(StdError::generic_err(string_error));
+    Err(StdError::generic_err(string_error))
 }
 
 pub fn get_chains_info(deps: Deps, env: Env) -> StdResult<Binary> {

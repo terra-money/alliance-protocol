@@ -29,6 +29,9 @@ pub struct Metadata {
 pub enum TokenExecuteMsg {
     CreateDenom {
         subdenom: String,
+    },
+    SetMetadata {
+        denom: String,
         metadata: Metadata,
     },
     MintTokens {

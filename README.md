@@ -66,7 +66,8 @@ CHAIN_ID=
 ACC_PREFIX=
 ```
 
-To deploy the oracle smart contract it can be done by executing the following command:
+To deploy oracle and alliance hub smart contract:
 ```sh
 $ cargo make deploy-oracle
+$ cargo make deploy-hub
 ```
