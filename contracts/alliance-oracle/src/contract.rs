@@ -161,15 +161,25 @@ pub fn get_emissions_distribution_info(
         if chains.contains_key(&chain_info.chain_id) {
             let mut apr_sum = SignedDecimal::zero();
             let mut total_staked = SignedDecimal::zero();
+
             for alliance in chain_info.luna_alliances.clone() {
+                // Calculate the amount of chain native tokens
+                // distributed to the alliance in a year denominated in stablecoin.
                 let numerator = chain_info.native_token.annual_provisions
                     * alliance.normalized_reward_weight
                     * chain_info.native_token.token_price;
-                let staked = alliance.total_lsd_staked * alliance.rebase_factor;
+
+                // Calculate the total amount of LUNA staked with this alliance
+                // on this chain based on the amount of LSD's staked and their rebase factor.
+                let total_luna_staked = alliance.total_lsd_staked * alliance.rebase_factor;
+
+                // Calculate the APR if a signle LUNA is staked with this
+                // alliance on this chain denominated in stablecoin.
                 let apr = SignedDecimal::from_decimal(numerator / luna.luna_price, Sign::Positive)
-                    - (alliance.annual_take_rate * staked);
+                    - (alliance.annual_take_rate * total_luna_staked);
+
                 apr_sum += apr;
-                total_staked += staked;
+                total_staked += total_luna_staked;
             }
             let average_apr = if total_staked.is_zero() {
                 SignedDecimal::zero()
@@ -186,12 +196,14 @@ pub fn get_emissions_distribution_info(
 
     let mut emission_distribution = vec![];
     for (chain_info, apr) in chain_aprs {
+        // Get the whitelisted asset base on the function parameter chains.ChainId
         let whitelisted_assets = chains
             .get(&chain_info.chain_id)
             .ok_or(StdError::generic_err(format!(
                 "Error getting whitelisted assets for chain {:?}",
                 &chain_info.chain_id
             )))?;
+
         let total_staked = whitelisted_assets
             .iter()
             .fold(Decimal::zero(), |acc, asset| {
