@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Deserializer, Serialize};
 use std::fmt;
 use std::fmt::Write;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, Mul, Sub};
 use std::str::FromStr;
 
 #[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
@@ -89,7 +89,7 @@ impl Add for SignedDecimal {
                 return Self::from_decimal(rhs.value - self.value, Sign::Negative);
             }
         }
-        return Self::from_decimal(self.value + rhs.value, Sign::Positive);
+        Self::from_decimal(self.value + rhs.value, Sign::Positive)
     }
 }
 
@@ -137,9 +137,9 @@ impl Sub for SignedDecimal {
             return Self::from_decimal(self.value + rhs.value, Sign::Positive);
         }
         if self.value > rhs.value {
-            return Self::from_decimal(self.value - rhs.value, Sign::Positive);
+            Self::from_decimal(self.value - rhs.value, Sign::Positive)
         } else {
-            return Self::from_decimal(rhs.value - self.value, Sign::Negative);
+            Self::from_decimal(rhs.value - self.value, Sign::Negative)
         }
     }
 }
@@ -157,7 +157,7 @@ impl Mul for SignedDecimal {
         if self.is_positive() && rhs.is_negative() {
             return Self::from_decimal(self.value * rhs.value, Sign::Negative);
         }
-        return Self::from_decimal(self.value * rhs.value, Sign::Positive);
+        Self::from_decimal(self.value * rhs.value, Sign::Positive)
     }
 }
 
@@ -181,7 +181,7 @@ impl Div for SignedDecimal {
         if self.is_positive() && rhs.is_negative() {
             return Self::from_decimal(self.value / rhs.value, Sign::Negative);
         }
-        return Self::from_decimal(self.value / rhs.value, Sign::Positive);
+        Self::from_decimal(self.value / rhs.value, Sign::Positive)
     }
 }
 
@@ -203,7 +203,7 @@ impl fmt::Display for SignedDecimal {
         if self.is_negative() && self.value != Decimal::zero() {
             f.write_char('-')?;
         }
-        f.write_str(&self.value.to_string());
+        let _ = f.write_str(&self.value.to_string());
         Ok(())
     }
 }
@@ -284,7 +284,7 @@ mod test {
         ];
         for (input, expected) in test_cases.iter() {
             assert_eq!(input.to_string(), *expected);
-            assert_eq!(SignedDecimal::from_str(*expected).unwrap(), *input);
+            assert_eq!(SignedDecimal::from_str(expected).unwrap(), *input);
         }
     }
 

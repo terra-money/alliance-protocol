@@ -4,12 +4,11 @@ use alliance_protocol::alliance_oracle_types::{
     AssetStaked, BaseAlliance, ChainInfo, ChainInfoMsg, ChainsInfo, EmissionsDistribution,
     ExecuteMsg, LunaAlliance, LunaInfo, NativeToken, QueryMsg,
 };
-use alliance_protocol::alliance_protocol::AssetDistribution;
 use alliance_protocol::signed_decimal::SignedDecimal;
 use cosmwasm_std::{
     from_binary,
     testing::{mock_env, mock_info},
-    to_binary, Decimal, Uint128,
+    Decimal, Uint128,
 };
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -180,7 +179,7 @@ fn test_emissions_distribution() {
         "chain-1".to_string(),
         vec![AssetStaked {
             denom: "ibc/randomd_denom".to_string(),
-            amount: Uint128::new(1000_000),
+            amount: Uint128::new(1_000_000),
         }],
     )]));
 
