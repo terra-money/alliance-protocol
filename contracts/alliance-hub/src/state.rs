@@ -12,8 +12,12 @@ pub const TOTAL_BALANCES: Map<AssetInfoKey, Uint128> = Map::new("total_balances"
 
 pub const VALIDATORS: Item<HashSet<Addr>> = Item::new("validators");
 
+// claim with the old distribution
+// Update this from rebalance
+// if the dist is negative set the distribution to 0
 pub const ASSET_REWARD_DISTRIBUTION: Item<Vec<AssetDistribution>> =
     Item::new("asset_reward_distribution");
+
 pub const ASSET_REWARD_RATE: Map<AssetInfoKey, Decimal> = Map::new("asset_reward_rate");
 pub const USER_ASSET_REWARD_RATE: Map<(Addr, AssetInfoKey), Decimal> =
     Map::new("user_asset_reward_rate");

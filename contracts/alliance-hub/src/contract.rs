@@ -1,6 +1,9 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
+use alliance_protocol::alliance_oracle_types::{
+    AssetStaked, ChainId, ChainInfo, EmissionsDistribution, QueryMsg as OracleQueryMsg,
+};
 use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, Config, ExecuteMsg,
     InstantiateMsg,
@@ -12,7 +15,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use terra_proto_rs::alliance::alliance::{
     MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate,
@@ -87,7 +90,7 @@ pub fn execute(
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
         ExecuteMsg::UpdateRewards => update_rewards(deps, env, info),
-        ExecuteMsg::RebalanceEmissions => Ok(Response::new()),
+        ExecuteMsg::RebalanceEmissions => rebalance_emissions(deps, env, info),
 
         ExecuteMsg::UpdateRewardsCallback => update_reward_callback(deps, env, info),
     }
@@ -516,27 +519,75 @@ fn update_reward_callback(
     Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
 }
 
-/*fn rebalance_emissions(
+fn rebalance_emissions(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
+    // Allow execution only from the controller account
     let config = CONFIG.load(deps.storage)?;
-
-    if info.sender != env.contract.address {
+    if info.sender != config.controller {
         return Err(ContractError::Unauthorized {});
     }
+    // Before starting with the rebalance emission process
+    // rewards must be updated to the current block height
+    update_rewards(deps, env.clone(), info.clone())?;
 
-    // Query oracle contract for current distribution
-    deps.querier.query_wasm_smart(
-        config.oracle,
-        &Binary::default(), // TODO: Fill in with the correct query
+    // Query the oracle smart contract chains info to get
+    // the current staked assets with their respective chains
+    // and data
+    let chains_info: Vec<ChainInfo> = deps.querier.query_wasm_smart(
+        config.oracle.clone(),
+        &OracleQueryMsg::QueryChainsInfoUnsafe {},
     )?;
+
+    // This is the request that will be send to the oracle contract
+    // on the QueryEmissionsDistributions entry point to recover
+    // the assets_reward_distribution...
+    let mut distr_req: HashMap<ChainId, Vec<AssetStaked>> = HashMap::new();
+
+    // ... to build the request we must iterate chains_info,
+    // for each chain_info we filter out the non-whitelisted
+    // assets to optimize this process, then iterate the
+    // chain_alliances_on_phoenix, load the total staked balance
+    // for that specific assset, build the AssetStaked
+    // and finally append them to the request.
+    for chain_info in chains_info {
+        let alliances = chain_info
+            .chain_alliances_on_phoenix
+            .iter()
+            .filter(|alliance_on_phoenix| {
+                let asset_key =
+                    AssetInfoKey::from(AssetInfo::Native(alliance_on_phoenix.ibc_denom.clone()));
+                let enabled = WHITELIST.load(deps.storage, asset_key.clone());
+                enabled.unwrap_or(false)
+            })
+            .map(|alliance_on_phoenix| {
+                let asset_key =
+                    AssetInfoKey::from(AssetInfo::Native(alliance_on_phoenix.ibc_denom.clone()));
+                let asset_balance = TOTAL_BALANCES.load(deps.storage, asset_key);
+
+                AssetStaked {
+                    denom: alliance_on_phoenix.ibc_denom.clone(),
+                    amount: asset_balance.unwrap_or(Uint128::zero()),
+                }
+            })
+            .collect();
+
+        distr_req.insert(chain_info.chain_id, alliances);
+    }
+
+    // Query oracle contract for the new distribution
+    let distr_res: Vec<EmissionsDistribution> = deps.querier.query_wasm_smart(
+        config.oracle,
+        &OracleQueryMsg::QueryEmissionsDistributions(distr_req),
+    )?;
+
 
     // TODO: Update the asset reward distribution
 
     Ok(Response::new().add_attributes(vec![("action", "rebalance_emissions")]))
-}*/
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(

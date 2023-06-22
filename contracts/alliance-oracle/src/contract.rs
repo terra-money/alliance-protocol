@@ -94,7 +94,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::QueryChainsInfo {} => get_chains_info(deps, env)?,
         QueryMsg::QueryChainsInfoUnsafe {} => get_chains_info_unsafe(deps)?,
         QueryMsg::QueryEmissionsDistributions(query) => {
-            get_emissions_distribution_info(deps, env, query)?
+            get_emissions_distribution_info(deps, query)?
         }
     })
 }
@@ -147,7 +147,6 @@ pub fn get_chains_info_unsafe(deps: Deps) -> StdResult<Binary> {
 
 pub fn get_emissions_distribution_info(
     deps: Deps,
-    _env: Env,
     chains: HashMap<ChainId, Vec<AssetStaked>>,
 ) -> StdResult<Binary> {
     let chains_info = CHAINS_INFO.load(deps.storage)?;
