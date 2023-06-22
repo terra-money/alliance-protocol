@@ -1,7 +1,7 @@
+use crate::signed_decimal::SignedDecimal;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, StdError, Timestamp, Uint128};
 use std::collections::HashMap;
-use crate::signed_decimal::SignedDecimal;
 
 #[cw_serde]
 pub struct Config {

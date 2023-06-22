@@ -7,11 +7,14 @@ use alliance_protocol::alliance_oracle_types::{
     AssetStaked, ChainId, ChainInfo, ChainsInfo, Config, EmissionsDistribution, ExecuteMsg, Expire,
     InstantiateMsg, QueryMsg,
 };
+use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Decimal256};
+use cosmwasm_std::{
+    to_binary, Binary, Decimal, Decimal256, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult,
+};
 use cw2::set_contract_version;
-use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 
 use crate::error::ContractError;
 use crate::state::{CHAINS_INFO, CONFIG, LUNA_INFO};
@@ -167,20 +170,22 @@ pub fn get_emissions_distribution_info(
                     * alliance.normalized_reward_weight
                     * chain_info.native_token.token_price;
                 let staked = alliance.total_lsd_staked * alliance.rebase_factor;
-                let apr = SignedDecimal::from_decimal(numerator / luna.luna_price, Sign::Positive) - (alliance.annual_take_rate * staked);
+                let apr = SignedDecimal::from_decimal(numerator / luna.luna_price, Sign::Positive)
+                    - (alliance.annual_take_rate * staked);
                 apr_sum += apr;
                 total_staked += staked;
             }
-            let average_apr = apr_sum / total_staked;
+            let average_apr = if total_staked.is_zero() {
+                SignedDecimal::zero()
+            } else {
+                apr_sum / total_staked
+            };
             chain_aprs.push((chain_info.clone(), average_apr));
+
+            for alliance in chain_info.chain_alliances_on_phoenix.clone() {
+                denom_rebase.insert(alliance.ibc_denom.clone(), alliance.rebase_factor);
+            }
         }
-        denom_rebase = HashMap::from(chain_info.chain_alliances_on_phoenix.iter().fold(
-            HashMap::new(),
-            |mut acc, alliance| {
-                acc.insert(alliance.ibc_denom.clone(), alliance.rebase_factor.clone());
-                acc
-            },
-        ));
     }
 
     let mut emission_distribution = vec![];
@@ -199,12 +204,19 @@ pub fn get_emissions_distribution_info(
                 )
             });
         for asset in whitelisted_assets {
+            let staked = Decimal::from_atomics(asset.amount, 0).unwrap_or(Decimal::zero())
+                * denom_rebase
+                    .get(&asset.denom)
+                    .unwrap_or(&Decimal::one())
+                    .clone();
+            let distribution = if staked.is_zero() {
+                SignedDecimal::zero()
+            } else {
+                apr * staked / total_staked
+            };
             emission_distribution.push(EmissionsDistribution {
                 denom: asset.denom.to_string(),
-                distribution: apr
-                    * Decimal::from_atomics(asset.amount, 0).unwrap_or(Decimal::zero())
-                    * denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one()).clone()
-                    / total_staked,
+                distribution,
             });
         }
     }
