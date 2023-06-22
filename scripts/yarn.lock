@@ -92,10 +92,10 @@
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@terra-money/feather.js@1.0.5":
-  version "1.0.5"
-  resolved "https://registry.yarnpkg.com/@terra-money/feather.js/-/feather.js-1.0.5.tgz#bcbadbe5efe6d049dff8ed8be1de91a69a54bf98"
-  integrity sha512-IyYHbD6n8zZeE+J/hWP2F23chhWxlD+b1RwEuXYQk0UbvyDDUy5f8a53L9p53C+EtyHOjrkyW9mlFS8L1+w3zg==
+"@terra-money/feather.js@1.0.7-beta.4":
+  version "1.0.7-beta.4"
+  resolved "https://registry.yarnpkg.com/@terra-money/feather.js/-/feather.js-1.0.7-beta.4.tgz#ed5bb26ae7b7ccf80c3802f716f4e2d99e7c5ff3"
+  integrity sha512-V0zc2he5L2WaV57JZ3jQAgcnKEGGe0qU1Vf2wvP2+68wpM4LkH6kPc9uarmMg/9hoDaNoDAQiFNw5MoBxLxTgg==
   dependencies:
     "@terra-money/legacy.proto" "npm:@terra-money/terra.proto@^0.1.7"
     "@terra-money/terra.proto" "3.0.5"

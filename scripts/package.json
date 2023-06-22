@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@terra-money/feather.js": "1.0.5",
+    "@terra-money/feather.js": "1.0.7-beta.4",
     "dotenv": "^16.1.4",
     "ts-node": "^10.9.1"
   }

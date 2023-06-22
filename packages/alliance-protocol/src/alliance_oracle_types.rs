@@ -1,5 +1,7 @@
+use crate::signed_decimal::SignedDecimal;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, StdError, Timestamp};
+use cosmwasm_std::{Addr, Decimal, StdError, Timestamp, Uint128};
+use std::collections::HashMap;
 
 #[cw_serde]
 pub struct Config {
@@ -131,6 +133,18 @@ pub struct LunaAlliance {
 }
 
 #[cw_serde]
+pub struct AssetStaked {
+    pub denom: String,
+    pub amount: Uint128,
+}
+
+#[cw_serde]
+pub struct EmissionsDistribution {
+    pub denom: String,
+    pub distribution: SignedDecimal,
+}
+
+#[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(Config)]
@@ -141,6 +155,10 @@ pub enum QueryMsg {
     QueryChainInfo { chain_id: ChainId },
     #[returns(Vec<ChainInfo>)]
     QueryChainsInfo {},
+    #[returns(Vec<ChainInfo>)]
+    QueryChainsInfoUnsafe {},
+    #[returns(Vec<EmissionsDistribution>)]
+    QueryEmissionsDistributions(HashMap<ChainId, Vec<AssetStaked>>),
 }
 
 #[cw_serde]
