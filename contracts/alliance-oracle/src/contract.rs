@@ -201,10 +201,9 @@ pub fn get_emissions_distribution_info(
             });
         for asset in whitelisted_assets {
             let staked = Decimal::from_atomics(asset.amount, 0).unwrap_or(Decimal::zero())
-                * denom_rebase
+                * *denom_rebase
                     .get(&asset.denom)
-                    .unwrap_or(&Decimal::one())
-                    .clone();
+                    .unwrap_or(&Decimal::one());
             let distribution = if staked.is_zero() {
                 SignedDecimal::zero()
             } else {
