@@ -1,10 +1,11 @@
 use crate::contract::execute;
 use crate::error::ContractError;
+use crate::query::query;
 use crate::state::WHITELIST;
 use crate::tests::helpers::{remove_assets, setup_contract, whitelist_assets};
-use alliance_protocol::alliance_protocol::ExecuteMsg;
+use alliance_protocol::alliance_protocol::{ExecuteMsg, QueryMsg, WhitelistedAssetsResponse};
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::Response;
+use cosmwasm_std::{from_binary, Response};
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashMap;
 
@@ -54,6 +55,21 @@ fn test_whitelist_assets() {
         )
         .unwrap();
     assert_eq!(chain_id, "chain-1".to_string());
+
+    let res: WhitelistedAssetsResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::WhitelistedAssets {}).unwrap())
+            .unwrap();
+    assert_eq!(
+        res,
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![
+                AssetInfo::Native("asset1".to_string()),
+                AssetInfo::Native("asset2".to_string()),
+                AssetInfo::Native("asset3".to_string())
+            ]
+        )])
+    )
 }
 
 #[test]

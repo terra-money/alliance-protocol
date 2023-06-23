@@ -1,10 +1,12 @@
 use alliance_protocol::alliance_protocol::{
     AllPendingRewardsQuery, AssetQuery, PendingRewardsRes, QueryMsg, StakedBalanceRes,
+    WhitelistedAssetsResponse,
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
-use cw_asset::{AssetInfo, AssetInfoBase, AssetInfoKey};
+use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult};
+use cw_asset::{AssetInfo, AssetInfoKey};
+use std::collections::HashMap;
 
 use crate::state::{
     ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, UNCLAIMED_REWARDS,
@@ -31,11 +33,12 @@ fn get_config(deps: Deps) -> StdResult<Binary> {
 
 fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
     let whitelist = WHITELIST.range(deps.storage, None, None, Order::Ascending);
-    let mut res: Vec<AssetInfoBase<String>> = Vec::new();
+    let mut res: WhitelistedAssetsResponse = HashMap::new();
 
     for item in whitelist {
-        let (key, _) = item?;
-        res.push(key);
+        let (key, chain_id) = item?;
+        let asset = key.check(deps.api, None)?;
+        res.entry(chain_id).or_insert_with(Vec::new).push(asset)
     }
 
     to_binary(&res)
