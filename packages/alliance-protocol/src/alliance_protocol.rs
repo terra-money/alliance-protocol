@@ -1,6 +1,8 @@
+use crate::alliance_oracle_types::ChainId;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Timestamp, Uint128};
 use cw_asset::{Asset, AssetInfo, AssetInfoBase};
+use std::collections::HashMap;
 
 #[cw_serde]
 pub struct Config {
@@ -33,11 +35,11 @@ pub enum ExecuteMsg {
     Stake,
     Unstake(Asset),
     ClaimRewards(AssetInfo),
+    UpdateRewards,
 
     // Privileged functions
-    WhitelistAssets(Vec<AssetInfo>),
+    WhitelistAssets(HashMap<ChainId, Vec<AssetInfo>>),
     RemoveAssets(Vec<AssetInfo>),
-    UpdateRewards,
     UpdateRewardsCallback,
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),

@@ -17,7 +17,7 @@ use cosmwasm_std::{
     SubMsg, Uint128, WasmMsg,
 };
 use cw_asset::{AssetInfo, AssetInfoKey};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use terra_proto_rs::alliance::alliance::MsgClaimDelegationRewards;
 use terra_proto_rs::traits::Message;
 
@@ -183,7 +183,13 @@ fn claim_user_rewards() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("aWHALE".to_string())]);
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("aWHALE".to_string())],
+        )]),
+    );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
 
@@ -332,7 +338,13 @@ fn claim_user_rewards_after_staking() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("aWHALE".to_string())]);
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("aWHALE".to_string())],
+        )]),
+    );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
 
@@ -382,6 +394,4 @@ fn claim_user_rewards_after_staking() {
 }
 
 #[test]
-fn claim_rewards_after_staking_and_unstaking() {
-
-}
+fn claim_rewards_after_staking_and_unstaking() {}

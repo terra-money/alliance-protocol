@@ -2,6 +2,7 @@ use crate::contract::{execute, instantiate};
 use crate::query::query;
 use crate::state::CONFIG;
 use crate::token_factory::CustomExecuteMsg;
+use alliance_protocol::alliance_oracle_types::ChainId;
 use alliance_protocol::alliance_protocol::{
     AllPendingRewardsQuery, AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg,
     AllianceRedelegation, AllianceUndelegateMsg, AssetQuery, Config, ExecuteMsg, InstantiateMsg,
@@ -10,6 +11,7 @@ use alliance_protocol::alliance_protocol::{
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, from_binary, Deps, DepsMut, Response, StdResult, Uint128};
 use cw_asset::{Asset, AssetInfo};
+use std::collections::HashMap;
 
 pub const DENOM: &str = "token_factory/token";
 
@@ -38,7 +40,7 @@ pub fn set_alliance_asset(deps: DepsMut) {
         .unwrap();
 }
 
-pub fn whitelist_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {
+pub fn whitelist_assets(deps: DepsMut, assets: HashMap<ChainId, Vec<AssetInfo>>) -> Response {
     let info = mock_info("gov", &[]);
     let env = mock_env();
 
