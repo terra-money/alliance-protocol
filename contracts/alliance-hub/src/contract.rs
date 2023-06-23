@@ -1,19 +1,21 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
+use alliance_protocol::alliance_oracle_types::QueryMsg as OracleQueryMsg;
 use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, Config, ExecuteMsg,
-    InstantiateMsg,
+    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution, Config,
+    ExecuteMsg, InstantiateMsg,
 };
 use cosmwasm_std::{
     to_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo,
-    Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128, WasmMsg,
+    Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw_asset::{Asset, AssetInfo, AssetInfoKey};
+use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetInfoKey, AssetInfoUnchecked};
 use cw_utils::parse_instantiate_response_data;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use alliance_protocol::alliance_oracle_types::{AssetStaked, ChainId, EmissionsDistribution};
 use terra_proto_rs::alliance::alliance::{
     MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate,
 };
@@ -87,37 +89,41 @@ pub fn execute(
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
         ExecuteMsg::UpdateRewards => update_rewards(deps, env, info),
-        ExecuteMsg::RebalanceEmissions => Ok(Response::new()),
+        ExecuteMsg::RebalanceEmissions => rebalance_emissions(deps, env, info),
 
         ExecuteMsg::UpdateRewardsCallback => update_reward_callback(deps, env, info),
+        ExecuteMsg::RebalanceEmissionsCallback => rebalance_emissions_callback(deps, env, info),
     }
 }
 
 fn whitelist_assets(
     deps: DepsMut,
     info: MessageInfo,
-    assets: Vec<AssetInfo>,
+    assets_request: HashMap<ChainId, Vec<AssetInfo>>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if info.sender != config.governance {
         return Err(ContractError::Unauthorized {});
     }
-    for asset in &assets {
-        let asset_key = AssetInfoKey::from(asset.clone());
-        WHITELIST.save(deps.storage, asset_key.clone(), &true)?;
-        ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
-            Ok(rate.unwrap_or(Decimal::zero()))
-        })?;
+    let mut attrs = vec![("action".to_string(), "whitelist_assets".to_string())];
+    for (chain_id, assets) in &assets_request {
+        for asset in assets {
+            let asset_key = AssetInfoKey::from(asset.clone());
+            WHITELIST.save(deps.storage, asset_key.clone(), chain_id)?;
+            ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
+                Ok(rate.unwrap_or(Decimal::zero()))
+            })?;
+        }
+        attrs.push(("chain_id".to_string(), chain_id.to_string()));
+        let assets_str = assets
+            .iter()
+            .map(|asset| asset.to_string())
+            .collect::<Vec<String>>()
+            .join(",");
+
+        attrs.push(("assets".to_string(), assets_str.to_string()));
     }
-    let assets_str = assets
-        .iter()
-        .map(|asset| asset.to_string())
-        .collect::<Vec<String>>()
-        .join(",");
-    Ok(Response::new().add_attributes(vec![
-        ("action", "whitelist_assets"),
-        ("assets", &assets_str),
-    ]))
+    Ok(Response::new().add_attributes(attrs))
 }
 
 fn remove_assets(
@@ -150,12 +156,9 @@ fn stake(deps: DepsMut, _env: Env, info: MessageInfo) -> Result<Response, Contra
     }
     let asset = AssetInfo::native(&info.funds[0].denom);
     let asset_key = AssetInfoKey::from(&asset);
-    let whitelisted = WHITELIST
+    WHITELIST
         .load(deps.storage, asset_key.clone())
-        .unwrap_or(false);
-    if !whitelisted {
-        return Err(ContractError::AssetNotWhitelisted {});
-    }
+        .map_err(|_| ContractError::AssetNotWhitelisted {})?;
     let sender = info.sender.clone();
 
     let rewards = _claim_reward(deps.storage, sender.clone(), asset.clone())?;
@@ -516,27 +519,91 @@ fn update_reward_callback(
     Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
 }
 
-/*fn rebalance_emissions(
+fn rebalance_emissions(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
+    // Allow execution only from the controller account
     let config = CONFIG.load(deps.storage)?;
+    if info.sender != config.controller {
+        return Err(ContractError::Unauthorized {});
+    }
+    // Before starting with the rebalance emission process
+    // rewards must be updated to the current block height
+    let res = update_rewards(deps, env.clone(), info)?;
 
+    Ok(res.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.contract.address.to_string(),
+        msg: to_binary(&ExecuteMsg::RebalanceEmissionsCallback).unwrap(),
+        funds: vec![],
+    })))
+}
+
+fn rebalance_emissions_callback(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
+    let config = CONFIG.load(deps.storage)?;
 
-    // Query oracle contract for current distribution
-    deps.querier.query_wasm_smart(
+    // This is the request that will be send to the oracle contract
+    // on the QueryEmissionsDistributions entry point to recover
+    // the assets_reward_distribution...
+    let mut distr_req: HashMap<ChainId, Vec<AssetStaked>> = HashMap::new();
+
+    let whitelist: Vec<(AssetInfoUnchecked, ChainId)> = WHITELIST
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|item| item.unwrap())
+        .collect();
+    for (asset, chain_id) in whitelist {
+        let asset = asset.check(deps.api, None)?;
+        let total_balance = TOTAL_BALANCES
+            .load(deps.storage, AssetInfoKey::from(asset.clone()))
+            .unwrap_or(Uint128::zero());
+
+        // Oracle does not support non-native coins so skip if non-native
+        if let AssetInfoBase::Native(denom) = asset {
+            distr_req
+                .entry(chain_id)
+                .or_insert_with(Vec::new)
+                .push(AssetStaked {
+                    denom,
+                    amount: total_balance,
+                });
+        }
+    }
+
+    // Query oracle contract for the new distribution
+    let distr_res: Vec<EmissionsDistribution> = deps.querier.query_wasm_smart(
         config.oracle,
-        &Binary::default(), // TODO: Fill in with the correct query
+        &OracleQueryMsg::QueryEmissionsDistributions(distr_req),
     )?;
 
-    // TODO: Update the asset reward distribution
+    let asset_reward_distribution: Vec<AssetDistribution> = distr_res
+        .iter()
+        .map(|d| -> AssetDistribution {
+            let distribution = d.distribution.to_decimal().unwrap_or(Decimal::zero());
+            AssetDistribution {
+                asset: AssetInfo::Native(d.denom.to_string()),
+                distribution,
+            }
+        })
+        .collect();
+    ASSET_REWARD_DISTRIBUTION.save(deps.storage, &asset_reward_distribution)?;
 
-    Ok(Response::new().add_attributes(vec![("action", "rebalance_emissions")]))
-}*/
+    let mut attrs = vec![("action".to_string(), "rebalance_emissions".to_string())];
+    for distribution in asset_reward_distribution {
+        attrs.push((
+            distribution.asset.to_string(),
+            distribution.distribution.to_string(),
+        ));
+    }
+    Ok(Response::new().add_attributes(attrs))
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(

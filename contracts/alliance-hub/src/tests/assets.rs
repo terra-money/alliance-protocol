@@ -6,42 +6,54 @@ use alliance_protocol::alliance_protocol::ExecuteMsg;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::Response;
 use cw_asset::{AssetInfo, AssetInfoKey};
+use std::collections::HashMap;
 
 #[test]
 fn test_whitelist_assets() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
-    let res = whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("asset1".to_string())]);
+    let res = whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("asset1".to_string())],
+        )]),
+    );
     assert_eq!(
         res,
         Response::default().add_attributes(vec![
             ("action", "whitelist_assets"),
+            ("chain_id", "chain-1"),
             ("assets", "native:asset1")
         ])
     );
 
     let res = whitelist_assets(
         deps.as_mut(),
-        vec![
-            AssetInfo::Native("asset2".to_string()),
-            AssetInfo::Native("asset3".to_string()),
-        ],
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![
+                AssetInfo::Native("asset2".to_string()),
+                AssetInfo::Native("asset3".to_string()),
+            ],
+        )]),
     );
     assert_eq!(
         res,
         Response::default().add_attributes(vec![
             ("action", "whitelist_assets"),
+            ("chain_id", "chain-1"),
             ("assets", "native:asset2,native:asset3")
         ])
     );
 
-    let found = WHITELIST
+    let chain_id = WHITELIST
         .load(
             deps.as_ref().storage,
             AssetInfoKey::from(AssetInfo::Native("asset2".to_string())),
         )
         .unwrap();
-    assert!(found);
+    assert_eq!(chain_id, "chain-1".to_string());
 }
 
 #[test]
@@ -52,7 +64,10 @@ fn test_whitelist_asset_unauthorized() {
         deps.as_mut(),
         mock_env(),
         mock_info("admin", &[]),
-        ExecuteMsg::WhitelistAssets(vec![AssetInfo::Native("".to_string())]),
+        ExecuteMsg::WhitelistAssets(HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("asset1".to_string())],
+        )])),
     )
     .unwrap_err();
     assert_eq!(err, ContractError::Unauthorized {});
@@ -64,10 +79,13 @@ fn test_remove_assets() {
     setup_contract(deps.as_mut());
     whitelist_assets(
         deps.as_mut(),
-        vec![
-            AssetInfo::Native("asset1".to_string()),
-            AssetInfo::Native("asset2".to_string()),
-        ],
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![
+                AssetInfo::Native("asset1".to_string()),
+                AssetInfo::Native("asset2".to_string()),
+            ],
+        )]),
     );
 
     let response = remove_assets(deps.as_mut(), vec![AssetInfo::Native("asset1".to_string())]);
@@ -79,13 +97,12 @@ fn test_remove_assets() {
         ])
     );
 
-    let found = WHITELIST
+    WHITELIST
         .load(
             deps.as_ref().storage,
             AssetInfoKey::from(AssetInfo::Native("asset1".to_string())),
         )
-        .unwrap_or(false);
-    assert!(!found);
+        .unwrap_err();
 }
 
 #[test]

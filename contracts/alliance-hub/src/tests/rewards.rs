@@ -4,16 +4,17 @@ use crate::state::{
     USER_ASSET_REWARD_RATE, VALIDATORS,
 };
 use crate::tests::helpers::{
-    claim_rewards, set_alliance_asset, setup_contract, stake, whitelist_assets, DENOM,
+    claim_rewards, query_all_rewards, query_rewards, set_alliance_asset, setup_contract, stake,
+    whitelist_assets, DENOM,
 };
-use alliance_protocol::alliance_protocol::{AssetDistribution, ExecuteMsg};
+use alliance_protocol::alliance_protocol::{AssetDistribution, ExecuteMsg, PendingRewardsRes};
 use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg, Uint128,
     WasmMsg,
 };
 use cw_asset::{AssetInfo, AssetInfoKey};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use terra_proto_rs::alliance::alliance::MsgClaimDelegationRewards;
 use terra_proto_rs::traits::Message;
 
@@ -179,7 +180,13 @@ fn claim_user_rewards() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("aWHALE".to_string())]);
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("aWHALE".to_string())],
+        )]),
+    );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
 
@@ -208,6 +215,26 @@ fn claim_user_rewards() {
         ExecuteMsg::UpdateRewardsCallback {},
     )
     .unwrap();
+
+    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE");
+    assert_eq!(
+        rewards,
+        PendingRewardsRes {
+            rewards: Uint128::new(100000),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+            staked_asset: AssetInfo::Native("aWHALE".to_string()),
+        }
+    );
+
+    let all_rewards = query_all_rewards(deps.as_ref(), "user1");
+    assert_eq!(
+        all_rewards,
+        vec![PendingRewardsRes {
+            rewards: Uint128::new(100000),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+            staked_asset: AssetInfo::Native("aWHALE".to_string()),
+        }]
+    );
 
     let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
     assert_eq!(
@@ -241,6 +268,26 @@ fn claim_user_rewards() {
         )
         .unwrap();
     assert_eq!(user_reward_rate, asset_reward_rate);
+
+    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE");
+    assert_eq!(
+        rewards,
+        PendingRewardsRes {
+            rewards: Uint128::new(0),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+            staked_asset: AssetInfo::Native("aWHALE".to_string()),
+        }
+    );
+
+    let all_rewards = query_all_rewards(deps.as_ref(), "user1");
+    assert_eq!(
+        all_rewards,
+        vec![PendingRewardsRes {
+            rewards: Uint128::new(0),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+            staked_asset: AssetInfo::Native("aWHALE".to_string()),
+        }]
+    );
 
     let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
     assert_eq!(
@@ -288,7 +335,13 @@ fn claim_user_rewards_after_staking() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("aWHALE".to_string())]);
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("aWHALE".to_string())],
+        )]),
+    );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
 
@@ -336,3 +389,6 @@ fn claim_user_rewards_after_staking() {
             }))
     );
 }
+
+#[test]
+fn claim_rewards_after_staking_and_unstaking() {}
