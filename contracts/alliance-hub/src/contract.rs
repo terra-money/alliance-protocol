@@ -12,13 +12,10 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetInfoKey, AssetInfoUnchecked};
-use cw_storage_plus::Bound;
 use cw_utils::parse_instantiate_response_data;
 use std::collections::{HashMap, HashSet};
 
-use alliance_protocol::alliance_oracle_types::{
-    AssetStaked, ChainId, ChainInfo, EmissionsDistribution,
-};
+use alliance_protocol::alliance_oracle_types::{AssetStaked, ChainId, EmissionsDistribution};
 use terra_proto_rs::alliance::alliance::{
     MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate,
 };
@@ -112,7 +109,7 @@ fn whitelist_assets(
     for (chain_id, assets) in &assets_request {
         for asset in assets {
             let asset_key = AssetInfoKey::from(asset.clone());
-            WHITELIST.save(deps.storage, asset_key.clone(), &chain_id)?;
+            WHITELIST.save(deps.storage, asset_key.clone(), chain_id)?;
             ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
                 Ok(rate.unwrap_or(Decimal::zero()))
             })?;
@@ -534,7 +531,7 @@ fn rebalance_emissions(
     }
     // Before starting with the rebalance emission process
     // rewards must be updated to the current block height
-    let res = update_rewards(deps, env.clone(), info.clone())?;
+    let res = update_rewards(deps, env.clone(), info)?;
 
     Ok(res.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),

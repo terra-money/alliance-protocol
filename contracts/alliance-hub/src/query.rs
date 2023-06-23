@@ -65,7 +65,7 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
     let user_reward_rate = USER_ASSET_REWARD_RATE.load(deps.storage, key.clone())?;
     let asset_reward_rate =
         ASSET_REWARD_RATE.load(deps.storage, AssetInfoKey::from(asset_query.asset.clone()))?;
-    let user_balance = BALANCES.load(deps.storage, key.clone())?;
+    let user_balance = BALANCES.load(deps.storage, key)?;
     let unclaimed_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
 
     to_binary(&PendingRewardsRes {
@@ -93,7 +93,7 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
             let unclaimed_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
             Ok(PendingRewardsRes {
                 rewards: unclaimed_rewards,
-                staked_asset: asset.clone(),
+                staked_asset: asset,
                 reward_asset: AssetInfo::Native(config.reward_denom.to_string()),
             })
         })

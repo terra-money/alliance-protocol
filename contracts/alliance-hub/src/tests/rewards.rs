@@ -1,5 +1,4 @@
 use crate::contract::execute;
-use crate::query::query;
 use crate::state::{
     ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES,
     USER_ASSET_REWARD_RATE, VALIDATORS,
@@ -8,13 +7,11 @@ use crate::tests::helpers::{
     claim_rewards, query_all_rewards, query_rewards, set_alliance_asset, setup_contract, stake,
     whitelist_assets, DENOM,
 };
-use alliance_protocol::alliance_protocol::{
-    AllPendingRewardsQuery, AssetDistribution, AssetQuery, ExecuteMsg, PendingRewardsRes, QueryMsg,
-};
+use alliance_protocol::alliance_protocol::{AssetDistribution, ExecuteMsg, PendingRewardsRes};
 use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
-    coin, coins, from_binary, to_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response,
-    SubMsg, Uint128, WasmMsg,
+    coin, coins, to_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg, Uint128,
+    WasmMsg,
 };
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::{HashMap, HashSet};
