@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, DecimalRangeExceeded, StdError, Uint128};
+use cosmwasm_std::{Decimal, DecimalRangeExceeded, StdError, StdResult, Uint128};
 use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Deserializer, Serialize};
 use std::fmt;
@@ -64,6 +64,14 @@ impl SignedDecimal {
         Self {
             value: Decimal::zero(),
             sign: Sign::Positive,
+        }
+    }
+
+    pub fn to_decimal(&self) -> StdResult<Decimal> {
+        if self.is_negative() {
+            Err(StdError::generic_err("negative decimal"))
+        } else {
+            Ok(self.value)
         }
     }
 }

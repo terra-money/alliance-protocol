@@ -43,6 +43,7 @@ pub enum ExecuteMsg {
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),
     RebalanceEmissions,
+    RebalanceEmissionsCallback,
 }
 
 #[cw_serde]

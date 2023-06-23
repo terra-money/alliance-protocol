@@ -380,3 +380,8 @@ fn claim_user_rewards_after_staking() {
             }))
     );
 }
+
+#[test]
+fn claim_rewards_after_staking_and_unstaking() {
+
+}
