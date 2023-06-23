@@ -1,7 +1,7 @@
 use crate::alliance_oracle_types::ChainId;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Timestamp, Uint128};
-use cw_asset::{Asset, AssetInfo, AssetInfoBase};
+use cw_asset::{Asset, AssetInfo};
 use std::collections::HashMap;
 
 #[cw_serde]
@@ -82,7 +82,7 @@ pub enum QueryMsg {
     #[returns(Config)]
     Config {},
 
-    #[returns(Vec<AssetInfoBase<String>>)]
+    #[returns(WhitelistedAssetsResponse)]
     WhitelistedAssets {},
 
     #[returns(Vec<AssetDistribution>)]
@@ -97,6 +97,8 @@ pub enum QueryMsg {
     #[returns(Vec<PendingRewardsRes>)]
     AllPendingRewards(AllPendingRewardsQuery),
 }
+
+pub type WhitelistedAssetsResponse = HashMap<ChainId, Vec<AssetInfo>>;
 
 #[cw_serde]
 pub struct AssetQuery {
