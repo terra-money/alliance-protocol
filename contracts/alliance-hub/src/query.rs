@@ -4,7 +4,7 @@ use alliance_protocol::alliance_protocol::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult};
+use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashMap;
 
