@@ -4,13 +4,13 @@ use alliance_protocol::alliance_protocol::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult};
+use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashMap;
 
 use crate::state::{
-    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, USER_ASSET_REWARD_RATE,
-    WHITELIST,
+    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, UNCLAIMED_REWARDS,
+    USER_ASSET_REWARD_RATE, WHITELIST,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -64,15 +64,18 @@ fn get_staked_balance(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary> 
 fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
     let addr = deps.api.addr_validate(&asset_query.address)?;
-    let key = (addr, asset_query.asset.clone().into());
+    let key = (addr, AssetInfoKey::from(asset_query.asset.clone()));
     let user_reward_rate = USER_ASSET_REWARD_RATE.load(deps.storage, key.clone())?;
     let asset_reward_rate =
         ASSET_REWARD_RATE.load(deps.storage, AssetInfoKey::from(asset_query.asset.clone()))?;
-    let user_balance = BALANCES.load(deps.storage, key)?;
-    let unclaimed_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
+    let user_balance = BALANCES.load(deps.storage, key.clone())?;
+    let unclaimed_rewards = UNCLAIMED_REWARDS
+        .load(deps.storage, key)
+        .unwrap_or(Uint128::zero());
+    let pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
 
     to_binary(&PendingRewardsRes {
-        rewards: unclaimed_rewards,
+        rewards: unclaimed_rewards + pending_rewards,
         staked_asset: asset_query.asset,
         reward_asset: AssetInfo::Native(config.reward_denom),
     })
@@ -93,9 +96,15 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
                 deps.storage,
                 (addr.clone(), AssetInfoKey::from(asset.clone())),
             )?;
-            let unclaimed_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
+            let unclaimed_rewards = UNCLAIMED_REWARDS
+                .load(
+                    deps.storage,
+                    (addr.clone(), AssetInfoKey::from(asset.clone())),
+                )
+                .unwrap_or(Uint128::zero());
+            let pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
             Ok(PendingRewardsRes {
-                rewards: unclaimed_rewards,
+                rewards: pending_rewards + unclaimed_rewards,
                 staked_asset: asset,
                 reward_asset: AssetInfo::Native(config.reward_denom.to_string()),
             })

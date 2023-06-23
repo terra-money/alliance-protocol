@@ -165,7 +165,7 @@ fn stake(deps: DepsMut, _env: Env, info: MessageInfo) -> Result<Response, Contra
     if !rewards.is_zero() {
         UNCLAIMED_REWARDS.update(
             deps.storage,
-            sender.clone(),
+            (sender.clone(), asset_key.clone()),
             |balance| -> Result<_, ContractError> {
                 Ok(balance.unwrap_or(Uint128::zero()) + rewards)
             },
@@ -214,7 +214,7 @@ fn unstake(deps: DepsMut, info: MessageInfo, asset: Asset) -> Result<Response, C
     if !rewards.is_zero() {
         UNCLAIMED_REWARDS.update(
             deps.storage,
-            sender.clone(),
+            (sender.clone(), asset_key.clone()),
             |balance| -> Result<_, ContractError> {
                 Ok(balance.unwrap_or(Uint128::zero()) + rewards)
             },
@@ -269,9 +269,16 @@ fn claim_rewards(
     let config = CONFIG.load(deps.storage)?;
     let rewards = _claim_reward(deps.storage, user.clone(), asset.clone())?;
     let unclaimed_rewards = UNCLAIMED_REWARDS
-        .load(deps.storage, user.clone())
+        .load(
+            deps.storage,
+            (user.clone(), AssetInfoKey::from(asset.clone())),
+        )
         .unwrap_or(Uint128::zero());
     let final_rewards = rewards + unclaimed_rewards;
+    UNCLAIMED_REWARDS.remove(
+        deps.storage,
+        (user.clone(), AssetInfoKey::from(asset.clone())),
+    );
     let response = Response::new().add_attributes(vec![
         ("action", "claim_rewards"),
         ("user", user.as_ref()),
