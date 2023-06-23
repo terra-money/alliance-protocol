@@ -90,12 +90,20 @@ pub enum QueryMsg {
 
     #[returns(PendingRewardsRes)]
     PendingRewards(AssetQuery),
+
+    #[returns(Vec<PendingRewardsRes>)]
+    AllPendingRewards(AllPendingRewardsQuery),
 }
 
 #[cw_serde]
 pub struct AssetQuery {
     pub address: String,
     pub asset: AssetInfo,
+}
+
+#[cw_serde]
+pub struct AllPendingRewardsQuery {
+    pub address: String,
 }
 
 #[cw_serde]
@@ -107,20 +115,9 @@ pub struct StakedBalanceRes {
     pub balance: Uint128,
 }
 
-impl StakedBalanceRes {
-    pub fn new(asset: AssetInfo, balance: Uint128) -> Self {
-        Self { asset, balance }
-    }
-}
-
 #[cw_serde]
 pub struct PendingRewardsRes {
-    pub asset: AssetInfo,
-    pub balance: Decimal,
-}
-
-impl PendingRewardsRes {
-    pub fn new(asset: AssetInfo, balance: Decimal) -> Self {
-        Self { asset, balance }
-    }
+    pub staked_asset: AssetInfo,
+    pub reward_asset: AssetInfo,
+    pub rewards: Uint128,
 }
