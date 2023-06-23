@@ -8,7 +8,8 @@
         "stake",
         "update_rewards",
         "update_rewards_callback",
-        "rebalance_emissions"
+        "rebalance_emissions",
+        "rebalance_emissions_callback"
       ]
     },
     {
@@ -42,9 +43,12 @@
       ],
       "properties": {
         "whitelist_assets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/AssetInfoBase_for_Addr"
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/AssetInfoBase_for_Addr"
+            }
           }
         }
       },

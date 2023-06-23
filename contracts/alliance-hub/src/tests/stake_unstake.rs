@@ -6,12 +6,19 @@ use alliance_protocol::alliance_protocol::ExecuteMsg;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{coin, Addr, BankMsg, CosmosMsg, Response, Uint128};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
+use std::collections::HashMap;
 
 #[test]
 fn test_stake() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
-    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("asset1".to_string())]);
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("asset1".to_string())],
+        )]),
+    );
 
     let res = stake(deps.as_mut(), "user1", 100, "asset1");
     assert_eq!(
@@ -70,8 +77,13 @@ fn test_stake() {
 fn test_stake_invalid() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
-    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("asset1".to_string())]);
-
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("asset1".to_string())],
+        )]),
+    );
     // Stake an unwhitelisted asset
     let msg = ExecuteMsg::Stake;
     let info = mock_info("user1", &[coin(100, "asset2")]);
@@ -102,7 +114,13 @@ fn test_unstake() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
 
-    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("asset1".to_string())]);
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("asset1".to_string())],
+        )]),
+    );
     stake(deps.as_mut(), "user1", 100, "asset1");
 
     let res = unstake(deps.as_mut(), "user1", 50, "asset1");
@@ -173,7 +191,13 @@ fn test_unstake_invalid() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
 
-    whitelist_assets(deps.as_mut(), vec![AssetInfo::Native("asset1".to_string())]);
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("asset1".to_string())],
+        )]),
+    );
     stake(deps.as_mut(), "user1", 100, "asset1");
 
     // User does not have any staked asset
