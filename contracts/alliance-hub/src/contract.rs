@@ -89,7 +89,7 @@ pub fn execute(
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
         ExecuteMsg::UpdateRewards => update_rewards(deps, env, info),
-        ExecuteMsg::RebalanceEmissions => Ok(Response::new()),
+        ExecuteMsg::RebalanceEmissions => rebalance_emissions(deps, env, info),
 
         ExecuteMsg::UpdateRewardsCallback => update_reward_callback(deps, env, info),
         ExecuteMsg::RebalanceEmissionsCallback => rebalance_emissions_callback(deps, env, info),
@@ -555,16 +555,17 @@ fn rebalance_emissions_callback(
     // the assets_reward_distribution...
     let mut distr_req: HashMap<ChainId, Vec<AssetStaked>> = HashMap::new();
 
-    let whitelist_result: StdResult<Vec<(AssetInfoUnchecked, ChainId)>> = WHITELIST
+    let whitelist: Vec<(AssetInfoUnchecked, ChainId)> = WHITELIST
         .range(deps.storage, None, None, Order::Ascending)
+        .map(|item| item.unwrap())
         .collect();
-    let whitelist: Vec<(AssetInfoUnchecked, ChainId)> = whitelist_result
-        .map_err(|_| ContractError::Std(StdError::generic_err("Error loading whitelist")))?;
     for (asset, chain_id) in whitelist {
         let asset = asset.check(deps.api, None)?;
         let total_balance = TOTAL_BALANCES
             .load(deps.storage, AssetInfoKey::from(asset.clone()))
             .unwrap_or(Uint128::zero());
+
+        // Oracle does not support non-native coins so skip if non-native
         if let AssetInfoBase::Native(denom) = asset {
             distr_req
                 .entry(chain_id)
