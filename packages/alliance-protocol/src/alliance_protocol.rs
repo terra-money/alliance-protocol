@@ -2,8 +2,7 @@ use crate::alliance_oracle_types::ChainId;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Timestamp, Uint128};
 use cw_asset::{Asset, AssetInfo};
-use std::collections::HashMap;
-
+use std::collections::{HashMap, HashSet};
 #[cw_serde]
 pub struct Config {
     pub governance: Addr,
@@ -81,6 +80,9 @@ pub struct AllianceRedelegateMsg {
 pub enum QueryMsg {
     #[returns(Config)]
     Config {},
+
+    #[returns(HashSet<Addr>)]
+    Validators {},
 
     #[returns(WhitelistedAssetsResponse)]
     WhitelistedAssets {},

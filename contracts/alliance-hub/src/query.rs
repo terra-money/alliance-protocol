@@ -10,13 +10,14 @@ use std::collections::HashMap;
 
 use crate::state::{
     ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, UNCLAIMED_REWARDS,
-    USER_ASSET_REWARD_RATE, WHITELIST,
+    USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     Ok(match msg {
         QueryMsg::Config {} => get_config(deps)?,
+        QueryMsg::Validators {} => get_validators(deps)?,
         QueryMsg::WhitelistedAssets {} => get_whitelisted_assets(deps)?,
         QueryMsg::RewardDistribution {} => get_rewards_distribution(deps)?,
         QueryMsg::StakedBalance(asset_query) => get_staked_balance(deps, asset_query)?,
@@ -29,6 +30,12 @@ fn get_config(deps: Deps) -> StdResult<Binary> {
     let cfg = CONFIG.load(deps.storage)?;
 
     to_binary(&cfg)
+}
+
+fn get_validators(deps: Deps) -> StdResult<Binary> {
+    let validators = VALIDATORS.load(deps.storage)?;
+
+    to_binary(&validators)
 }
 
 fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
