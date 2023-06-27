@@ -4,7 +4,7 @@ use cosmwasm_std::entry_point;
 use alliance_protocol::alliance_oracle_types::QueryMsg as OracleQueryMsg;
 use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution, Config,
-    ExecuteMsg, InstantiateMsg,
+    ExecuteMsg, InstantiateMsg, MigrateMsg,
 };
 use cosmwasm_std::{
     to_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo,
@@ -34,6 +34,11 @@ const CONTRACT_NAME: &str = "crates.io:terra-alliance-protocol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
 const _CLAIM_REWARD_REPLY_ID: u64 = 2;
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -81,18 +86,18 @@ pub fn execute(
         ExecuteMsg::WhitelistAssets(assets) => whitelist_assets(deps, info, assets),
         ExecuteMsg::RemoveAssets(assets) => remove_assets(deps, info, assets),
 
-        ExecuteMsg::Stake => stake(deps, env, info),
+        ExecuteMsg::Stake {} => stake(deps, env, info),
         ExecuteMsg::Unstake(asset) => unstake(deps, info, asset),
         ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, info, asset),
 
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
-        ExecuteMsg::UpdateRewards => update_rewards(deps, env, info),
-        ExecuteMsg::RebalanceEmissions => rebalance_emissions(deps, env, info),
+        ExecuteMsg::UpdateRewards {} => update_rewards(deps, env, info),
+        ExecuteMsg::RebalanceEmissions {} => rebalance_emissions(deps, env, info),
 
-        ExecuteMsg::UpdateRewardsCallback => update_reward_callback(deps, env, info),
-        ExecuteMsg::RebalanceEmissionsCallback => rebalance_emissions_callback(deps, env, info),
+        ExecuteMsg::UpdateRewardsCallback {} => update_reward_callback(deps, env, info),
+        ExecuteMsg::RebalanceEmissionsCallback {} => rebalance_emissions_callback(deps, env, info),
     }
 }
 
@@ -340,20 +345,19 @@ fn alliance_delegate(
     let mut validators = VALIDATORS.load(deps.storage)?;
     let mut msgs: Vec<CosmosMsg<Empty>> = vec![];
     for delegation in msg.delegations {
-        let validator = deps.api.addr_validate(&delegation.validator)?;
         let delegate_msg = MsgDelegate {
             amount: Some(Coin {
                 denom: config.alliance_token_denom.clone(),
                 amount: delegation.amount.to_string(),
             }),
             delegator_address: env.contract.address.to_string(),
-            validator_address: validator.to_string(),
+            validator_address: delegation.validator.to_string(),
         };
         msgs.push(CosmosMsg::Stargate {
             type_url: "/alliance.alliance.MsgDelegate".to_string(),
             value: Binary::from(delegate_msg.encode_to_vec()),
         });
-        validators.insert(validator);
+        validators.insert(delegation.validator);
     }
     VALIDATORS.save(deps.storage, &validators)?;
     Ok(Response::new()
@@ -411,8 +415,8 @@ fn alliance_redelegate(
     let mut msgs = vec![];
     let mut validators = VALIDATORS.load(deps.storage)?;
     for redelegation in msg.redelegations {
-        let src_validator = deps.api.addr_validate(&redelegation.src_validator)?;
-        let dst_validator = deps.api.addr_validate(&redelegation.dst_validator)?;
+        let src_validator = redelegation.src_validator;
+        let dst_validator = redelegation.dst_validator;
         let redelegate_msg = MsgRedelegate {
             amount: Some(Coin {
                 denom: config.alliance_token_denom.clone(),
@@ -469,7 +473,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         .collect();
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_binary(&ExecuteMsg::UpdateRewardsCallback).unwrap(),
+        msg: to_binary(&ExecuteMsg::UpdateRewardsCallback {}).unwrap(),
         funds: vec![],
     });
 
@@ -542,7 +546,7 @@ fn rebalance_emissions(
 
     Ok(res.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_binary(&ExecuteMsg::RebalanceEmissionsCallback).unwrap(),
+        msg: to_binary(&ExecuteMsg::RebalanceEmissionsCallback {}).unwrap(),
         funds: vec![],
     })))
 }

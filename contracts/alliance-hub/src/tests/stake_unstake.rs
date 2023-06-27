@@ -85,25 +85,25 @@ fn test_stake_invalid() {
         )]),
     );
     // Stake an unwhitelisted asset
-    let msg = ExecuteMsg::Stake;
+    let msg = ExecuteMsg::Stake {};
     let info = mock_info("user1", &[coin(100, "asset2")]);
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(err, ContractError::AssetNotWhitelisted {});
 
     // Stake multiple assets in a single call
-    let msg = ExecuteMsg::Stake;
+    let msg = ExecuteMsg::Stake {};
     let info = mock_info("user1", &[coin(100, "asset1"), coin(100, "asset2")]);
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(err, ContractError::OnlySingleAssetAllowed {});
 
     // Stake nothing in a single call
-    let msg = ExecuteMsg::Stake;
+    let msg = ExecuteMsg::Stake {};
     let info = mock_info("user1", &[]);
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(err, ContractError::OnlySingleAssetAllowed {});
 
     // Stake zero amount
-    let msg = ExecuteMsg::Stake;
+    let msg = ExecuteMsg::Stake {};
     let info = mock_info("user1", &[coin(0, "asset1")]);
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(err, ContractError::AmountCannotBeZero {});

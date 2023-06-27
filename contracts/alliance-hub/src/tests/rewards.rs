@@ -27,7 +27,7 @@ fn test_update_rewards() {
     VALIDATORS
         .save(
             deps.as_mut().storage,
-            &HashSet::from([Addr::unchecked("validator1")]),
+            &HashSet::from(["validator1".to_string()]),
         )
         .unwrap();
 
@@ -55,7 +55,7 @@ fn test_update_rewards() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 funds: vec![],
                 contract_addr: "cosmos2contract".to_string(),
-                msg: to_binary(&ExecuteMsg::UpdateRewardsCallback).unwrap()
+                msg: to_binary(&ExecuteMsg::UpdateRewardsCallback {}).unwrap()
             }))
         ]
     );
@@ -72,7 +72,7 @@ fn test_update_rewards_with_funds_sent() {
     VALIDATORS
         .save(
             deps.as_mut().storage,
-            &HashSet::from([Addr::unchecked("validator1"), Addr::unchecked("validator2")]),
+            &HashSet::from(["validator1".to_string(), "validator2".to_string()]),
         )
         .unwrap();
 

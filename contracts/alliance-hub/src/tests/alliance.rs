@@ -8,7 +8,7 @@ use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg, Config, ExecuteMsg,
 };
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::{Addr, Binary, CosmosMsg, StdResult, SubMsg, Uint128};
+use cosmwasm_std::{Binary, CosmosMsg, StdResult, SubMsg, Uint128};
 use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::{MsgDelegate, MsgRedelegate};
 use terra_proto_rs::cosmos::base::v1beta1::Coin;
@@ -70,7 +70,7 @@ fn test_alliance_delegate() {
     let validators = VALIDATORS.load(deps.as_ref().storage).unwrap();
     assert_eq!(
         validators,
-        HashSet::from([Addr::unchecked("validator1"), Addr::unchecked("validator2")])
+        HashSet::from(["validator1".to_string(), "validator2".to_string()])
     );
 }
 
@@ -284,6 +284,6 @@ fn test_alliance_redelegate() {
     let validators = VALIDATORS.load(deps.as_ref().storage).unwrap();
     assert_eq!(
         validators,
-        HashSet::from([Addr::unchecked("validator2"), Addr::unchecked("validator3")])
+        HashSet::from(["validator2".to_string(), "validator3".to_string()])
     );
 }

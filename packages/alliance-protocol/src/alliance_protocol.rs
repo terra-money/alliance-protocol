@@ -31,20 +31,20 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     // Public functions
-    Stake,
+    Stake {},
     Unstake(Asset),
     ClaimRewards(AssetInfo),
-    UpdateRewards,
+    UpdateRewards {},
 
     // Privileged functions
     WhitelistAssets(HashMap<ChainId, Vec<AssetInfo>>),
     RemoveAssets(Vec<AssetInfo>),
-    UpdateRewardsCallback,
+    UpdateRewardsCallback {},
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),
-    RebalanceEmissions,
-    RebalanceEmissionsCallback,
+    RebalanceEmissions {},
+    RebalanceEmissionsCallback {},
 }
 
 #[cw_serde]

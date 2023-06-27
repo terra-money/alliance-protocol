@@ -59,7 +59,7 @@ pub fn remove_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {
 pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
     let info = mock_info(user, &[coin(amount, denom)]);
     let env = mock_env();
-    let msg = ExecuteMsg::Stake;
+    let msg = ExecuteMsg::Stake {};
     execute(deps, env, info, msg).unwrap()
 }
 
