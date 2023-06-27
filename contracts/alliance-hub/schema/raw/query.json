@@ -18,6 +18,19 @@
     {
       "type": "object",
       "required": [
+        "validators"
+      ],
+      "properties": {
+        "validators": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "whitelisted_assets"
       ],
       "properties": {
