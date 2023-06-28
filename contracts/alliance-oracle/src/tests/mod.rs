@@ -602,12 +602,10 @@ fn test_emissions_distribution_5() {
         ),
         (
             "chain-2".to_string(),
-            vec![
-                AssetStaked {
-                    denom: "ibc/randomd_denom2".to_string(),
-                    amount: Uint128::new(1_000_000),
-                },
-            ],
+            vec![AssetStaked {
+                denom: "ibc/randomd_denom2".to_string(),
+                amount: Uint128::new(1_000_000),
+            }],
         ),
     ]));
 
