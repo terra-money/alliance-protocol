@@ -97,7 +97,7 @@ pub enum QueryMsg {
     PendingRewards(AssetQuery),
 
     #[returns(Vec<StakedBalanceRes>)]
-    AllStakedBalances(AllStakedBalances),
+    AllStakedBalances(AllStakedBalancesQuery),
 
     #[returns(Vec<PendingRewardsRes>)]
     AllPendingRewards(AllPendingRewardsQuery),
@@ -112,7 +112,7 @@ pub struct AssetQuery {
 }
 
 #[cw_serde]
-pub struct AllStakedBalances {
+pub struct AllStakedBalancesQuery {
     pub address: String,
 }
 

@@ -1,5 +1,5 @@
 use alliance_protocol::alliance_protocol::{
-    AllPendingRewardsQuery, AllStakedBalances, AssetQuery, PendingRewardsRes, QueryMsg,
+    AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
     StakedBalanceRes, WhitelistedAssetsResponse,
 };
 #[cfg(not(feature = "library"))]
@@ -89,7 +89,7 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
     })
 }
 
-fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalances) -> StdResult<Binary> {
+fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalancesQuery) -> StdResult<Binary> {
     let addr = deps.api.addr_validate(&asset_query.address)?;
     let whitelist = WHITELIST.range(deps.storage, None, None, Order::Ascending);
     let mut res: Vec<StakedBalanceRes> = Vec::new();
