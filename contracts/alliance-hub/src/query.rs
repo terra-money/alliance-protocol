@@ -1,6 +1,6 @@
 use alliance_protocol::alliance_protocol::{
-    AllPendingRewardsQuery, AssetQuery, PendingRewardsRes, QueryMsg, StakedBalanceRes,
-    WhitelistedAssetsResponse,
+    AllPendingRewardsQuery, AllStakedBalances, AssetQuery, PendingRewardsRes, QueryMsg,
+    StakedBalanceRes, WhitelistedAssetsResponse,
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -22,6 +22,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::RewardDistribution {} => get_rewards_distribution(deps)?,
         QueryMsg::StakedBalance(asset_query) => get_staked_balance(deps, asset_query)?,
         QueryMsg::PendingRewards(asset_query) => get_pending_rewards(deps, asset_query)?,
+        QueryMsg::AllStakedBalances(query) => get_all_staked_balances(deps, query)?,
         QueryMsg::AllPendingRewards(query) => get_all_pending_rewards(deps, query)?,
     })
 }
@@ -86,6 +87,29 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
         staked_asset: asset_query.asset,
         reward_asset: AssetInfo::Native(config.reward_denom),
     })
+}
+
+fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalances) -> StdResult<Binary> {
+    let addr = deps.api.addr_validate(&asset_query.address)?;
+    let whitelist = WHITELIST.range(deps.storage, None, None, Order::Ascending);
+    let mut res: Vec<StakedBalanceRes> = Vec::new();
+
+    for asset_res in whitelist {
+        // Build the required key to recover the BALANCES
+        let (asset_key, _) = asset_res?;
+        let checked_asset_info = asset_key.check(deps.api, None)?;
+        let asset_info_key = AssetInfoKey::from(checked_asset_info.clone());
+        let stake_key = (addr.clone(), asset_info_key);
+        let balance = BALANCES.load(deps.storage, stake_key)?;
+
+        // Append the request
+        res.push(StakedBalanceRes {
+            asset: checked_asset_info,
+            balance,
+        })
+    }
+
+    to_binary(&res)
 }
 
 fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResult<Binary> {
