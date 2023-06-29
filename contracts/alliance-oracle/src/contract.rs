@@ -3,7 +3,7 @@ use std::env;
 
 use alliance_protocol::alliance_oracle_types::{
     AssetStaked, ChainId, ChainInfo, ChainsInfo, Config, EmissionsDistribution, ExecuteMsg, Expire,
-    InstantiateMsg, QueryMsg,
+    InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 #[cfg(not(feature = "library"))]
@@ -20,6 +20,11 @@ use crate::utils;
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-oracle";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(

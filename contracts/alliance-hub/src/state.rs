@@ -11,7 +11,7 @@ pub const WHITELIST: Map<AssetInfoKey, ChainId> = Map::new("whitelist");
 pub const BALANCES: Map<(Addr, AssetInfoKey), Uint128> = Map::new("balances");
 pub const TOTAL_BALANCES: Map<AssetInfoKey, Uint128> = Map::new("total_balances");
 
-pub const VALIDATORS: Item<HashSet<Addr>> = Item::new("validators");
+pub const VALIDATORS: Item<HashSet<String>> = Item::new("validators");
 
 pub const ASSET_REWARD_DISTRIBUTION: Item<Vec<AssetDistribution>> =
     Item::new("asset_reward_distribution");

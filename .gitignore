@@ -18,3 +18,4 @@ node_modules
 
 # Metadata from deployments
 scripts/.oracle_address.log
+scripts/.hub_address.log
