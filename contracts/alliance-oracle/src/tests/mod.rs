@@ -193,3 +193,435 @@ fn test_emissions_distribution() {
         }]
     )
 }
+
+#[test]
+fn test_emissions_distribution_2() {
+    let mut deps = test_utils::setup_contract();
+    let env = mock_env();
+    CHAINS_INFO
+        .save(
+            deps.as_mut().storage,
+            &vec![
+                ChainInfo {
+                    chain_id: "chain-1".to_string(),
+                    update_timestamp: env.block.time,
+                    native_token: NativeToken {
+                        denom: "udenom".to_string(),
+                        token_price: Decimal::from_str("0.006").unwrap(),
+                        annual_provisions: Decimal::from_str("40000000").unwrap(),
+                    },
+                    luna_alliances: vec![LunaAlliance {
+                        ibc_denom: String::from(
+                            "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889FD82A",
+                        ),
+                        normalized_reward_weight: Decimal::from_str("0.01").unwrap(),
+                        annual_take_rate: Decimal::from_str("0.003").unwrap(),
+                        total_lsd_staked: Decimal::from_str("21979").unwrap(),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                    chain_alliances_on_phoenix: vec![BaseAlliance {
+                        ibc_denom: String::from("ibc/randomd_denom"),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                },
+                ChainInfo {
+                    chain_id: "chain-2".to_string(),
+                    update_timestamp: env.block.time,
+                    native_token: NativeToken {
+                        denom: "udenom2".to_string(),
+                        token_price: Decimal::from_str("0.02337").unwrap(),
+                        annual_provisions: Decimal::from_str("24304822.32").unwrap(),
+                    },
+                    luna_alliances: vec![LunaAlliance {
+                        ibc_denom: String::from(
+                            "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889555",
+                        ),
+                        normalized_reward_weight: Decimal::from_str("0.0238").unwrap(),
+                        annual_take_rate: Decimal::from_str("0.01").unwrap(),
+                        total_lsd_staked: Decimal::from_str("116527.585").unwrap(),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                    chain_alliances_on_phoenix: vec![BaseAlliance {
+                        ibc_denom: String::from("ibc/randomd_denom2"),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                },
+            ],
+        )
+        .unwrap();
+
+    LUNA_INFO
+        .save(
+            deps.as_mut().storage,
+            &LunaInfo {
+                luna_price: Decimal::from_str("0.61").unwrap(),
+                update_timestamp: env.block.time,
+            },
+        )
+        .unwrap();
+
+    let msg = QueryMsg::QueryEmissionsDistributions(HashMap::from([
+        (
+            "chain-1".to_string(),
+            vec![AssetStaked {
+                denom: "ibc/randomd_denom".to_string(),
+                amount: Uint128::new(1_000_000),
+            }],
+        ),
+        (
+            "chain-2".to_string(),
+            vec![AssetStaked {
+                denom: "ibc/randomd_denom2".to_string(),
+                amount: Uint128::new(1_000_000),
+            }],
+        ),
+    ]));
+
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    assert_eq!(
+        res_parsed,
+        vec![
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom".to_string(),
+                distribution: SignedDecimal::from_str("0.176008427567596192").unwrap(),
+            },
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom2".to_string(),
+                distribution: SignedDecimal::from_str("0.180182056404448192").unwrap(),
+            }
+        ]
+    )
+}
+
+#[test]
+fn test_emissions_distribution_3() {
+    let mut deps = test_utils::setup_contract();
+    let env = mock_env();
+    CHAINS_INFO
+        .save(
+            deps.as_mut().storage,
+            &vec![
+                ChainInfo {
+                    chain_id: "chain-1".to_string(),
+                    update_timestamp: env.block.time,
+                    native_token: NativeToken {
+                        denom: "udenom".to_string(),
+                        token_price: Decimal::from_str("0.006").unwrap(),
+                        annual_provisions: Decimal::from_str("40000000").unwrap(),
+                    },
+                    luna_alliances: vec![LunaAlliance {
+                        ibc_denom: String::from(
+                            "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889FD82A",
+                        ),
+                        normalized_reward_weight: Decimal::from_str("0.01").unwrap(),
+                        annual_take_rate: Decimal::from_str("0.003").unwrap(),
+                        total_lsd_staked: Decimal::from_str("21979").unwrap(),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                    chain_alliances_on_phoenix: vec![BaseAlliance {
+                        ibc_denom: String::from("ibc/randomd_denom"),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                },
+                ChainInfo {
+                    chain_id: "chain-2".to_string(),
+                    update_timestamp: env.block.time,
+                    native_token: NativeToken {
+                        denom: "udenom2".to_string(),
+                        token_price: Decimal::from_str("0.02337").unwrap(),
+                        annual_provisions: Decimal::from_str("24304822.32").unwrap(),
+                    },
+                    luna_alliances: vec![LunaAlliance {
+                        ibc_denom: String::from(
+                            "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889555",
+                        ),
+                        normalized_reward_weight: Decimal::from_str("0.0238").unwrap(),
+                        annual_take_rate: Decimal::from_str("0.01").unwrap(),
+                        total_lsd_staked: Decimal::from_str("58263.7925").unwrap(),
+                        rebase_factor: Decimal::from_str("2").unwrap(),
+                    }],
+                    chain_alliances_on_phoenix: vec![BaseAlliance {
+                        ibc_denom: String::from("ibc/randomd_denom2"),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                },
+            ],
+        )
+        .unwrap();
+
+    LUNA_INFO
+        .save(
+            deps.as_mut().storage,
+            &LunaInfo {
+                luna_price: Decimal::from_str("0.61").unwrap(),
+                update_timestamp: env.block.time,
+            },
+        )
+        .unwrap();
+
+    let msg = QueryMsg::QueryEmissionsDistributions(HashMap::from([
+        (
+            "chain-1".to_string(),
+            vec![AssetStaked {
+                denom: "ibc/randomd_denom".to_string(),
+                amount: Uint128::new(1_000_000),
+            }],
+        ),
+        (
+            "chain-2".to_string(),
+            vec![AssetStaked {
+                denom: "ibc/randomd_denom2".to_string(),
+                amount: Uint128::new(1_000_000),
+            }],
+        ),
+    ]));
+
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    assert_eq!(
+        res_parsed,
+        vec![
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom".to_string(),
+                distribution: SignedDecimal::from_str("0.176008427567596192").unwrap(),
+            },
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom2".to_string(),
+                distribution: SignedDecimal::from_str("0.180182056404448192").unwrap(),
+            }
+        ]
+    )
+}
+
+#[test]
+fn test_emissions_distribution_4() {
+    let mut deps = test_utils::setup_contract();
+    let env = mock_env();
+    CHAINS_INFO
+        .save(
+            deps.as_mut().storage,
+            &vec![
+                ChainInfo {
+                    chain_id: "chain-1".to_string(),
+                    update_timestamp: env.block.time,
+                    native_token: NativeToken {
+                        denom: "udenom".to_string(),
+                        token_price: Decimal::from_str("0.006").unwrap(),
+                        annual_provisions: Decimal::from_str("40000000").unwrap(),
+                    },
+                    luna_alliances: vec![LunaAlliance {
+                        ibc_denom: String::from(
+                            "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889FD82A",
+                        ),
+                        normalized_reward_weight: Decimal::from_str("0.01").unwrap(),
+                        annual_take_rate: Decimal::from_str("0.003").unwrap(),
+                        total_lsd_staked: Decimal::from_str("21979").unwrap(),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                    chain_alliances_on_phoenix: vec![BaseAlliance {
+                        ibc_denom: String::from("ibc/randomd_denom"),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                },
+                ChainInfo {
+                    chain_id: "chain-2".to_string(),
+                    update_timestamp: env.block.time,
+                    native_token: NativeToken {
+                        denom: "udenom2".to_string(),
+                        token_price: Decimal::from_str("0.02337").unwrap(),
+                        annual_provisions: Decimal::from_str("24304822.32").unwrap(),
+                    },
+                    luna_alliances: vec![
+                            LunaAlliance {
+                        ibc_denom: String::from(
+                            "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889555",
+                        ),
+                        normalized_reward_weight: Decimal::from_str("0.0238").unwrap(),
+                        annual_take_rate: Decimal::from_str("0.01").unwrap(),
+                        total_lsd_staked: Decimal::from_str("58263.7925").unwrap(),
+                        rebase_factor: Decimal::from_str("2").unwrap(),
+                    },
+                         LunaAlliance {
+                             ibc_denom: String::from(
+                                 "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889554",
+                             ),
+                             normalized_reward_weight: Decimal::from_str("0.0238").unwrap(),
+                             annual_take_rate: Decimal::from_str("0.01").unwrap(),
+                             total_lsd_staked: Decimal::from_str("116527.585").unwrap(),
+                             rebase_factor: Decimal::from_str("1").unwrap(),
+                         }
+                    ],
+                    chain_alliances_on_phoenix: vec![BaseAlliance {
+                        ibc_denom: String::from("ibc/randomd_denom2"),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                },
+            ],
+        )
+        .unwrap();
+
+    LUNA_INFO
+        .save(
+            deps.as_mut().storage,
+            &LunaInfo {
+                luna_price: Decimal::from_str("0.61").unwrap(),
+                update_timestamp: env.block.time,
+            },
+        )
+        .unwrap();
+
+    let msg = QueryMsg::QueryEmissionsDistributions(HashMap::from([
+        (
+            "chain-1".to_string(),
+            vec![AssetStaked {
+                denom: "ibc/randomd_denom".to_string(),
+                amount: Uint128::new(1_000_000),
+            }],
+        ),
+        (
+            "chain-2".to_string(),
+            vec![
+                AssetStaked {
+                    denom: "ibc/randomd_denom2".to_string(),
+                    amount: Uint128::new(2_000_000),
+                },
+                AssetStaked {
+                    denom: "ibc/randomd_denom3".to_string(),
+                    amount: Uint128::new(1_000_000),
+                },
+            ],
+        ),
+    ]));
+
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    assert_eq!(
+        res_parsed,
+        vec![
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom".to_string(),
+                distribution: SignedDecimal::from_str("0.176008427567596192").unwrap(),
+            },
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom2".to_string(),
+                distribution: SignedDecimal::from_str("0.120121370936298794").unwrap(),
+            },
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom3".to_string(),
+                distribution: SignedDecimal::from_str("0.060060685468149397").unwrap(),
+            }
+        ]
+    )
+}
+
+#[test]
+fn test_emissions_distribution_5() {
+    let mut deps = test_utils::setup_contract();
+    let env = mock_env();
+    CHAINS_INFO
+        .save(
+            deps.as_mut().storage,
+            &vec![
+                ChainInfo {
+                    chain_id: "chain-1".to_string(),
+                    update_timestamp: env.block.time,
+                    native_token: NativeToken {
+                        denom: "udenom".to_string(),
+                        token_price: Decimal::from_str("0.006").unwrap(),
+                        annual_provisions: Decimal::from_str("40000000").unwrap(),
+                    },
+                    luna_alliances: vec![LunaAlliance {
+                        ibc_denom: String::from(
+                            "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889FD82A",
+                        ),
+                        normalized_reward_weight: Decimal::from_str("0.01").unwrap(),
+                        annual_take_rate: Decimal::from_str("0.003").unwrap(),
+                        total_lsd_staked: Decimal::from_str("21979").unwrap(),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                    chain_alliances_on_phoenix: vec![BaseAlliance {
+                        ibc_denom: String::from("ibc/randomd_denom"),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                },
+                ChainInfo {
+                    chain_id: "chain-2".to_string(),
+                    update_timestamp: env.block.time,
+                    native_token: NativeToken {
+                        denom: "udenom2".to_string(),
+                        token_price: Decimal::from_str("0.02337").unwrap(),
+                        annual_provisions: Decimal::from_str("24304822.32").unwrap(),
+                    },
+                    luna_alliances: vec![
+                        LunaAlliance {
+                            ibc_denom: String::from(
+                                "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889555",
+                            ),
+                            normalized_reward_weight: Decimal::from_str("0.0238").unwrap(),
+                            annual_take_rate: Decimal::from_str("0.01").unwrap(),
+                            total_lsd_staked: Decimal::from_str("116527.585").unwrap(),
+                            rebase_factor: Decimal::from_str("1").unwrap(),
+                        },
+                        LunaAlliance {
+                            ibc_denom: String::from(
+                                "ibc/05238E98A143496C8AF2B6067BABC84503909ECE9E45FBCBAC2CBA5C889554",
+                            ),
+                            normalized_reward_weight: Decimal::from_str("0.0238").unwrap(),
+                            annual_take_rate: Decimal::from_str("0.01").unwrap(),
+                            total_lsd_staked: Decimal::from_str("116527.585").unwrap(),
+                            rebase_factor: Decimal::from_str("0.5").unwrap(),
+                        }
+                    ],
+                    chain_alliances_on_phoenix: vec![BaseAlliance {
+                        ibc_denom: String::from("ibc/randomd_denom2"),
+                        rebase_factor: Decimal::from_str("1").unwrap(),
+                    }],
+                },
+            ],
+        )
+        .unwrap();
+
+    LUNA_INFO
+        .save(
+            deps.as_mut().storage,
+            &LunaInfo {
+                luna_price: Decimal::from_str("0.61").unwrap(),
+                update_timestamp: env.block.time,
+            },
+        )
+        .unwrap();
+
+    let msg = QueryMsg::QueryEmissionsDistributions(HashMap::from([
+        (
+            "chain-1".to_string(),
+            vec![AssetStaked {
+                denom: "ibc/randomd_denom".to_string(),
+                amount: Uint128::new(1_000_000),
+            }],
+        ),
+        (
+            "chain-2".to_string(),
+            vec![AssetStaked {
+                denom: "ibc/randomd_denom2".to_string(),
+                amount: Uint128::new(1_000_000),
+            }],
+        ),
+    ]));
+
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    assert_eq!(
+        res_parsed,
+        vec![
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom".to_string(),
+                distribution: SignedDecimal::from_str("0.176008427567596192").unwrap(),
+            },
+            EmissionsDistribution {
+                denom: "ibc/randomd_denom2".to_string(),
+                distribution: SignedDecimal::from_str("0.243576075205930923").unwrap(),
+            }
+        ]
+    )
+}
