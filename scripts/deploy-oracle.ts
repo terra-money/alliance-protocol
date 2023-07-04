@@ -76,7 +76,7 @@ const init = async () => {
         });
         const result = await lcd.tx.broadcastBlock(tx, process.env.CHAIN_ID as string);
         const contractAddress = result.logs[0].events[0].attributes[0].value;
-        console.log(`Smart contract instantiated with 
+        console.log(`Alliance Oracle smart contract instantiated with 
         - Code ID: ${codeId}
         - Tx Hash: ${result.txhash}
         - Contract Address: ${contractAddress}`);
@@ -87,8 +87,6 @@ const init = async () => {
         console.log(e)
         return;
     }
-
-
 }
 
 try {

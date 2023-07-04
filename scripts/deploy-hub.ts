@@ -13,7 +13,6 @@ const init = async () => {
         return;
     }
 
-
     // Variable will populate after storing the code on chain
     let codeId: number;
 
@@ -63,7 +62,7 @@ const init = async () => {
         console.log(e);
         return;
     }
-
+    
     try {
         const oracleAddress = fs.readFileSync('./scripts/.oracle_address.log').toString('utf-8');
 
@@ -88,17 +87,17 @@ const init = async () => {
             chainID: process.env.CHAIN_ID as string,
         });
         const result = await lcd.tx.broadcastBlock(tx, process.env.CHAIN_ID as string);
-        console.log(`Smart contract instantiated with 
+        const contractAddress = result.logs[0].events[0].attributes[0].value;
+        console.log(`Alliance Hub smart contract instantiated with 
         - Code ID: ${codeId}
         - Tx Hash: ${result.txhash}
-        - Contract Address: ${result.logs[0].events[0].attributes[0].value}`);
+        - Contract Address: ${contractAddress}`);
+        fs.writeFileSync('./scripts/.hub_address.log', contractAddress);
     }
     catch (e) {
         console.log(e)
         return;
     }
-
-
 }
 
 try {

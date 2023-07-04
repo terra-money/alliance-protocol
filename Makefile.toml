@@ -68,4 +68,3 @@ script = """
 npm install -g ts-node
 ts-node ./scripts/deploy-hub.ts
 """
-

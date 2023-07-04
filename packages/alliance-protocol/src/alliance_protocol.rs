@@ -31,20 +31,20 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     // Public functions
-    Stake,
+    Stake {},
     Unstake(Asset),
     ClaimRewards(AssetInfo),
-    UpdateRewards,
+    UpdateRewards {},
 
     // Privileged functions
     WhitelistAssets(HashMap<ChainId, Vec<AssetInfo>>),
     RemoveAssets(Vec<AssetInfo>),
-    UpdateRewardsCallback,
+    UpdateRewardsCallback {},
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),
-    RebalanceEmissions,
-    RebalanceEmissionsCallback,
+    RebalanceEmissions {},
+    RebalanceEmissionsCallback {},
 }
 
 #[cw_serde]
@@ -96,6 +96,9 @@ pub enum QueryMsg {
     #[returns(PendingRewardsRes)]
     PendingRewards(AssetQuery),
 
+    #[returns(Vec<StakedBalanceRes>)]
+    AllStakedBalances(AllStakedBalancesQuery),
+
     #[returns(Vec<PendingRewardsRes>)]
     AllPendingRewards(AllPendingRewardsQuery),
 }
@@ -106,6 +109,11 @@ pub type WhitelistedAssetsResponse = HashMap<ChainId, Vec<AssetInfo>>;
 pub struct AssetQuery {
     pub address: String,
     pub asset: AssetInfo,
+}
+
+#[cw_serde]
+pub struct AllStakedBalancesQuery {
+    pub address: String,
 }
 
 #[cw_serde]
