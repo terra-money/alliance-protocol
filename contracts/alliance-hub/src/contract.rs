@@ -465,7 +465,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
                 denom: config.alliance_token_denom.clone(),
             };
             let msg = CosmosMsg::Stargate {
-                type_url: "/alliance.alliance.MsgWithdrawDelegatorReward".to_string(),
+                type_url: "/alliance.alliance.MsgClaimDelegationRewards".to_string(),
                 value: Binary::from(msg.encode_to_vec()),
             };
             SubMsg::new(msg)

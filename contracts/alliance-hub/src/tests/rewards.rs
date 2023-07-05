@@ -42,7 +42,7 @@ fn test_update_rewards() {
         res.messages,
         vec![
             SubMsg::new(CosmosMsg::Stargate {
-                type_url: "/alliance.alliance.MsgWithdrawDelegatorReward".to_string(),
+                type_url: "/alliance.alliance.MsgClaimDelegationRewards".to_string(),
                 value: Binary::from(
                     MsgClaimDelegationRewards {
                         delegator_address: "cosmos2contract".to_string(),
