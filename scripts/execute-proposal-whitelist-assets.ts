@@ -16,7 +16,7 @@ const init = async () => {
     // Create the LCD Client to interact with the blockchain
     const lcd = new LCDClient({
         "pisco-1": {
-            lcd: "http://3.73.78.66:1317",
+            lcd: "https://pisco-lcd.terra.dev",
             chainID: "pisco-1",
             gasPrices: "0.15uluna",
             gasAdjustment: "1.2",
@@ -45,7 +45,7 @@ const init = async () => {
             hubAddress,
             {
                 "whitelist_assets": {
-                    "migaloo-1": [{
+                    "narwhal-1": [{
                         "native": "ibc/623CD0B9778AD974713317EA0438A0CCAA72AF0BBE7BEE002205BCA25F1CA3BA"
                     }]
                 }

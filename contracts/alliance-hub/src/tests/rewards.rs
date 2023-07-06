@@ -41,17 +41,20 @@ fn test_update_rewards() {
     assert_eq!(
         res.messages,
         vec![
-            SubMsg::new(CosmosMsg::Stargate {
-                type_url: "/alliance.alliance.MsgWithdrawDelegatorReward".to_string(),
-                value: Binary::from(
-                    MsgClaimDelegationRewards {
-                        delegator_address: "cosmos2contract".to_string(),
-                        validator_address: "validator1".to_string(),
-                        denom: DENOM.to_string(),
-                    }
-                    .encode_to_vec()
-                )
-            }),
+            SubMsg::reply_on_error(
+                CosmosMsg::Stargate {
+                    type_url: "/alliance.alliance.MsgClaimDelegationRewards".to_string(),
+                    value: Binary::from(
+                        MsgClaimDelegationRewards {
+                            delegator_address: "cosmos2contract".to_string(),
+                            validator_address: "validator1".to_string(),
+                            denom: DENOM.to_string(),
+                        }
+                        .encode_to_vec()
+                    )
+                },
+                2
+            ),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 funds: vec![],
                 contract_addr: "cosmos2contract".to_string(),
