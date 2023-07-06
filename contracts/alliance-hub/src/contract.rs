@@ -33,7 +33,7 @@ use crate::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMs
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-protocol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
-const _CLAIM_REWARD_REPLY_ID: u64 = 2;
+const CLAIM_REWARD_ERROR_REPLY_ID: u64 = 2;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
@@ -468,7 +468,8 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
                 type_url: "/alliance.alliance.MsgClaimDelegationRewards".to_string(),
                 value: Binary::from(msg.encode_to_vec()),
             };
-            SubMsg::new(msg)
+            // Reply on error here is used to ignore errors from claiming rewards with validators that we did not delegate to
+            SubMsg::reply_on_error(msg, CLAIM_REWARD_ERROR_REPLY_ID)
         })
         .collect();
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -668,6 +669,9 @@ pub fn reply(
                 ])
                 .add_submessage(sub_msg_mint)
                 .add_submessage(sub_msg_metadata))
+        }
+        CLAIM_REWARD_ERROR_REPLY_ID => {
+            Ok(Response::new().add_attributes(vec![("action", "claim_reward_error")]))
         }
         _ => Err(ContractError::InvalidReplyId(reply.id)),
     }
