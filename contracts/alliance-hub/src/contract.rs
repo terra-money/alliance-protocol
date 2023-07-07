@@ -543,7 +543,12 @@ fn rebalance_emissions(
     }
     // Before starting with the rebalance emission process
     // rewards must be updated to the current block height
-    let res = update_rewards(deps, env.clone(), info)?;
+    // Skip if no reward distribution in the first place
+    let res = if ASSET_REWARD_DISTRIBUTION.load(deps.storage).is_ok() {
+        update_rewards(deps, env.clone(), info)?
+    } else {
+        Response::new()
+    };
 
     Ok(res.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
