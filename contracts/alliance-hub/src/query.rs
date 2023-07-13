@@ -9,8 +9,8 @@ use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashMap;
 
 use crate::state::{
-    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, UNCLAIMED_REWARDS,
-    USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TOTAL_BALANCES,
+    UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -24,6 +24,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::PendingRewards(asset_query) => get_pending_rewards(deps, asset_query)?,
         QueryMsg::AllStakedBalances(query) => get_all_staked_balances(deps, query)?,
         QueryMsg::AllPendingRewards(query) => get_all_pending_rewards(deps, query)?,
+        QueryMsg::TotalStakedBalances {} => get_total_staked_balances(deps)?,
     })
 }
 
@@ -143,4 +144,18 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
         .collect::<StdResult<Vec<PendingRewardsRes>>>();
 
     to_binary(&all_pending_rewards?)
+}
+
+fn get_total_staked_balances(deps: Deps) -> StdResult<Binary> {
+    let total_staked_balances: Vec<StakedBalanceRes> = TOTAL_BALANCES
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|total_balance| {
+            let (asset, balance) = total_balance.unwrap();
+            StakedBalanceRes {
+                asset: asset.check(deps.api, None).unwrap(),
+                balance,
+            }
+        })
+        .collect();
+    to_binary(&total_staked_balances)
 }

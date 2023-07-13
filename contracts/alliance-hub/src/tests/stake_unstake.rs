@@ -1,8 +1,10 @@
 use crate::contract::execute;
 use crate::error::ContractError;
 use crate::state::{BALANCES, TOTAL_BALANCES};
-use crate::tests::helpers::{setup_contract, stake, unstake, whitelist_assets};
-use alliance_protocol::alliance_protocol::ExecuteMsg;
+use crate::tests::helpers::{
+    query_all_staked_balances, setup_contract, stake, unstake, whitelist_assets,
+};
+use alliance_protocol::alliance_protocol::{ExecuteMsg, StakedBalanceRes};
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{coin, Addr, BankMsg, CosmosMsg, Response, Uint128};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
@@ -71,6 +73,15 @@ fn test_stake() {
         )
         .unwrap();
     assert_eq!(total_balance, Uint128::new(200));
+
+    let total_balances_res = query_all_staked_balances(deps.as_ref());
+    assert_eq!(
+        total_balances_res,
+        vec![StakedBalanceRes {
+            asset: AssetInfo::Native("asset1".to_string()),
+            balance: Uint128::new(200),
+        }]
+    );
 }
 
 #[test]

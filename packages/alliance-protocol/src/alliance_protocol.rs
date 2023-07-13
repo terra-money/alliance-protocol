@@ -101,6 +101,9 @@ pub enum QueryMsg {
 
     #[returns(Vec<PendingRewardsRes>)]
     AllPendingRewards(AllPendingRewardsQuery),
+
+    #[returns(Vec<StakedBalanceRes>)]
+    TotalStakedBalances {},
 }
 
 pub type WhitelistedAssetsResponse = HashMap<ChainId, Vec<AssetInfo>>;
