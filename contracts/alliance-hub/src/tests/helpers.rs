@@ -6,7 +6,7 @@ use alliance_protocol::alliance_oracle_types::ChainId;
 use alliance_protocol::alliance_protocol::{
     AllPendingRewardsQuery, AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg,
     AllianceRedelegation, AllianceUndelegateMsg, AssetQuery, Config, ExecuteMsg, InstantiateMsg,
-    PendingRewardsRes, QueryMsg,
+    PendingRewardsRes, QueryMsg, StakedBalanceRes,
 };
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, from_binary, Deps, DepsMut, Response, StdResult, Uint128};
@@ -149,4 +149,8 @@ pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
         .unwrap(),
     )
     .unwrap()
+}
+
+pub fn query_all_staked_balances(deps: Deps) -> Vec<StakedBalanceRes> {
+    from_binary(&query(deps, mock_env(), QueryMsg::TotalStakedBalances {}).unwrap()).unwrap()
 }
