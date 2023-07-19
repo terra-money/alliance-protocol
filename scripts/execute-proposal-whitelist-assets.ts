@@ -14,17 +14,9 @@ const init = async () => {
     }
 
     // Create the LCD Client to interact with the blockchain
-    const lcd = new LCDClient({
-        "pisco-1": {
-            lcd: "https://pisco-lcd.terra.dev",
-            chainID: "pisco-1",
-            gasPrices: "0.15uluna",
-            gasAdjustment: "1.2",
-            prefix: process.env.ACC_PREFIX as string,
-        }
-    });
+    const lcd = LCDClient.fromDefaultConfig("mainnet");
 
-    const govAccountAddr = (await lcd.auth.moduleAccountInfo("pisco-1","gov"))?.baseAccount?.address;
+    const govAccountAddr = (await lcd.auth.moduleAccountInfo("phoenix-1","gov"))?.baseAccount?.address;
     if (govAccountAddr == undefined) {
         console.log(`Something went wrong retreiving the governance account from on-chain`);
         return;
@@ -39,14 +31,16 @@ const init = async () => {
         const hubAddress = fs.readFileSync('./scripts/.hub_address.log').toString('utf-8');
 
         const govProposal = new ExecuteContractProposal(
-            "Whitelist an asset in Alliance Hub contract",
-            "🕵🏼✌🏼👨🏼‍💻",
+            "Whitelist assets in Alliance Hub",
+            "This proposal will whitelist White Whale ampWHALE and boneWHALE ibc asset in the Alliance Hub contract",
             govAccountAddr,
             hubAddress,
             {
                 "whitelist_assets": {
                     "narwhal-1": [{
-                        "native": "ibc/623CD0B9778AD974713317EA0438A0CCAA72AF0BBE7BEE002205BCA25F1CA3BA"
+                        "native": "ibc/B3F639855EE7478750CC8F82072307ED6E131A8EFF20345E1D136B50C4E5EC36"
+                    },{
+                        "native": "ibc/517E13F14A1245D4DE8CF467ADD4DA0058974CDCC880FA6AE536DBCA1D16D84E"
                     }]
                 }
             },
