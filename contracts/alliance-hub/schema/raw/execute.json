@@ -3,14 +3,17 @@
   "title": "ExecuteMsg",
   "oneOf": [
     {
-      "type": "string",
-      "enum": [
-        "stake",
-        "update_rewards",
-        "update_rewards_callback",
-        "rebalance_emissions",
-        "rebalance_emissions_callback"
-      ]
+      "type": "object",
+      "required": [
+        "stake"
+      ],
+      "properties": {
+        "stake": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     },
     {
       "type": "object",
@@ -32,6 +35,19 @@
       "properties": {
         "claim_rewards": {
           "$ref": "#/definitions/AssetInfoBase_for_Addr"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_rewards"
+      ],
+      "properties": {
+        "update_rewards": {
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -72,6 +88,19 @@
     {
       "type": "object",
       "required": [
+        "update_rewards_callback"
+      ],
+      "properties": {
+        "update_rewards_callback": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "alliance_delegate"
       ],
       "properties": {
@@ -101,6 +130,32 @@
       "properties": {
         "alliance_redelegate": {
           "$ref": "#/definitions/AllianceRedelegateMsg"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "rebalance_emissions"
+      ],
+      "properties": {
+        "rebalance_emissions": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "rebalance_emissions_callback"
+      ],
+      "properties": {
+        "rebalance_emissions_callback": {
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

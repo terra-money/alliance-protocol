@@ -81,11 +81,36 @@
     {
       "type": "object",
       "required": [
+        "all_staked_balances"
+      ],
+      "properties": {
+        "all_staked_balances": {
+          "$ref": "#/definitions/AllStakedBalancesQuery"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "all_pending_rewards"
       ],
       "properties": {
         "all_pending_rewards": {
           "$ref": "#/definitions/AllPendingRewardsQuery"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "total_staked_balances"
+      ],
+      "properties": {
+        "total_staked_balances": {
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -97,6 +122,18 @@
       "type": "string"
     },
     "AllPendingRewardsQuery": {
+      "type": "object",
+      "required": [
+        "address"
+      ],
+      "properties": {
+        "address": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AllStakedBalancesQuery": {
       "type": "object",
       "required": [
         "address"
