@@ -8,8 +8,7 @@
     "type": "object",
     "required": [
       "controller_addr",
-      "data_expiry_seconds",
-      "governance_addr"
+      "data_expiry_seconds"
     ],
     "properties": {
       "controller_addr": {
@@ -19,9 +18,6 @@
         "type": "integer",
         "format": "uint64",
         "minimum": 0.0
-      },
-      "governance_addr": {
-        "type": "string"
       }
     },
     "additionalProperties": false
@@ -666,8 +662,7 @@
       "type": "object",
       "required": [
         "controller_addr",
-        "data_expiry_seconds",
-        "governance_addr"
+        "data_expiry_seconds"
       ],
       "properties": {
         "controller_addr": {
@@ -677,9 +672,6 @@
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
-        },
-        "governance_addr": {
-          "$ref": "#/definitions/Addr"
         }
       },
       "additionalProperties": false,

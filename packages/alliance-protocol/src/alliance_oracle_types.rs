@@ -6,7 +6,6 @@ use std::collections::HashMap;
 #[cw_serde]
 pub struct Config {
     pub data_expiry_seconds: u64,
-    pub governance_addr: Addr,
     pub controller_addr: Addr,
 }
 
@@ -25,7 +24,6 @@ impl Expire for LunaInfo {
 #[cw_serde]
 pub struct InstantiateMsg {
     pub controller_addr: String,
-    pub governance_addr: String,
     pub data_expiry_seconds: u64,
 }
 

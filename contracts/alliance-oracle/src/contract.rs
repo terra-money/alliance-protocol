@@ -35,13 +35,11 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let controller_addr = deps.api.addr_validate(&msg.controller_addr)?;
-    let governance_addr = deps.api.addr_validate(&msg.governance_addr)?;
 
     CONFIG.save(
         deps.storage,
         &Config {
             data_expiry_seconds: msg.data_expiry_seconds,
-            governance_addr,
             controller_addr,
         },
     )?;
@@ -49,8 +47,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_attribute("action", "instantiate")
         .add_attribute("data_expiry_seconds", msg.data_expiry_seconds.to_string())
-        .add_attribute("controller_addr", msg.controller_addr)
-        .add_attribute("governance_addr", msg.governance_addr))
+        .add_attribute("controller_addr", msg.controller_addr))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
