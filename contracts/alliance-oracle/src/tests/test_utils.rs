@@ -12,7 +12,6 @@ pub fn setup_contract() -> OwnedDeps<MockStorage, MockApi, MockQuerier, Empty> {
     let msg = InstantiateMsg {
         data_expiry_seconds: 60,
         controller_addr: "controller_addr".to_string(),
-        governance_addr: "governance_addr".to_string(),
     };
     let info = mock_info("creator", &[]);
     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -22,7 +21,6 @@ pub fn setup_contract() -> OwnedDeps<MockStorage, MockApi, MockQuerier, Empty> {
 
     let cfg: Config = from_binary(&cfg).unwrap();
     assert_eq!("controller_addr", cfg.controller_addr);
-    assert_eq!("governance_addr", cfg.governance_addr);
     assert_eq!(60, cfg.data_expiry_seconds);
 
     deps
