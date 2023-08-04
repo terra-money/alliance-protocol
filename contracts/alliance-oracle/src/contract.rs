@@ -211,13 +211,13 @@ pub fn get_emissions_distribution_info(
 
         let mut total_staked = Decimal::zero();
         for asset in whitelisted_assets {
-           let staked = Decimal::from_atomics(asset.amount, 0).map_err(|_| {
-               StdError::generic_err(format!(
-                   "Error converting staked amount to decimal for asset {:?}",
-                   asset.amount
-               ))
-           })?;
-           total_staked += staked * denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one());
+            let staked = Decimal::from_atomics(asset.amount, 0).map_err(|_| {
+                StdError::generic_err(format!(
+                    "Error converting staked amount to decimal for asset {:?}",
+                    asset.amount
+                ))
+            })?;
+            total_staked += staked * denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one());
         }
         for asset in whitelisted_assets {
             // If rebase is not set, use 1 as the rebase factor
