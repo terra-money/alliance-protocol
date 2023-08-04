@@ -206,16 +206,26 @@ pub fn get_emissions_distribution_info(
                 &chain_info.chain_id
             )))?;
 
-        let total_staked = whitelisted_assets
-            .iter()
-            .fold(Decimal::zero(), |acc, asset| {
-                acc + Decimal::from_atomics(asset.amount, 0).unwrap_or(
-                    Decimal::zero() * denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one()),
-                )
-            });
+        let mut total_staked = Decimal::zero();
         for asset in whitelisted_assets {
-            let staked = Decimal::from_atomics(asset.amount, 0).unwrap_or(Decimal::zero())
-                * *denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one());
+            let staked = Decimal::from_atomics(asset.amount, 0).map_err(|_| {
+                StdError::generic_err(format!(
+                    "Error converting staked amount to decimal for asset {:?}",
+                    asset.amount
+                ))
+            })?;
+            total_staked += staked * denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one());
+        }
+        for asset in whitelisted_assets {
+            // If rebase is not set, use 1 as the rebase factor
+            let denom_rebase = *denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one());
+            let staked_before_rebase = Decimal::from_atomics(asset.amount, 0).map_err(|_| {
+                StdError::generic_err(format!(
+                    "Error converting staked amount to decimal for asset {:?}",
+                    asset.amount
+                ))
+            })?;
+            let staked = staked_before_rebase * denom_rebase;
             let distribution = if staked.is_zero() {
                 SignedDecimal::zero()
             } else {
