@@ -107,9 +107,7 @@ fn whitelist_assets(
     assets_request: HashMap<ChainId, Vec<AssetInfo>>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.governance {
-        return Err(ContractError::Unauthorized {});
-    }
+    is_governance(&info, &config)?;
     let mut attrs = vec![("action".to_string(), "whitelist_assets".to_string())];
     for (chain_id, assets) in &assets_request {
         for asset in assets {
@@ -137,9 +135,8 @@ fn remove_assets(
     assets: Vec<AssetInfo>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.governance {
-        return Err(ContractError::Unauthorized {});
-    }
+    // Only allow the governance address to update whitelisted assets
+    is_governance(&info, &config)?;
     for asset in &assets {
         let asset_key = AssetInfoKey::from(asset.clone());
         WHITELIST.remove(deps.storage, asset_key);
@@ -336,9 +333,7 @@ fn alliance_delegate(
     msg: AllianceDelegateMsg,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.controller {
-        return Err(ContractError::Unauthorized {});
-    }
+    is_controller(&info, &config)?;
     if msg.delegations.is_empty() {
         return Err(ContractError::EmptyDelegation {});
     }
@@ -372,9 +367,7 @@ fn alliance_undelegate(
     msg: AllianceUndelegateMsg,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.controller {
-        return Err(ContractError::Unauthorized {});
-    }
+    is_controller(&info, &config)?;
     if msg.undelegations.is_empty() {
         return Err(ContractError::EmptyDelegation {});
     }
@@ -406,9 +399,7 @@ fn alliance_redelegate(
     msg: AllianceRedelegateMsg,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.controller {
-        return Err(ContractError::Unauthorized {});
-    }
+    is_controller(&info, &config)?;
     if msg.redelegations.is_empty() {
         return Err(ContractError::EmptyDelegation {});
     }
@@ -454,6 +445,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         reward_asset.query_balance(&deps.querier, env.contract.address.clone())?;
 
     // Contract balance is guaranteed to be greater than sent balance
+    // since contract balance = previous contract balance + sent balance > sent balance
     TEMP_BALANCE.save(deps.storage, &(contract_balance - sent_balance))?;
     let validators = VALIDATORS.load(deps.storage)?;
     let sub_msgs: Vec<SubMsg> = validators
@@ -538,9 +530,7 @@ fn rebalance_emissions(
 ) -> Result<Response, ContractError> {
     // Allow execution only from the controller account
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.controller {
-        return Err(ContractError::Unauthorized {});
-    }
+    is_controller(&info, &config)?;
     // Before starting with the rebalance emission process
     // rewards must be updated to the current block height
     // Skip if no reward distribution in the first place
@@ -680,4 +670,21 @@ pub fn reply(
         }
         _ => Err(ContractError::InvalidReplyId(reply.id)),
     }
+}
+
+// Controller is used to perform administrative operations that deals with delegating the virtual
+// tokens to the expected validators
+fn is_controller(info: &MessageInfo, config: &Config) -> Result<(), ContractError> {
+    if info.sender != config.controller {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
+}
+
+// Only governance (through a on-chain prop) can change the whitelisted assets
+fn is_governance(info: &MessageInfo, config: &Config) -> Result<(), ContractError> {
+    if info.sender != config.governance {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
 }
