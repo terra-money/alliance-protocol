@@ -11,11 +11,6 @@ const init = async () => {
     // Create the LCD Client to interact with the blockchain
     const lcd = LCDClient.fromDefaultConfig("mainnet")
 
-    const govAccountAddr = (await lcd.auth.moduleAccountInfo("phoenix-1","gov"))?.baseAccount?.address;
-    if (govAccountAddr == undefined) {
-        console.log(`Something went wrong retreiving the governance account from on-chain`);
-        return;
-    }
     // Get all information from the deployer wallet
     const mk = new MnemonicKey({ mnemonic: process.env.MNEMONIC });
     const wallet = lcd.wallet(mk);
@@ -48,7 +43,6 @@ const init = async () => {
         codeId,
         {
             "controller_addr": accAddress,
-            "governance_addr": govAccountAddr,
             "data_expiry_seconds": 86400,   // 24h
         },
         new Coins(),
