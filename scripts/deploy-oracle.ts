@@ -9,7 +9,7 @@ const init = async () => {
     let codeId: number;
 
     // Create the LCD Client to interact with the blockchain
-    const lcd = LCDClient.fromDefaultConfig("mainnet")
+    const lcd = LCDClient.fromDefaultConfig("testnet")
 
     // Get all information from the deployer wallet
     const mk = new MnemonicKey({ mnemonic: process.env.MNEMONIC });
@@ -25,10 +25,10 @@ const init = async () => {
     let tx = await wallet.createAndSignTx({
         msgs: [msgStoreCode],
         memo: "Alliance Protocol Oracle",
-        chainID: "phoenix-1",
+        chainID: "pisco-1",
     });
 
-    let result = await lcd.tx.broadcastBlock(tx, "phoenix-1");
+    let result = await lcd.tx.broadcastBlock(tx, "pisco-1");
     codeId = Number(result.logs[0].events[1].attributes[1].value);
     console.log(`Smart contract deployed with 
     - Code ID: ${codeId}
@@ -52,9 +52,9 @@ const init = async () => {
     tx = await wallet.createAndSignTx({
         msgs: [msgInstantiateContract],
         memo: "Create an Alliance Oracle Contract",
-        chainID: "phoenix-1",
+        chainID: "pisco-1",
     });
-    result = await lcd.tx.broadcastBlock(tx, "phoenix-1");
+    result = await lcd.tx.broadcastBlock(tx, "pisco-1");
     let contractAddress = result.logs[0].events[0].attributes[0].value;
     console.log(`Alliance Oracle smart contract instantiated with 
     - Code ID: ${codeId}

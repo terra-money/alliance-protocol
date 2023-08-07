@@ -17,9 +17,9 @@ const init = async () => {
     let codeId: number;
 
     // Create the LCD Client to interact with the blockchain
-    const lcd = LCDClient.fromDefaultConfig("mainnet")
+    const lcd = LCDClient.fromDefaultConfig("testnet")
 
-    const govAccountAddr = (await lcd.auth.moduleAccountInfo("phoenix-1","gov"))?.baseAccount?.address;
+    const govAccountAddr = (await lcd.auth.moduleAccountInfo("pisco-1","gov"))?.baseAccount?.address;
     if (govAccountAddr == undefined) {
         console.log(`Something went wrong retreiving the governance account from on-chain`);
         return;
@@ -39,10 +39,10 @@ const init = async () => {
     let tx = await wallet.createAndSignTx({
         msgs: [msgStoreCode],
         memo: "Alliance Hub Contract",
-        chainID: "phoenix-1",
+        chainID: "pisco-1",
     });
 
-    let result = await lcd.tx.broadcastBlock(tx, "phoenix-1");
+    let result = await lcd.tx.broadcastBlock(tx, "pisco-1");
     codeId = Number(result.logs[0].events[1].attributes[1].value);
     console.log(`Smart contract deployed with 
     - Code ID: ${codeId}
@@ -70,9 +70,9 @@ const init = async () => {
     tx = await wallet.createAndSignTx({
         msgs: [msgInstantiateContract],
         memo: "Create an Alliance Hub Contract",
-        chainID: "phoenix-1",
+        chainID: "pisco-1",
     });
-    result = await lcd.tx.broadcastBlock(tx, "phoenix-1");
+    result = await lcd.tx.broadcastBlock(tx, "pisco-1");
     const contractAddress = result.logs[0].events[0].attributes[0].value;
     console.log(`Alliance Hub smart contract instantiated with 
     - Code ID: ${codeId}

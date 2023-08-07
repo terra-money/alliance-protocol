@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv'
-import { MnemonicKey, LCDClient, MsgExecuteContract, ExecuteContractProposal, MsgSubmitProposal, Coins } from '@terra-money/feather.js';
+import { MnemonicKey, LCDClient, ExecuteContractProposal, MsgSubmitProposal, Coins } from '@terra-money/feather.js';
 import * as fs from 'fs';
 
 dotenv.config()
@@ -14,9 +14,9 @@ const init = async () => {
     }
 
     // Create the LCD Client to interact with the blockchain
-    const lcd = LCDClient.fromDefaultConfig("mainnet");
+    const lcd = LCDClient.fromDefaultConfig("testnet");
 
-    const govAccountAddr = (await lcd.auth.moduleAccountInfo("phoenix-1", "gov"))?.baseAccount?.address;
+    const govAccountAddr = (await lcd.auth.moduleAccountInfo("pisco-1", "gov"))?.baseAccount?.address;
     if (govAccountAddr == undefined) {
         console.log(`Something went wrong retreiving the governance account from on-chain`);
         return;
@@ -37,16 +37,21 @@ const init = async () => {
             hubAddress,
             {
                 "whitelist_assets": {
-                    "migaloo-1": [{
-                        "native": "ibc/B3F639855EE7478750CC8F82072307ED6E131A8EFF20345E1D136B50C4E5EC36"
-                    }, {
-                        "native": "ibc/517E13F14A1245D4DE8CF467ADD4DA0058974CDCC880FA6AE536DBCA1D16D84E"
-                    }],
-                    "carbon-1": [{
-                        "native": "ibc/0E90026619DD296AD4EF9546396F292B465BAB6B5BE00ABD6162AA1CE8E68098"
-                    }]
+                  "narwhal-1": [
+                    {
+                      "native": "factory/terra1zdpgj8am5nqqvht927k3etljyl6a52kwqup0je/stDeck"
+                    },
+                    {
+                      "native": "ibc/623CD0B9778AD974713317EA0438A0CCAA72AF0BBE7BEE002205BCA25F1CA3BA"
+                    }
+                  ],
+                  "harpoon-4": [
+                    {
+                      "native": "factory/terra1zdpgj8am5nqqvht927k3etljyl6a52kwqup0je/stOracle"
+                    }
+                  ]
                 }
-            },
+              }
         )
 
         const msgSubmitProposal = new MsgSubmitProposal(
@@ -58,9 +63,9 @@ const init = async () => {
         const tx = await wallet.createAndSignTx({
             msgs: [msgSubmitProposal],
             memo: "Whitelist an asset in Alliance Hub contract",
-            chainID: "phoenix-1",
+            chainID: "pisco-1",
         });
-        const result = await lcd.tx.broadcastBlock(tx, "phoenix-1");
+        const result = await lcd.tx.broadcastBlock(tx, "pisco-1");
         console.log(`Whitelist an asset in Alliance Hub contract submitted on chain
         - Tx Hash: ${result.txhash}`);
     }

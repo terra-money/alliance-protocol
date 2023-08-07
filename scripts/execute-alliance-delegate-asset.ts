@@ -14,20 +14,12 @@ const init = async () => {
     }
 
     // Create the LCD Client to interact with the blockchain
-    const lcd = new LCDClient({
-        "pisco-1": {
-            lcd: "https://pisco-lcd.terra.dev",
-            chainID: "pisco-1",
-            gasPrices: "0.15uluna",
-            gasAdjustment: "1.2",
-            prefix: process.env.ACC_PREFIX as string,
-        }
-    });
+    const lcd = LCDClient.fromDefaultConfig("testnet");
 
     // Get all information from the deployer wallet
     const mk = new MnemonicKey({ mnemonic: process.env.MNEMONIC});
     const wallet = lcd.wallet(mk);
-    const accAddress = wallet.key.accAddress(process.env.ACC_PREFIX as string);
+    const accAddress = wallet.key.accAddress("terra");
 
     try {
         const hubAddress = fs.readFileSync('./scripts/.hub_address.log').toString('utf-8');
@@ -38,28 +30,18 @@ const init = async () => {
                 "alliance_delegate" : {
                     "delegations": [{
                         "validator": "terravaloper1zdpgj8am5nqqvht927k3etljyl6a52kwqndjz2",
-                        "amount": "1000000"
+                        "amount": "10000000"
                     }]
                 }
             },
         );
 
-        // Execute delegation to the hub contract
-        // const msgExecute = new MsgExecuteContract(
-        //      accAddress,
-        //      hubAddress, 
-        //      {
-        //          "stake" : {}
-        //      },
-        //      Coins.fromString("100000000ibc/623CD0B9778AD974713317EA0438A0CCAA72AF0BBE7BEE002205BCA25F1CA3BA")
-        // );
-
         const tx = await wallet.createAndSignTx({
             msgs: [msgExecute],
             memo: "Stake before creating the alliance",
-            chainID: process.env.CHAIN_ID as string,
+            chainID: "pisco-1",
         });
-        const result = await lcd.tx.broadcastBlock(tx, process.env.CHAIN_ID as string);
+        const result = await lcd.tx.broadcastBlock(tx, "pisco-1");
         console.log(`Stake before creating the alliance submitted on chain
         - Tx Hash: ${result.txhash}`);
     }
