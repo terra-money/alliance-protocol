@@ -35,13 +35,11 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let controller_addr = deps.api.addr_validate(&msg.controller_addr)?;
-    let governance_addr = deps.api.addr_validate(&msg.governance_addr)?;
 
     CONFIG.save(
         deps.storage,
         &Config {
             data_expiry_seconds: msg.data_expiry_seconds,
-            governance_addr,
             controller_addr,
         },
     )?;
@@ -49,8 +47,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_attribute("action", "instantiate")
         .add_attribute("data_expiry_seconds", msg.data_expiry_seconds.to_string())
-        .add_attribute("controller_addr", msg.controller_addr)
-        .add_attribute("governance_addr", msg.governance_addr))
+        .add_attribute("controller_addr", msg.controller_addr))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -209,16 +206,26 @@ pub fn get_emissions_distribution_info(
                 &chain_info.chain_id
             )))?;
 
-        let total_staked = whitelisted_assets
-            .iter()
-            .fold(Decimal::zero(), |acc, asset| {
-                acc + Decimal::from_atomics(asset.amount, 0).unwrap_or(
-                    Decimal::zero() * denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one()),
-                )
-            });
+        let mut total_staked = Decimal::zero();
         for asset in whitelisted_assets {
-            let staked = Decimal::from_atomics(asset.amount, 0).unwrap_or(Decimal::zero())
-                * *denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one());
+            let staked = Decimal::from_atomics(asset.amount, 0).map_err(|_| {
+                StdError::generic_err(format!(
+                    "Error converting staked amount to decimal for asset {:?}",
+                    asset.amount
+                ))
+            })?;
+            total_staked += staked * denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one());
+        }
+        for asset in whitelisted_assets {
+            // If rebase is not set, use 1 as the rebase factor
+            let denom_rebase = *denom_rebase.get(&asset.denom).unwrap_or(&Decimal::one());
+            let staked_before_rebase = Decimal::from_atomics(asset.amount, 0).map_err(|_| {
+                StdError::generic_err(format!(
+                    "Error converting staked amount to decimal for asset {:?}",
+                    asset.amount
+                ))
+            })?;
+            let staked = staked_before_rebase * denom_rebase;
             let distribution = if staked.is_zero() {
                 SignedDecimal::zero()
             } else {

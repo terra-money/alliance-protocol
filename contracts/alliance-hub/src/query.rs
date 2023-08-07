@@ -147,15 +147,15 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
 }
 
 fn get_total_staked_balances(deps: Deps) -> StdResult<Binary> {
-    let total_staked_balances: Vec<StakedBalanceRes> = TOTAL_BALANCES
+    let total_staked_balances: StdResult<Vec<StakedBalanceRes>> = TOTAL_BALANCES
         .range(deps.storage, None, None, Order::Ascending)
-        .map(|total_balance| {
-            let (asset, balance) = total_balance.unwrap();
-            StakedBalanceRes {
-                asset: asset.check(deps.api, None).unwrap(),
+        .map(|total_balance| -> StdResult<StakedBalanceRes> {
+            let (asset, balance) = total_balance?;
+            Ok(StakedBalanceRes {
+                asset: asset.check(deps.api, None)?,
                 balance,
-            }
+            })
         })
         .collect();
-    to_binary(&total_staked_balances)
+    to_binary(&total_staked_balances?)
 }
