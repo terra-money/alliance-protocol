@@ -590,16 +590,17 @@ fn rebalance_emissions_callback(
         &OracleQueryMsg::QueryEmissionsDistributions(distr_req),
     )?;
 
-    let asset_reward_distribution: Vec<AssetDistribution> = distr_res
+    let asset_reward_distribution: StdResult<Vec<AssetDistribution>> = distr_res
         .iter()
-        .map(|d| -> AssetDistribution {
-            let distribution = d.distribution.to_decimal().unwrap_or(Decimal::zero());
-            AssetDistribution {
+        .map(|d| -> StdResult<AssetDistribution> {
+            let distribution = d.distribution.to_decimal()?;
+            Ok(AssetDistribution {
                 asset: AssetInfo::Native(d.denom.to_string()),
                 distribution,
-            }
+            })
         })
         .collect();
+    let asset_reward_distribution = asset_reward_distribution?;
     ASSET_REWARD_DISTRIBUTION.save(deps.storage, &asset_reward_distribution)?;
 
     let mut attrs = vec![("action".to_string(), "rebalance_emissions".to_string())];
