@@ -9,84 +9,59 @@ const init = async () => {
     let codeId: number;
 
     // Create the LCD Client to interact with the blockchain
-    const lcd = new LCDClient({
-        "pisco-1": {
-            lcd: "https://pisco-lcd.terra.dev",
-            chainID: "pisco-1",
-            gasPrices: "0.15uluna",
-            gasAdjustment: "1.2",
-            prefix: process.env.ACC_PREFIX as string,
-        }
-    });
+    const lcd = LCDClient.fromDefaultConfig("testnet")
 
-    const govAccountAddr = (await lcd.auth.moduleAccountInfo("pisco-1","gov"))?.baseAccount?.address;
-    if (govAccountAddr == undefined) {
-        console.log(`Something went wrong retreiving the governance account from on-chain`);
-        return;
-    }
     // Get all information from the deployer wallet
     const mk = new MnemonicKey({ mnemonic: process.env.MNEMONIC });
     const wallet = lcd.wallet(mk);
-    const accAddress = wallet.key.accAddress(process.env.ACC_PREFIX as string);
+    const accAddress = wallet.key.accAddress("terra");
     console.log(`Wallet address: ${accAddress}`)
 
     // Create the message and broadcast the transaction on chain
-    try {
-        const msgStoreCode = new MsgStoreCode(
-            accAddress,
-            fs.readFileSync('./artifacts/alliance_oracle.wasm').toString('base64')
-        );
-        let tx = await wallet.createAndSignTx({
-            msgs: [msgStoreCode],
-            memo: "Alliance Oracle Contract",
-            chainID: process.env.CHAIN_ID as string,
-        });
+    const msgStoreCode = new MsgStoreCode(
+        accAddress,
+        fs.readFileSync('./artifacts/alliance_oracle.wasm').toString('base64')
+    );
+    let tx = await wallet.createAndSignTx({
+        msgs: [msgStoreCode],
+        memo: "Alliance Protocol Oracle",
+        chainID: "pisco-1",
+    });
 
-        let result = await lcd.tx.broadcastBlock(tx, process.env.CHAIN_ID as string);
-        codeId = Number(result.logs[0].events[1].attributes[1].value);
-        console.log(`Smart contract deployed with 
-        - Code ID: ${codeId}
-        - Tx Hash: ${result.txhash}`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    catch (e) {
-        console.log(e);
-        return;
-    }
+    let result = await lcd.tx.broadcastBlock(tx, "pisco-1");
+    codeId = Number(result.logs[0].events[1].attributes[1].value);
+    console.log(`Smart contract deployed with 
+    - Code ID: ${codeId}
+    - Tx Hash: ${result.txhash}`);
 
-    try {
-        // Instantiate the transaction and broadcast it on chain
-        const msgInstantiateContract = new MsgInstantiateContract(
-            accAddress,
-            accAddress,
-            codeId,
-            {
-                "controller_addr": accAddress,
-                "governance_addr": govAccountAddr,
-                "data_expiry_seconds": 600,
-            },
-            new Coins(),
-            "Create an oracle contract"
-        );
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-        const tx = await wallet.createAndSignTx({
-            msgs: [msgInstantiateContract],
-            memo: "Create an Alliance Oracle Contract",
-            chainID: process.env.CHAIN_ID as string,
-        });
-        const result = await lcd.tx.broadcastBlock(tx, process.env.CHAIN_ID as string);
-        const contractAddress = result.logs[0].events[0].attributes[0].value;
-        console.log(`Alliance Oracle smart contract instantiated with 
-        - Code ID: ${codeId}
-        - Tx Hash: ${result.txhash}
-        - Contract Address: ${contractAddress}`);
+    // Instantiate the transaction and broadcast it on chain
+    const msgInstantiateContract = new MsgInstantiateContract(
+        accAddress,
+        accAddress,
+        codeId,
+        {
+            "controller_addr": accAddress,
+            "data_expiry_seconds": 86400,   // 24h
+        },
+        new Coins(),
+        "Create Alliance Protocol Oracle"
+    );
 
-        fs.writeFileSync('./scripts/.oracle_address.log', contractAddress);
-    }
-    catch (e) {
-        console.log(e)
-        return;
-    }
+    tx = await wallet.createAndSignTx({
+        msgs: [msgInstantiateContract],
+        memo: "Create an Alliance Oracle Contract",
+        chainID: "pisco-1",
+    });
+    result = await lcd.tx.broadcastBlock(tx, "pisco-1");
+    let contractAddress = result.logs[0].events[0].attributes[0].value;
+    console.log(`Alliance Oracle smart contract instantiated with 
+    - Code ID: ${codeId}
+    - Tx Hash: ${result.txhash}
+    - Contract Address: ${contractAddress}`);
+
+    fs.writeFileSync('./scripts/.oracle_address.log', contractAddress);
 }
 
 try {

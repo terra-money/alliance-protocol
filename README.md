@@ -11,6 +11,15 @@ The smart contract has been deployed to [pisco-1 testnet](https://finder.terra.m
 
 Take in consideration that the XLarge dataset almost reach the limit of data we can submit on chain since the maximum gas for queries is 3 000 000 and the size of the data is quiet large. 
 
+# Deployment Matix
+
+|        | Network             | CodeID | Contract Address                                                 |
+|--------|---------------------|--------|------------------------------------------------------------------|
+| Oracle | testnet (pisco-1)   | 9830   | [terra19cs0qcqpa5n7wlqjlhvfe235kc20g52enwr0d5cdar5zkmza7skqv54070](https://finder.terra.money/testnet/address/terra19cs0qcqpa5n7wlqjlhvfe235kc20g52enwr0d5cdar5zkmza7skqv54070) |
+| Hub    | testnet (pisco-1)   | 9865   | [terra1q95pe55eea0akft0xezak2s50l4vkkquve5emw7gzw65a7ptdl8qel50ea](https://finder.terra.money/testnet/address/terra1q95pe55eea0akft0xezak2s50l4vkkquve5emw7gzw65a7ptdl8qel50ea) |
+| Oracle | mainnet (phoenix-1) | 1734   | [terra1mdpvgjc8jmv60a4x68nggsh9w8uyv69sqls04a76m9med5hsqmwsse8sxa](https://finder.terra.money/mainnet/address/terra1mdpvgjc8jmv60a4x68nggsh9w8uyv69sqls04a76m9med5hsqmwsse8sxa)                                                                 |
+| Hub    | mainnet (phoenix-1) | 1746   | [terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s](https://finder.terra.money/mainnet/address/terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s)                                                                 |
+
 # Development
 
 Considering the Rust is installed in your system you have to use the wasm32 compiler and install cargo-make. 
