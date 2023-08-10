@@ -47,7 +47,7 @@ const init = async () => {
     console.log(`Smart contract deployed with 
     - Code ID: ${codeId}
     - Tx Hash: ${result.txhash}`);
-    
+
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     const oracleAddress = fs.readFileSync('./scripts/.oracle_address.log').toString('utf-8');

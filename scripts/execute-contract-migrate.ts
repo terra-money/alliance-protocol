@@ -14,36 +14,28 @@ const init = async () => {
     }
 
     // Create the LCD Client to interact with the blockchain
-    const lcd = new LCDClient({
-        "pisco-1": {
-            lcd: "https://pisco-lcd.terra.dev",
-            chainID: "pisco-1",
-            gasPrices: "0.15uluna",
-            gasAdjustment: "1.2",
-            prefix: process.env.ACC_PREFIX as string,
-        }
-    });
+    const lcd = LCDClient.fromDefaultConfig("testnet")
 
     // Get all information from the deployer wallet
     const mk = new MnemonicKey({ mnemonic: process.env.MNEMONIC});
     const wallet = lcd.wallet(mk);
-    const accAddress = wallet.key.accAddress(process.env.ACC_PREFIX as string);
+    const accAddress = wallet.key.accAddress("terra");
 
     try {
         const hubAddress = fs.readFileSync('./scripts/.hub_address.log').toString('utf-8');
         const msgMigrateCode = new MsgMigrateContract(
             accAddress,
             hubAddress,
-            9517,
+            9865,
             {}
         );
 
         const tx = await wallet.createAndSignTx({
             msgs: [msgMigrateCode],
             memo: "Migrate Alliance Hub",
-            chainID: process.env.CHAIN_ID as string,
+            chainID: "pisco-1",
         });
-        const result = await lcd.tx.broadcastBlock(tx, process.env.CHAIN_ID as string);
+        const result = await lcd.tx.broadcastBlock(tx, "pisco-1");
         console.log(`Migrate Alliance Hub submitted on chain
         - Tx Hash: ${result.txhash}`);
     }
@@ -51,8 +43,6 @@ const init = async () => {
         console.log(e)
         return;
     }
-
-
 }
 
 try {

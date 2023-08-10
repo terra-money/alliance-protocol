@@ -49,8 +49,6 @@ const init = async () => {
         console.log(e)
         return;
     }
-
-
 }
 
 try {
