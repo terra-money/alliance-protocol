@@ -101,7 +101,9 @@ fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalancesQuery) -> S
         let checked_asset_info = asset_key.check(deps.api, None)?;
         let asset_info_key = AssetInfoKey::from(checked_asset_info.clone());
         let stake_key = (addr.clone(), asset_info_key);
-        let balance = BALANCES.load(deps.storage, stake_key)?;
+        let balance = BALANCES
+            .load(deps.storage, stake_key)
+            .unwrap_or(Uint128::zero());
 
         // Append the request
         res.push(StakedBalanceRes {

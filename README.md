@@ -16,9 +16,9 @@ Take in consideration that the XLarge dataset almost reach the limit of data we 
 |        | Network             | CodeID | Contract Address                                                 |
 |--------|---------------------|--------|------------------------------------------------------------------|
 | Oracle | testnet (pisco-1)   | 9900   | [terra1w8ta7vhpzwe0y99tvvtp7k0k8uex2jq8jts8k2hsyg009ya06qts5fwftt](https://finder.terra.money/testnet/address/terra1w8ta7vhpzwe0y99tvvtp7k0k8uex2jq8jts8k2hsyg009ya06qts5fwftt) |
-| Hub    | testnet (pisco-1)   | 9901   | [terra1eaxcahzxp0x8wqejqjlqaey53tp06l728qad6z395lyzgl026qkq20xj43](https://finder.terra.money/testnet/address/terra1eaxcahzxp0x8wqejqjlqaey53tp06l728qad6z395lyzgl026qkq20xj43) |
+| Hub    | testnet (pisco-1)   | 10047   | [terra1eaxcahzxp0x8wqejqjlqaey53tp06l728qad6z395lyzgl026qkq20xj43](https://finder.terra.money/testnet/address/terra1eaxcahzxp0x8wqejqjlqaey53tp06l728qad6z395lyzgl026qkq20xj43) |
 | Oracle | mainnet (phoenix-1) | 1734   | [terra1mdpvgjc8jmv60a4x68nggsh9w8uyv69sqls04a76m9med5hsqmwsse8sxa](https://finder.terra.money/mainnet/address/terra1mdpvgjc8jmv60a4x68nggsh9w8uyv69sqls04a76m9med5hsqmwsse8sxa)                                                                 |
-| Hub    | mainnet (phoenix-1) | 1746   | [terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s](https://finder.terra.money/mainnet/address/terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s)                                                                 |
+| Hub    | mainnet (phoenix-1) | 1778   | [terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s](https://finder.terra.money/mainnet/address/terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s)                                                                 |
 
 # Development
 
