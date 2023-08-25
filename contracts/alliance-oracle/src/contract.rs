@@ -161,8 +161,7 @@ pub fn get_emissions_distribution_info(
     // First go through all chains and calculate the average yield for all alliances that accepts LUNA as a staking asset
     for chain_info in chains_info {
         if chains.contains_key(&chain_info.chain_id) {
-            let mut apr_sum = SignedDecimal::zero();
-            let mut total_staked = SignedDecimal::zero();
+            let mut total_value = SignedDecimal::zero();
 
             for alliance in chain_info.luna_alliances.clone() {
                 // Calculate the amount of chain native tokens
@@ -175,20 +174,14 @@ pub fn get_emissions_distribution_info(
                 // on this chain based on the amount of LSD's staked and their rebase factor.
                 let total_luna_staked = alliance.total_lsd_staked * alliance.rebase_factor;
 
-                // Calculate the APR if a signle LUNA is staked with this
-                // alliance on this chain denominated in stablecoin.
-                let apr = SignedDecimal::from_decimal(numerator / luna.luna_price, Sign::Positive)
-                    - (alliance.annual_take_rate * total_luna_staked);
+                // Calculate the amount of USD distributed to the Terra minus
+                // the value of LUNA taken by take_rate
+                let value = SignedDecimal::from_decimal(numerator, Sign::Positive)
+                    - (alliance.annual_take_rate * total_luna_staked * luna.luna_price);
 
-                apr_sum += apr;
-                total_staked += total_luna_staked;
+                total_value += value;
             }
-            let average_apr = if total_staked.is_zero() {
-                SignedDecimal::zero()
-            } else {
-                apr_sum / total_staked
-            };
-            chain_aprs.push((chain_info.clone(), average_apr));
+            chain_aprs.push((chain_info.clone(), total_value));
 
             for alliance in chain_info.chain_alliances_on_phoenix.clone() {
                 denom_rebase.insert(alliance.ibc_denom.clone(), alliance.rebase_factor);
