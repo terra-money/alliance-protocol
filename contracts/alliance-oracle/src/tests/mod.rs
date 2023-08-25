@@ -725,11 +725,13 @@ fn test_emissions_distribution_6() {
             "migaloo-1".to_string(),
             vec![
                 AssetStaked {
-                denom: "ibc/B3F639855EE7478750CC8F82072307ED6E131A8EFF20345E1D136B50C4E5EC36".to_string(),
-                amount: Uint128::new(9486165779396),
-            },
+                    denom: "ibc/B3F639855EE7478750CC8F82072307ED6E131A8EFF20345E1D136B50C4E5EC36"
+                        .to_string(),
+                    amount: Uint128::new(9486165779396),
+                },
                 AssetStaked {
-                    denom: "ibc/517E13F14A1245D4DE8CF467ADD4DA0058974CDCC880FA6AE536DBCA1D16D84E".to_string(),
+                    denom: "ibc/517E13F14A1245D4DE8CF467ADD4DA0058974CDCC880FA6AE536DBCA1D16D84E"
+                        .to_string(),
                     amount: Uint128::new(2371896858539),
                 },
             ],
@@ -737,7 +739,8 @@ fn test_emissions_distribution_6() {
         (
             "carbon-1".to_string(),
             vec![AssetStaked {
-                denom: "ibc/0E90026619DD296AD4EF9546396F292B465BAB6B5BE00ABD6162AA1CE8E68098".to_string(),
+                denom: "ibc/0E90026619DD296AD4EF9546396F292B465BAB6B5BE00ABD6162AA1CE8E68098"
+                    .to_string(),
                 amount: Uint128::new(1082956075803),
             }],
         ),
@@ -749,15 +752,18 @@ fn test_emissions_distribution_6() {
         res_parsed,
         vec![
             EmissionsDistribution {
-                denom: "ibc/B3F639855EE7478750CC8F82072307ED6E131A8EFF20345E1D136B50C4E5EC36".to_string(),
+                denom: "ibc/B3F639855EE7478750CC8F82072307ED6E131A8EFF20345E1D136B50C4E5EC36"
+                    .to_string(),
                 distribution: SignedDecimal::from_str("11564.766237041663021737").unwrap(),
             },
             EmissionsDistribution {
-                denom: "ibc/517E13F14A1245D4DE8CF467ADD4DA0058974CDCC880FA6AE536DBCA1D16D84E".to_string(),
+                denom: "ibc/517E13F14A1245D4DE8CF467ADD4DA0058974CDCC880FA6AE536DBCA1D16D84E"
+                    .to_string(),
                 distribution: SignedDecimal::from_str("2865.208859003817351703").unwrap(),
             },
             EmissionsDistribution {
-                denom: "ibc/0E90026619DD296AD4EF9546396F292B465BAB6B5BE00ABD6162AA1CE8E68098".to_string(),
+                denom: "ibc/0E90026619DD296AD4EF9546396F292B465BAB6B5BE00ABD6162AA1CE8E68098"
+                    .to_string(),
                 distribution: SignedDecimal::from_str("10865.475734855229839771").unwrap(),
             }
         ]
