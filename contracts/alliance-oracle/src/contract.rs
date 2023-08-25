@@ -152,7 +152,7 @@ pub fn get_emissions_distribution_info(
     _env: Env,
     chains: HashMap<ChainId, Vec<AssetStaked>>,
 ) -> StdResult<Binary> {
-    // Information posted on chain periodically from oracle-feeder-go 
+    // Information posted on chain periodically from oracle-feeder-go
     // https://github.com/terra-money/oracle-feeder-go.
     let chains_info = CHAINS_INFO.load(deps.storage)?;
     let luna = LUNA_INFO.load(deps.storage)?;
@@ -181,8 +181,9 @@ pub fn get_emissions_distribution_info(
 
                 // Calculate the amount of USD distributed to the Terra minus
                 // the value of LUNA taken by take_rate
-                let value = SignedDecimal::from_decimal(tokens_distributed_to_alliance, Sign::Positive)
-                    - (alliance.annual_take_rate * total_luna_staked * luna.luna_price);
+                let value =
+                    SignedDecimal::from_decimal(tokens_distributed_to_alliance, Sign::Positive)
+                        - (alliance.annual_take_rate * total_luna_staked * luna.luna_price);
 
                 chain_accumulated_value += value;
             }
