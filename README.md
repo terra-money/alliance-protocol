@@ -1,13 +1,13 @@
 # Benchmark 
-The smart contract has been deployed to [pisco-1 testnet](https://finder.terra.money/testnet/address/terra1uysfaxm4sjd7j35cw484w3ky3v6fkpffgrzv63mp6mj64xdamp2stf6hmt) and it has been benchmarked with the following data:
+The smart contract has been deployed to [pisco-1 testnet](https://terrasco.pe/testnet/address/terra1uysfaxm4sjd7j35cw484w3ky3v6fkpffgrzv63mp6mj64xdamp2stf6hmt) and it has been benchmarked with the following data:
 
 | Size   | Chains | Alliances | Data Size (kB) | Tx Cost (Luna) | Gas Used  |
 |--------|--------|-----------|----------------|----------------|-----------|
-| [XSmall](https://finder.terra.money/testnet/tx/4EFB6A2CA53C54449B303CF3C91593E161E12195E0C302E9504ECF67EBF00078)  | 8     | 16        | 5,5             | 0.406522       | 354,576   |
-| [Small](https://finder.terra.money/testnet/tx/D04758D0E6B1DF1B910ACB0473A3C232273A12D06A670CA0DB4AF53CA9981ECB)  | 16     | 32        | 11             | 0.667318       | 574,760   |
-| [Medium](https://finder.terra.money/testnet/tx/7BFCFDB5D378C58BFCF117660C57DC7C909D6EB45C316F86FFD4FD255EA8C5C7) | 32     | 64        | 21,9           | 1.188321       | 1,008,969 |
-| [Large](https://finder.terra.money/testnet/tx/3DF693DAC85B3D0EAFFFCA580031DD81D106F01CE582DC7EAB5D3C14F41F833E)  | 64     | 124       | 43,7           | 2.230764       | 1,877,682 |
-| [XLarge](https://finder.terra.money/testnet/tx/9BA0C5C18D6BC484112A7C15F5E1ECCBB4D80C1CF117895E08A375F182407325)  | 124     | 248       | 87,4           | 4.319313       | 3,615,282 |
+| [XSmall](https://terrasco.pe/testnet/tx/4EFB6A2CA53C54449B303CF3C91593E161E12195E0C302E9504ECF67EBF00078)  | 8     | 16        | 5,5             | 0.406522       | 354,576   |
+| [Small](https://terrasco.pe/testnet/tx/D04758D0E6B1DF1B910ACB0473A3C232273A12D06A670CA0DB4AF53CA9981ECB)  | 16     | 32        | 11             | 0.667318       | 574,760   |
+| [Medium](https://terrasco.pe/testnet/tx/7BFCFDB5D378C58BFCF117660C57DC7C909D6EB45C316F86FFD4FD255EA8C5C7) | 32     | 64        | 21,9           | 1.188321       | 1,008,969 |
+| [Large](https://terrasco.pe/testnet/tx/3DF693DAC85B3D0EAFFFCA580031DD81D106F01CE582DC7EAB5D3C14F41F833E)  | 64     | 124       | 43,7           | 2.230764       | 1,877,682 |
+| [XLarge](https://terrasco.pe/testnet/tx/9BA0C5C18D6BC484112A7C15F5E1ECCBB4D80C1CF117895E08A375F182407325)  | 124     | 248       | 87,4           | 4.319313       | 3,615,282 |
 
 Take in consideration that the XLarge dataset almost reach the limit of data we can submit on chain since the maximum gas for queries is 3 000 000 and the size of the data is quiet large. 
 
@@ -15,10 +15,10 @@ Take in consideration that the XLarge dataset almost reach the limit of data we 
 
 |        | Network             | CodeID | Contract Address                                                 |
 |--------|---------------------|--------|------------------------------------------------------------------|
-| Oracle | testnet (pisco-1)   | 9900   | [terra1w8ta7vhpzwe0y99tvvtp7k0k8uex2jq8jts8k2hsyg009ya06qts5fwftt](https://finder.terra.money/testnet/address/terra1w8ta7vhpzwe0y99tvvtp7k0k8uex2jq8jts8k2hsyg009ya06qts5fwftt) |
-| Hub    | testnet (pisco-1)   | 10047   | [terra1eaxcahzxp0x8wqejqjlqaey53tp06l728qad6z395lyzgl026qkq20xj43](https://finder.terra.money/testnet/address/terra1eaxcahzxp0x8wqejqjlqaey53tp06l728qad6z395lyzgl026qkq20xj43) |
-| Oracle | mainnet (phoenix-1) | 1734   | [terra1mdpvgjc8jmv60a4x68nggsh9w8uyv69sqls04a76m9med5hsqmwsse8sxa](https://finder.terra.money/mainnet/address/terra1mdpvgjc8jmv60a4x68nggsh9w8uyv69sqls04a76m9med5hsqmwsse8sxa)                                                                 |
-| Hub    | mainnet (phoenix-1) | 1778   | [terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s](https://finder.terra.money/mainnet/address/terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s)                                                                 |
+| Oracle | testnet (pisco-1)   | 10056   | [terra1w8ta7vhpzwe0y99tvvtp7k0k8uex2jq8jts8k2hsyg009ya06qts5fwftt](https://terrasco.pe/testnet/address/terra1w8ta7vhpzwe0y99tvvtp7k0k8uex2jq8jts8k2hsyg009ya06qts5fwftt) |
+| Hub    | testnet (pisco-1)   | 10047   | [terra1eaxcahzxp0x8wqejqjlqaey53tp06l728qad6z395lyzgl026qkq20xj43](https://terrasco.pe/testnet/address/terra1eaxcahzxp0x8wqejqjlqaey53tp06l728qad6z395lyzgl026qkq20xj43) |
+| Oracle | mainnet (phoenix-1) | 1782   | [terra1mdpvgjc8jmv60a4x68nggsh9w8uyv69sqls04a76m9med5hsqmwsse8sxa](https://chainsco.pe/terra2/address/terra1mdpvgjc8jmv60a4x68nggsh9w8uyv69sqls04a76m9med5hsqmwsse8sxa)                                                                 |
+| Hub    | mainnet (phoenix-1) | 1778   | [terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s](https://chainsco.pe/terra2/address/terra1jwyzzsaag4t0evnuukc35ysyrx9arzdde2kg9cld28alhjurtthq0prs2s)                                                                 |
 
 # Development
 

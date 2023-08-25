@@ -152,22 +152,26 @@ pub fn get_emissions_distribution_info(
     _env: Env,
     chains: HashMap<ChainId, Vec<AssetStaked>>,
 ) -> StdResult<Binary> {
+    // Information posted on chain periodically from oracle-feeder-go
+    // https://github.com/terra-money/oracle-feeder-go.
     let chains_info = CHAINS_INFO.load(deps.storage)?;
     let luna = LUNA_INFO.load(deps.storage)?;
 
-    let mut chain_aprs: Vec<(ChainInfo, SignedDecimal)> = vec![];
+    // Incognitas to discover in the first for loop:
+    let mut chains_value: Vec<(ChainInfo, SignedDecimal)> = vec![];
     let mut denom_rebase: HashMap<String, Decimal> = HashMap::new();
 
     // First go through all chains and calculate the average yield for all alliances that accepts LUNA as a staking asset
     for chain_info in chains_info {
         if chains.contains_key(&chain_info.chain_id) {
-            let mut apr_sum = SignedDecimal::zero();
-            let mut total_staked = SignedDecimal::zero();
+            // Accumulated amount of USD distributed to the Terra minus
+            // the value of LUNA taken by take_rate
+            let mut chain_accumulated_value = SignedDecimal::zero();
 
             for alliance in chain_info.luna_alliances.clone() {
-                // Calculate the amount of chain native tokens
-                // distributed to the alliance in a year denominated in stablecoin.
-                let numerator = chain_info.native_token.annual_provisions
+                // Calculate the amount of chain native tokens distributed
+                // to the alliance in a year denominated in USD.
+                let tokens_distributed_to_alliance = chain_info.native_token.annual_provisions
                     * alliance.normalized_reward_weight
                     * chain_info.native_token.token_price;
 
@@ -175,20 +179,15 @@ pub fn get_emissions_distribution_info(
                 // on this chain based on the amount of LSD's staked and their rebase factor.
                 let total_luna_staked = alliance.total_lsd_staked * alliance.rebase_factor;
 
-                // Calculate the APR if a signle LUNA is staked with this
-                // alliance on this chain denominated in stablecoin.
-                let apr = SignedDecimal::from_decimal(numerator / luna.luna_price, Sign::Positive)
-                    - (alliance.annual_take_rate * total_luna_staked);
+                // Calculate the amount of USD distributed to the Terra minus
+                // the value of LUNA taken by take_rate
+                let value =
+                    SignedDecimal::from_decimal(tokens_distributed_to_alliance, Sign::Positive)
+                        - (alliance.annual_take_rate * total_luna_staked * luna.luna_price);
 
-                apr_sum += apr;
-                total_staked += total_luna_staked;
+                chain_accumulated_value += value;
             }
-            let average_apr = if total_staked.is_zero() {
-                SignedDecimal::zero()
-            } else {
-                apr_sum / total_staked
-            };
-            chain_aprs.push((chain_info.clone(), average_apr));
+            chains_value.push((chain_info.clone(), chain_accumulated_value));
 
             for alliance in chain_info.chain_alliances_on_phoenix.clone() {
                 denom_rebase.insert(alliance.ibc_denom.clone(), alliance.rebase_factor);
@@ -197,7 +196,7 @@ pub fn get_emissions_distribution_info(
     }
 
     let mut emission_distribution = vec![];
-    for (chain_info, apr) in chain_aprs {
+    for (chain_info, chain_value) in chains_value {
         // Get the whitelisted asset base on the function parameter chains.ChainId
         let whitelisted_assets = chains
             .get(&chain_info.chain_id)
@@ -229,7 +228,7 @@ pub fn get_emissions_distribution_info(
             let distribution = if staked.is_zero() {
                 SignedDecimal::zero()
             } else {
-                apr * staked / total_staked
+                chain_value * staked / total_staked
             };
             emission_distribution.push(EmissionsDistribution {
                 denom: asset.denom.to_string(),
