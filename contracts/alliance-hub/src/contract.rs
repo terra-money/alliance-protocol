@@ -7,7 +7,7 @@ use alliance_protocol::alliance_protocol::{
     ExecuteMsg, InstantiateMsg, MigrateMsg,
 };
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo,
+    to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo,
     Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
@@ -466,7 +466,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         .collect();
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_binary(&ExecuteMsg::UpdateRewardsCallback {}).unwrap(),
+        msg: to_json_binary(&ExecuteMsg::UpdateRewardsCallback {}).unwrap(),
         funds: vec![],
     });
 
@@ -542,7 +542,7 @@ fn rebalance_emissions(
 
     Ok(res.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_binary(&ExecuteMsg::RebalanceEmissionsCallback {}).unwrap(),
+        msg: to_json_binary(&ExecuteMsg::RebalanceEmissionsCallback {}).unwrap(),
         funds: vec![],
     })))
 }

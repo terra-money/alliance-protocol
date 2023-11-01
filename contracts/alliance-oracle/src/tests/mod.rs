@@ -6,7 +6,7 @@ use alliance_protocol::alliance_oracle_types::{
 };
 use alliance_protocol::signed_decimal::SignedDecimal;
 use cosmwasm_std::{
-    from_binary,
+    from_json,
     testing::{mock_env, mock_info},
     Decimal, Uint128,
 };
@@ -57,7 +57,7 @@ fn test_update_oracle_data() {
 
     // Query the chains info to validate the data was stored correctly in the contract
     let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryChainsInfo {}).unwrap();
-    let res: Vec<ChainInfo> = from_binary(&res).unwrap();
+    let res: Vec<ChainInfo> = from_json(&res).unwrap();
     assert_eq!(1, res.len());
 
     let chain_info = res[0].clone();
@@ -94,7 +94,7 @@ fn test_update_oracle_data() {
 
     // Query the Luna info to validate the data was stored correctly in the contract
     let res = query(deps.as_ref(), mock_env(), QueryMsg::QueryLunaInfo {}).unwrap();
-    let luna_info: LunaInfo = from_binary(&res).unwrap();
+    let luna_info: LunaInfo = from_json(&res).unwrap();
     assert_eq!(
         Decimal::from_str("0.589013565473308100").unwrap(),
         luna_info.luna_price
@@ -109,7 +109,7 @@ fn test_update_oracle_data() {
         },
     )
     .unwrap();
-    let chain_info: ChainInfo = from_binary(&res).unwrap();
+    let chain_info: ChainInfo = from_json(&res).unwrap();
     assert_eq!("chain-1", chain_info.chain_id);
     assert_eq!(
         NativeToken {
@@ -184,7 +184,7 @@ fn test_emissions_distribution() {
     )]));
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_json(&res).unwrap();
     assert_eq!(
         res_parsed,
         vec![EmissionsDistribution {
@@ -278,7 +278,7 @@ fn test_emissions_distribution_2() {
     ]));
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_json(&res).unwrap();
     assert_eq!(
         res_parsed,
         vec![
@@ -378,7 +378,7 @@ fn test_emissions_distribution_3() {
     ]));
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_json(&res).unwrap();
     assert_eq!(
         res_parsed,
         vec![
@@ -495,7 +495,7 @@ fn test_emissions_distribution_4() {
     ]));
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_json(&res).unwrap();
     assert_eq!(
         res_parsed,
         vec![
@@ -610,7 +610,7 @@ fn test_emissions_distribution_5() {
     ]));
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_json(&res).unwrap();
     assert_eq!(
         res_parsed,
         vec![
@@ -747,7 +747,7 @@ fn test_emissions_distribution_6() {
     ]));
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let res_parsed: Vec<EmissionsDistribution> = from_binary(&res).unwrap();
+    let res_parsed: Vec<EmissionsDistribution> = from_json(&res).unwrap();
     assert_eq!(
         res_parsed,
         vec![

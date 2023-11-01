@@ -10,7 +10,7 @@ use crate::tests::helpers::{
 use alliance_protocol::alliance_protocol::{AssetDistribution, ExecuteMsg, PendingRewardsRes};
 use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
-    coin, coins, to_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg, Uint128,
+    coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg, Uint128,
     WasmMsg,
 };
 use cw_asset::{AssetInfo, AssetInfoKey};
@@ -58,7 +58,7 @@ fn test_update_rewards() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 funds: vec![],
                 contract_addr: "cosmos2contract".to_string(),
-                msg: to_binary(&ExecuteMsg::UpdateRewardsCallback {}).unwrap()
+                msg: to_json_binary(&ExecuteMsg::UpdateRewardsCallback {}).unwrap()
             }))
         ]
     );

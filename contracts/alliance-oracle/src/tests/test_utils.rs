@@ -1,6 +1,6 @@
 use alliance_protocol::alliance_oracle_types::{Config, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{
-    from_binary,
+    from_json,
     testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
     Empty, OwnedDeps,
 };
@@ -19,7 +19,7 @@ pub fn setup_contract() -> OwnedDeps<MockStorage, MockApi, MockQuerier, Empty> {
 
     let cfg = query(deps.as_ref(), mock_env(), QueryMsg::QueryConfig {}).unwrap();
 
-    let cfg: Config = from_binary(&cfg).unwrap();
+    let cfg: Config = from_json(&cfg).unwrap();
     assert_eq!("controller_addr", cfg.controller_addr);
     assert_eq!(60, cfg.data_expiry_seconds);
 

@@ -9,7 +9,7 @@ use alliance_protocol::alliance_protocol::{
     PendingRewardsRes, QueryMsg, StakedBalanceRes,
 };
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{coin, from_binary, Deps, DepsMut, Response, StdResult, Uint128};
+use cosmwasm_std::{coin, from_json, Deps, DepsMut, Response, StdResult, Uint128};
 use cw_asset::{Asset, AssetInfo};
 use std::collections::HashMap;
 
@@ -123,7 +123,7 @@ pub fn claim_rewards(deps: DepsMut, user: &str, denom: &str) -> Response {
 }
 
 pub fn query_rewards(deps: Deps, user: &str, denom: &str) -> PendingRewardsRes {
-    from_binary(
+    from_json(
         &query(
             deps,
             mock_env(),
@@ -138,7 +138,7 @@ pub fn query_rewards(deps: Deps, user: &str, denom: &str) -> PendingRewardsRes {
 }
 
 pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
-    from_binary(
+    from_json(
         &query(
             deps,
             mock_env(),
@@ -152,5 +152,5 @@ pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
 }
 
 pub fn query_all_staked_balances(deps: Deps) -> Vec<StakedBalanceRes> {
-    from_binary(&query(deps, mock_env(), QueryMsg::TotalStakedBalances {}).unwrap()).unwrap()
+    from_json(&query(deps, mock_env(), QueryMsg::TotalStakedBalances {}).unwrap()).unwrap()
 }
