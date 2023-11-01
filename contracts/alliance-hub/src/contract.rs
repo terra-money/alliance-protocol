@@ -7,8 +7,9 @@ use alliance_protocol::alliance_protocol::{
     ExecuteMsg, InstantiateMsg, MigrateMsg,
 };
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo,
-    Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128, WasmMsg,
+    to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env,
+    MessageInfo, Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128,
+    WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetInfoKey, AssetInfoUnchecked};

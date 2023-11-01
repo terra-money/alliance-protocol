@@ -57,7 +57,7 @@ fn test_whitelist_assets() {
     assert_eq!(chain_id, "chain-1".to_string());
 
     let res: WhitelistedAssetsResponse =
-        from_json(&query(deps.as_ref(), mock_env(), QueryMsg::WhitelistedAssets {}).unwrap())
+        from_json(query(deps.as_ref(), mock_env(), QueryMsg::WhitelistedAssets {}).unwrap())
             .unwrap();
     assert_eq!(
         res,

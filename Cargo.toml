@@ -13,7 +13,7 @@ license                 = "Apache-2.0"
 repository              = "https://github.com/terra-money/alliance-protocol"
 homepage                = "https://github.com/terra-money/alliance-protocol"
 documentation           = "https://github.com/terra-money/alliance-protocol"
-rust-version            = "1.68.2"
+rust-version            = "1.73.0"
 
 [profile.dev]
 overflow-checks         = false

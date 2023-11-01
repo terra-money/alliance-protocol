@@ -124,7 +124,7 @@ pub fn claim_rewards(deps: DepsMut, user: &str, denom: &str) -> Response {
 
 pub fn query_rewards(deps: Deps, user: &str, denom: &str) -> PendingRewardsRes {
     from_json(
-        &query(
+        query(
             deps,
             mock_env(),
             QueryMsg::PendingRewards(AssetQuery {
@@ -139,7 +139,7 @@ pub fn query_rewards(deps: Deps, user: &str, denom: &str) -> PendingRewardsRes {
 
 pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
     from_json(
-        &query(
+        query(
             deps,
             mock_env(),
             QueryMsg::AllPendingRewards(AllPendingRewardsQuery {
@@ -152,5 +152,5 @@ pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
 }
 
 pub fn query_all_staked_balances(deps: Deps) -> Vec<StakedBalanceRes> {
-    from_json(&query(deps, mock_env(), QueryMsg::TotalStakedBalances {}).unwrap()).unwrap()
+    from_json(query(deps, mock_env(), QueryMsg::TotalStakedBalances {}).unwrap()).unwrap()
 }

@@ -10,8 +10,8 @@ use crate::tests::helpers::{
 use alliance_protocol::alliance_protocol::{AssetDistribution, ExecuteMsg, PendingRewardsRes};
 use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
-    coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg, Uint128,
-    WasmMsg,
+    coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg,
+    Uint128, WasmMsg,
 };
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::{HashMap, HashSet};
