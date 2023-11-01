@@ -4,7 +4,7 @@ use alliance_protocol::alliance_protocol::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult, Uint128};
+use cosmwasm_std::{to_json_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashMap;
 
@@ -31,13 +31,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn get_config(deps: Deps) -> StdResult<Binary> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    to_binary(&cfg)
+    to_json_binary(&cfg)
 }
 
 fn get_validators(deps: Deps) -> StdResult<Binary> {
     let validators = VALIDATORS.load(deps.storage)?;
 
-    to_binary(&validators)
+    to_json_binary(&validators)
 }
 
 fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
@@ -50,13 +50,13 @@ fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
         res.entry(chain_id).or_insert_with(Vec::new).push(asset)
     }
 
-    to_binary(&res)
+    to_json_binary(&res)
 }
 
 fn get_rewards_distribution(deps: Deps) -> StdResult<Binary> {
     let asset_rewards_distr = ASSET_REWARD_DISTRIBUTION.load(deps.storage)?;
 
-    to_binary(&asset_rewards_distr)
+    to_json_binary(&asset_rewards_distr)
 }
 
 fn get_staked_balance(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary> {
@@ -64,7 +64,7 @@ fn get_staked_balance(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary> 
     let key = (addr, asset_query.asset.clone().into());
     let balance = BALANCES.load(deps.storage, key)?;
 
-    to_binary(&StakedBalanceRes {
+    to_json_binary(&StakedBalanceRes {
         asset: asset_query.asset,
         balance,
     })
@@ -83,7 +83,7 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
         .unwrap_or(Uint128::zero());
     let pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
 
-    to_binary(&PendingRewardsRes {
+    to_json_binary(&PendingRewardsRes {
         rewards: unclaimed_rewards + pending_rewards,
         staked_asset: asset_query.asset,
         reward_asset: AssetInfo::Native(config.reward_denom),
@@ -112,7 +112,7 @@ fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalancesQuery) -> S
         })
     }
 
-    to_binary(&res)
+    to_json_binary(&res)
 }
 
 fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResult<Binary> {
@@ -145,7 +145,7 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
         })
         .collect::<StdResult<Vec<PendingRewardsRes>>>();
 
-    to_binary(&all_pending_rewards?)
+    to_json_binary(&all_pending_rewards?)
 }
 
 fn get_total_staked_balances(deps: Deps) -> StdResult<Binary> {
@@ -159,5 +159,5 @@ fn get_total_staked_balances(deps: Deps) -> StdResult<Binary> {
             })
         })
         .collect();
-    to_binary(&total_staked_balances?)
+    to_json_binary(&total_staked_balances?)
 }

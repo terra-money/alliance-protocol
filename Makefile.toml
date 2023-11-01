@@ -16,6 +16,9 @@ args = ["fmt"]
 command = "cargo"
 args = ["test", "--locked"]
 
+[tasks.test-cover]
+script = """docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin"""
+
 [tasks.lint]
 command = "cargo"
 args = ["clippy", "--tests", "--", "-D", "warnings"]
@@ -46,25 +49,15 @@ fi
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  ${image}:0.12.12
+  ${image}:0.14.0
 """
 
-
-[tasks.deploy]
+[tasks.store-code]
 script = """
-npm install -g ts-node
-ts-node ./scripts/deploy-oracle.ts
-ts-node ./scripts/deploy-hub.ts
+ts-node ./scripts/store-code.ts
 """
 
-[tasks.deploy-oracle]
+[tasks.migrate-contracts]
 script = """
-npm install -g ts-node
-ts-node ./scripts/deploy-oracle.ts
-"""
-
-[tasks.deploy-hub]
-script = """
-npm install -g ts-node
-ts-node ./scripts/deploy-hub.ts
+ts-node ./scripts/execute-migrate-contracts.ts
 """

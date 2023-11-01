@@ -9,7 +9,7 @@ use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 use cw2::set_contract_version;
 
@@ -104,7 +104,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn get_config(deps: Deps) -> StdResult<Binary> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    to_binary(&cfg)
+    to_json_binary(&cfg)
 }
 
 pub fn get_luna_info(deps: Deps, env: Env) -> StdResult<Binary> {
@@ -113,7 +113,7 @@ pub fn get_luna_info(deps: Deps, env: Env) -> StdResult<Binary> {
 
     luna_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
 
-    to_binary(&luna_info)
+    to_json_binary(&luna_info)
 }
 
 pub fn get_chain_info(deps: Deps, env: Env, chain_id: ChainId) -> StdResult<Binary> {
@@ -123,7 +123,7 @@ pub fn get_chain_info(deps: Deps, env: Env, chain_id: ChainId) -> StdResult<Bina
     for chain_info in &chains_info {
         if chain_info.chain_id == chain_id {
             chain_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
-            return to_binary(&chain_info);
+            return to_json_binary(&chain_info);
         }
     }
 
@@ -139,12 +139,12 @@ pub fn get_chains_info(deps: Deps, env: Env) -> StdResult<Binary> {
         chain_info.is_expired(cfg.data_expiry_seconds, env.block.time)?;
     }
 
-    to_binary(&chains_info)
+    to_json_binary(&chains_info)
 }
 
 pub fn get_chains_info_unsafe(deps: Deps) -> StdResult<Binary> {
     let chains_info = CHAINS_INFO.load(deps.storage)?;
-    to_binary(&chains_info)
+    to_json_binary(&chains_info)
 }
 
 pub fn get_emissions_distribution_info(
@@ -237,5 +237,5 @@ pub fn get_emissions_distribution_info(
         }
     }
 
-    to_binary(&emission_distribution)
+    to_json_binary(&emission_distribution)
 }

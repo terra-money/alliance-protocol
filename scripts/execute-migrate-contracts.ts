@@ -12,6 +12,11 @@ const init = async () => {
         console.log(`Pleae deploy the hub contract first or add it's address to the ./scripts/.hub_address.log file to run this script`);
         return;
     }
+    if (!fs.existsSync('./scripts/.oracle_address.log')
+        || fs.readFileSync('./scripts/.oracle_address.log').toString('utf-8') == "") {
+        console.log(`Pleae deploy the hub contract first or add it's address to the ./scripts/.oracle_address.log file to run this script`);
+        return;
+    }
 
     // Create the LCD Client to interact with the blockchain
     const lcd = LCDClient.fromDefaultConfig("testnet")
@@ -23,21 +28,25 @@ const init = async () => {
 
     try {
         const hubAddress = fs.readFileSync('./scripts/.hub_address.log').toString('utf-8');
-        const msgMigrateCode = new MsgMigrateContract(
-            accAddress,
-            hubAddress,
-            9865,
-            {}
-        );
+        const oracleAddress = fs.readFileSync('./scripts/.oracle_address.log').toString('utf-8');
 
         const tx = await wallet.createAndSignTx({
-            msgs: [msgMigrateCode],
-            memo: "Migrate Alliance Hub",
+            msgs: [new MsgMigrateContract(
+                accAddress,
+                hubAddress,
+                11271,
+                {}
+            ),new MsgMigrateContract(
+                accAddress,
+                oracleAddress,
+                11272,
+                {}
+            )],
+            memo: "Migrate Alliance Protocol",
             chainID: "pisco-1",
         });
-        const result = await lcd.tx.broadcastBlock(tx, "pisco-1");
-        console.log(`Migrate Alliance Hub submitted on chain
-        - Tx Hash: ${result.txhash}`);
+        const result = await lcd.tx.broadcastSync(tx, "pisco-1");
+        console.log(`Migration for Alliance Protocol submitted on chain ${result.txhash}`);
     }
     catch (e) {
         console.log(e)

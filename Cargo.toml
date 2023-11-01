@@ -7,37 +7,37 @@ members = [
 exclude = []
 
 [workspace.package]
-version       = "0.1.0"
-edition       = "2021"
-license       = "Apache-2.0"
-repository    = "https://github.com/terra-money/alliance-protocol"
-homepage      = "https://github.com/terra-money/alliance-protocol"
-documentation = "https://github.com/terra-money/alliance-protocol"
-rust-version  = "1.68.2"
+version                 = "0.1.1"
+edition                 = "2021"
+license                 = "Apache-2.0"
+repository              = "https://github.com/terra-money/alliance-protocol"
+homepage                = "https://github.com/terra-money/alliance-protocol"
+documentation           = "https://github.com/terra-money/alliance-protocol"
+rust-version            = "1.73.0"
 
 [profile.dev]
-overflow-checks = false
+overflow-checks         = false
 
 [profile.release]
-opt-level = 3
-debug = false
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = false
+opt-level               = 3
+debug                   = false
+rpath                   = false
+lto                     = true
+debug-assertions        = false
+codegen-units           = 1
+panic                   = 'abort'
+incremental             = false
+overflow-checks         = false
 
 [workspace.dependencies]
-cosmwasm-std = "1.1.10"
-cosmwasm-storage = "1.1.10"
-cosmwasm-schema = "1.1.10"
-cw-storage-plus = "0.16.0"
-cw-asset = "2.4.0"
-schemars = "0.8.11"
-serde = { version = "1.0.152", default-features = false, features = ["derive"] }
-terra-proto-rs = { version = "3.0.1", default-features = false}
-thiserror = { version = "1.0.38" }
-cw2 = "1.0.1"
-alliance-protocol = { path = "./packages/alliance-protocol" }
+cosmwasm-std            = "1.4.1"
+cosmwasm-storage        = "1.4.1"
+cosmwasm-schema         = "1.1.10"
+cw-storage-plus         = "0.16.0"
+cw-asset                = "2.4.0"
+schemars                = "0.8.11"
+serde                   = { version = "1.0.152", default-features = false, features = ["derive"] }
+terra-proto-rs          = { version = "4.0.2", default-features = false}
+thiserror               = { version = "1.0.38" }
+cw2                     = "1.0.1"
+alliance-protocol       = { path = "./packages/alliance-protocol" }
