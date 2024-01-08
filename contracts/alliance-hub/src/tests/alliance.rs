@@ -1,11 +1,12 @@
 use crate::contract::execute;
-use crate::error::ContractError;
+use crate::models::{Config, ExecuteMsg};
+use alliance_protocol::error::ContractError;
 use crate::state::{CONFIG, VALIDATORS};
 use crate::tests::helpers::{
     alliance_delegate, alliance_redelegate, alliance_undelegate, setup_contract,
 };
 use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg, Config, ExecuteMsg,
+    AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg
 };
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{Binary, CosmosMsg, StdResult, SubMsg, Uint128};

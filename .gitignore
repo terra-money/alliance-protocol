@@ -16,6 +16,8 @@ node_modules
 .idea
 .env
 
+.vscode
+
 # Metadata from deployments
 scripts/.oracle_address.log
 scripts/.hub_address.log

@@ -32,6 +32,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "alliance-lp-hub"
+version = "0.1.0"
+dependencies = [
+ "alliance-protocol",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-asset",
+ "cw-storage-plus 0.16.0",
+ "cw-utils 1.0.1",
+ "cw2 1.0.1",
+ "schemars",
+ "serde",
+ "terra-proto-rs 3.0.2",
+ "thiserror",
+]
+
+[[package]]
 name = "alliance-oracle"
 version = "0.1.0"
 dependencies = [

@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 use std::env;
 
-use alliance_protocol::alliance_oracle_types::{
-    AssetStaked, ChainId, ChainInfo, ChainsInfo, Config, EmissionsDistribution, ExecuteMsg, Expire,
-    InstantiateMsg, MigrateMsg, QueryMsg,
+use alliance_protocol::{
+    alliance_oracle_types::{
+        AssetStaked, ChainId, ChainInfo, ChainsInfo, Config, EmissionsDistribution, ExecuteMsg, Expire,
+        InstantiateMsg, MigrateMsg, QueryMsg,
+    },
+    signed_decimal::{Sign, SignedDecimal},
+    error::ContractError,
 };
-use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -13,7 +16,6 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
-use crate::error::ContractError;
 use crate::state::{CHAINS_INFO, CONFIG, LUNA_INFO};
 use crate::utils;
 

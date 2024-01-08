@@ -1,13 +1,17 @@
+use crate::models::{
+    AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, 
+    PendingRewardsRes, QueryMsg, StakedBalanceRes, WhitelistedAssetsResponse,
+};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, Env, Order, StdResult, Uint128};
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashMap;
 
-use crate::{state::{
+use crate::state::{
     ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TOTAL_BALANCES,
     UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
-}, models::{QueryMsg, WhitelistedAssetsResponse, StakedBalanceRes, AssetQuery, PendingRewardsRes, AllStakedBalancesQuery, AllPendingRewardsQuery}};
+};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {

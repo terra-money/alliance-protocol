@@ -1,10 +1,10 @@
 use crate::contract::execute;
-use crate::error::ContractError;
+use alliance_protocol::error::ContractError;
 use crate::state::{BALANCES, TOTAL_BALANCES};
 use crate::tests::helpers::{
     query_all_staked_balances, setup_contract, stake, unstake, whitelist_assets,
 };
-use alliance_protocol::alliance_protocol::{ExecuteMsg, StakedBalanceRes};
+use crate::models::{ExecuteMsg, StakedBalanceRes};
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{coin, Addr, BankMsg, CosmosMsg, Response, Uint128};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};

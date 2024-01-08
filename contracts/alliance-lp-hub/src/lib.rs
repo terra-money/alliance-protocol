@@ -1,5 +1,7 @@
 pub mod contract;
+pub mod query;
 pub mod state;
+pub mod models;
+
 #[cfg(test)]
-pub mod tests;
-pub mod utils;
+mod tests;

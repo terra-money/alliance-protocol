@@ -1,39 +1,41 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
-use alliance_protocol::alliance_oracle_types::QueryMsg as OracleQueryMsg;
-use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
-    MigrateMsg,
+use alliance_protocol::{
+    token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg},
+    alliance_protocol::{
+        AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, MigrateMsg,
+    },
+    error::ContractError, alliance_oracle_types::ChainId,
 };
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env,
-    MessageInfo, Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128,
-    WasmMsg,
+    MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetInfoKey, AssetInfoUnchecked};
+use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
 use std::collections::{HashMap, HashSet};
-use alliance_protocol::{
-    alliance_oracle_types::{AssetStaked, ChainId, EmissionsDistribution},
-    token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg},
-    error::ContractError,
+use terra_proto_rs::{
+    alliance::alliance::{
+        MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate,
+    },
+    cosmos::base::v1beta1::Coin,
+    traits::Message,
 };
-use terra_proto_rs::alliance::alliance::{
-    MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate,
-};
-use terra_proto_rs::cosmos::base::v1beta1::Coin;
-use terra_proto_rs::traits::Message;
 
-use crate::models::{InstantiateMsg, Config, ExecuteMsg};
-use crate::state::{
-    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE, TOTAL_BALANCES,
-    UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+use crate::{
+    state::{
+        ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, 
+        CONFIG, TEMP_BALANCE, TOTAL_BALANCES, UNCLAIMED_REWARDS, 
+        USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST
+    }, 
+    models::{
+        Config, ExecuteMsg, InstantiateMsg
+    }
 };
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:terra-alliance-protocol";
+const CONTRACT_NAME: &str = "crates.io:terra-alliance-lp-hub";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
 const CLAIM_REWARD_ERROR_REPLY_ID: u64 = 2;
@@ -53,9 +55,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let governance_address = deps.api.addr_validate(msg.governance.as_str())?;
     let controller_address = deps.api.addr_validate(msg.controller.as_str())?;
-    let oracle_address = deps.api.addr_validate(msg.oracle.as_str())?;
     let create_msg = TokenExecuteMsg::CreateDenom {
-        subdenom: "ualliance".to_string(),
+        subdenom: "ualliancelp".to_string(),
     };
     let sub_msg = SubMsg::reply_on_success(
         CosmosMsg::Custom(CustomExecuteMsg::Token(create_msg)),
@@ -64,10 +65,8 @@ pub fn instantiate(
     let config = Config {
         governance: governance_address,
         controller: controller_address,
-        oracle: oracle_address,
         alliance_token_denom: "".to_string(),
         alliance_token_supply: Uint128::zero(),
-        last_reward_update_timestamp: Timestamp::default(),
         reward_denom: msg.reward_denom,
     };
     CONFIG.save(deps.storage, &config)?;
@@ -489,40 +488,8 @@ fn update_reward_callback(
         return Err(ContractError::Unauthorized {});
     }
     let config = CONFIG.load(deps.storage)?;
-    let reward_asset = AssetInfo::native(config.reward_denom);
-    let current_balance = reward_asset.query_balance(&deps.querier, env.contract.address)?;
-    let previous_balance = TEMP_BALANCE.load(deps.storage)?;
-    let rewards_collected = current_balance - previous_balance;
-
-    let asset_reward_distribution = ASSET_REWARD_DISTRIBUTION.load(deps.storage)?;
-    let total_distribution = asset_reward_distribution
-        .iter()
-        .map(|a| a.distribution)
-        .fold(Decimal::zero(), |acc, v| acc + v);
-
-    for asset_distribution in asset_reward_distribution {
-        let asset_key = AssetInfoKey::from(asset_distribution.asset);
-        let total_reward_distributed = Decimal::from_atomics(rewards_collected, 0)?
-            * asset_distribution.distribution
-            / total_distribution;
-
-        // If there are no balances, we stop updating the rate. This means that the emissions are not directed to any stakers.
-        let total_balance = TOTAL_BALANCES
-            .load(deps.storage, asset_key.clone())
-            .unwrap_or(Uint128::zero());
-        if !total_balance.is_zero() {
-            let rate_to_update =
-                total_reward_distributed / Decimal::from_atomics(total_balance, 0)?;
-            if rate_to_update > Decimal::zero() {
-                ASSET_REWARD_RATE.update(
-                    deps.storage,
-                    asset_key.clone(),
-                    |rate| -> StdResult<_> { Ok(rate.unwrap_or(Decimal::zero()) + rate_to_update) },
-                )?;
-            }
-        }
-    }
-    TEMP_BALANCE.remove(deps.storage);
+    
+    // TODO: maths
 
     Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
 }
@@ -535,6 +502,7 @@ fn rebalance_emissions(
     // Allow execution only from the controller account
     let config = CONFIG.load(deps.storage)?;
     is_controller(&info, &config)?;
+    
     // Before starting with the rebalance emission process
     // rewards must be updated to the current block height
     // Skip if no reward distribution in the first place
@@ -559,62 +527,8 @@ fn rebalance_emissions_callback(
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
-    let config = CONFIG.load(deps.storage)?;
-
-    // This is the request that will be send to the oracle contract
-    // on the QueryEmissionsDistributions entry point to recover
-    // the assets_reward_distribution...
-    let mut distr_req: HashMap<ChainId, Vec<AssetStaked>> = HashMap::new();
-
-    let whitelist: Vec<(AssetInfoUnchecked, ChainId)> = WHITELIST
-        .range(deps.storage, None, None, Order::Ascending)
-        .map(|item| item.unwrap())
-        .collect();
-    for (asset, chain_id) in whitelist {
-        let asset = asset.check(deps.api, None)?;
-        let total_balance = TOTAL_BALANCES
-            .load(deps.storage, AssetInfoKey::from(asset.clone()))
-            .unwrap_or(Uint128::zero());
-
-        // Oracle does not support non-native coins so skip if non-native
-        if let AssetInfoBase::Native(denom) = asset {
-            distr_req
-                .entry(chain_id)
-                .or_insert_with(Vec::new)
-                .push(AssetStaked {
-                    denom,
-                    amount: total_balance,
-                });
-        }
-    }
-
-    // Query oracle contract for the new distribution
-    let distr_res: Vec<EmissionsDistribution> = deps.querier.query_wasm_smart(
-        config.oracle,
-        &OracleQueryMsg::QueryEmissionsDistributions(distr_req),
-    )?;
-
-    let asset_reward_distribution: StdResult<Vec<AssetDistribution>> = distr_res
-        .iter()
-        .map(|d| -> StdResult<AssetDistribution> {
-            let distribution = d.distribution.to_decimal()?;
-            Ok(AssetDistribution {
-                asset: AssetInfo::Native(d.denom.to_string()),
-                distribution,
-            })
-        })
-        .collect();
-    let asset_reward_distribution = asset_reward_distribution?;
-    ASSET_REWARD_DISTRIBUTION.save(deps.storage, &asset_reward_distribution)?;
-
-    let mut attrs = vec![("action".to_string(), "rebalance_emissions".to_string())];
-    for distribution in asset_reward_distribution {
-        attrs.push((
-            distribution.asset.to_string(),
-            distribution.distribution.to_string(),
-        ));
-    }
-    Ok(Response::new().add_attributes(attrs))
+    // TODO maths
+    Ok(Response::new())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -643,13 +557,13 @@ pub fn reply(
                 config.alliance_token_supply = total_supply;
                 Ok(config)
             })?;
-            let symbol = "ALLIANCE";
+            let symbol = "ALLIANCE_LP";
 
             let sub_msg_metadata = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
                 TokenExecuteMsg::SetMetadata {
                     denom: denom.clone(),
                     metadata: Metadata {
-                        description: "Staking token for the alliance protocol".to_string(),
+                        description: "Staking token for the alliance protocol lp contract".to_string(),
                         denom_units: vec![DenomUnit {
                             denom: denom.clone(),
                             exponent: 0,
@@ -657,7 +571,7 @@ pub fn reply(
                         }],
                         base: denom.to_string(),
                         display: denom.to_string(),
-                        name: "Alliance Token".to_string(),
+                        name: "Alliance LP Token".to_string(),
                         symbol: symbol.to_string(),
                     },
                 },

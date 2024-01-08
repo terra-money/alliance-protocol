@@ -2,6 +2,7 @@
 members = [
     "contracts/alliance-hub",
     "contracts/alliance-oracle",
+    "contracts/alliance-lp-hub",
     "packages/alliance-protocol",
 ]
 exclude = []
