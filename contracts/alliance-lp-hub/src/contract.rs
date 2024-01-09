@@ -84,9 +84,10 @@ pub fn execute(
         ExecuteMsg::ModifyAssets(assets) => modify_assets(deps, info, assets),
 
         ExecuteMsg::Receive(cw20_msg) => {
+            let sender = deps.api.addr_validate(&cw20_msg.sender)?;
             let received_asset = Asset::cw20(info.sender.clone(), cw20_msg.amount);
 
-            stake(deps, info, received_asset)
+            stake(deps, sender, received_asset)
         }
         ExecuteMsg::Stake {} => {
             if info.funds.len() != 1 {
@@ -96,8 +97,9 @@ pub fn execute(
             if coin.amount.is_zero() {
                 return Err(ContractError::AmountCannotBeZero {});
             }
-            stake(deps, info, coin.into())
+            stake(deps, info.sender, coin.into())
         }
+        
         ExecuteMsg::Unstake(asset) => unstake(deps, info, asset),
         ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, info, asset),
 
@@ -160,14 +162,13 @@ fn modify_assets(
 // update the user balance and the total balance for the asset.
 fn stake(
     deps: DepsMut,
-    info: MessageInfo,
+    sender: Addr,
     received_asset: Asset,
 ) -> Result<Response, ContractError> {
     let asset_key = AssetInfoKey::from(&received_asset.info);
     WHITELIST
         .load(deps.storage, asset_key.clone())
         .map_err(|_| ContractError::AssetNotWhitelisted {})?;
-    let sender = info.sender.clone();
 
     let rewards = _claim_reward(deps.storage, sender.clone(), received_asset.info.clone())?;
     if !rewards.is_zero() {
@@ -185,8 +186,8 @@ fn stake(
         (sender.clone(), asset_key.clone()),
         |balance| -> Result<_, ContractError> {
             match balance {
-                Some(balance) => Ok(balance + info.funds[0].amount),
-                None => Ok(info.funds[0].amount),
+                Some(balance) => Ok(balance + received_asset.amount),
+                None => Ok(received_asset.amount),
             }
         },
     )?;
@@ -194,20 +195,20 @@ fn stake(
         deps.storage,
         asset_key.clone(),
         |balance| -> Result<_, ContractError> {
-            Ok(balance.unwrap_or(Uint128::zero()) + info.funds[0].amount)
+            Ok(balance.unwrap_or(Uint128::zero()) + received_asset.amount)
         },
     )?;
 
     let asset_reward_rate = ASSET_REWARD_RATE
         .load(deps.storage, asset_key.clone())
         .unwrap_or(Decimal::zero());
-    USER_ASSET_REWARD_RATE.save(deps.storage, (sender, asset_key), &asset_reward_rate)?;
+    USER_ASSET_REWARD_RATE.save(deps.storage, (sender.clone(), asset_key), &asset_reward_rate)?;
 
     Ok(Response::new().add_attributes(vec![
         ("action", "stake"),
-        ("user", info.sender.as_ref()),
+        ("user", sender.as_ref()),
         ("asset", &received_asset.info.to_string()),
-        ("amount", &info.funds[0].amount.to_string()),
+        ("amount", &received_asset.amount.to_string()),
     ]))
 }
 
