@@ -1,4 +1,3 @@
-use alliance_protocol::alliance_oracle_types::ChainId;
 use alliance_protocol::alliance_protocol::AssetDistribution;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_asset::AssetInfoKey;
@@ -8,7 +7,7 @@ use crate::models::Config;
 
 
 pub const CONFIG: Item<Config> = Item::new("config");
-pub const WHITELIST: Map<AssetInfoKey, ChainId> = Map::new("whitelist");
+pub const WHITELIST: Map<AssetInfoKey, Decimal> = Map::new("whitelist");
 
 pub const BALANCES: Map<(Addr, AssetInfoKey), Uint128> = Map::new("balances");
 pub const TOTAL_BALANCES: Map<AssetInfoKey, Uint128> = Map::new("total_balances");

@@ -1,4 +1,4 @@
-use cosmwasm_std::{DecimalRangeExceeded, StdError};
+use cosmwasm_std::{DecimalRangeExceeded, StdError, Decimal};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -33,4 +33,7 @@ pub enum ContractError {
 
     #[error("Empty delegation")]
     EmptyDelegation {},
+
+    #[error("Invalid reward rate '{0}' for denom '{1}'")]
+    InvalidRewardRate(Decimal, String),
 }

@@ -1,12 +1,13 @@
-#[cfg(not(feature = "library"))]
-use cosmwasm_std::entry_point;
 use alliance_protocol::{
-    token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg},
+    alliance_oracle_types::ChainId,
     alliance_protocol::{
         AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, MigrateMsg,
     },
-    error::ContractError, alliance_oracle_types::ChainId,
+    error::ContractError,
+    token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg},
 };
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env,
     MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
@@ -16,22 +17,17 @@ use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
 use std::collections::{HashMap, HashSet};
 use terra_proto_rs::{
-    alliance::alliance::{
-        MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate,
-    },
+    alliance::alliance::{MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate},
     cosmos::base::v1beta1::Coin,
     traits::Message,
 };
 
 use crate::{
+    models::{Config, ExecuteMsg, InstantiateMsg, ModifyAsset},
     state::{
-        ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, 
-        CONFIG, TEMP_BALANCE, TOTAL_BALANCES, UNCLAIMED_REWARDS, 
-        USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST
-    }, 
-    models::{
-        Config, ExecuteMsg, InstantiateMsg
-    }
+        ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
+        TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+    },
 };
 
 // version info for migration info
@@ -72,6 +68,7 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
 
     VALIDATORS.save(deps.storage, &HashSet::new())?;
+
     Ok(Response::new()
         .add_attributes(vec![("action", "instantiate")])
         .add_submessage(sub_msg))
@@ -85,17 +82,16 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::WhitelistAssets(assets) => whitelist_assets(deps, info, assets),
-        ExecuteMsg::RemoveAssets(assets) => remove_assets(deps, info, assets),
+        ExecuteMsg::ModifyAssets(assets) => modify_assets(deps, info, assets),
 
-        ExecuteMsg::Stake {} => stake(deps, env, info),
+        ExecuteMsg::Stake {} => stake(deps, info),
         ExecuteMsg::Unstake(asset) => unstake(deps, info, asset),
         ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, info, asset),
 
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
-        
+
         ExecuteMsg::UpdateRewards {} => update_rewards(deps, env, info),
         ExecuteMsg::RebalanceEmissions {} => rebalance_emissions(deps, env, info),
 
@@ -104,55 +100,49 @@ pub fn execute(
     }
 }
 
-fn whitelist_assets(
+// This method iterate through the list of assets to be modified,
+// for each asset it checks if it is being listed or delisted,
+// when listed and an asset already exists, it updates the reward rate.
+fn modify_assets(
     deps: DepsMut,
     info: MessageInfo,
-    assets_request: HashMap<ChainId, Vec<AssetInfo>>,
+    assets: Vec<ModifyAsset>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     is_governance(&info, &config)?;
-    let mut attrs = vec![("action".to_string(), "whitelist_assets".to_string())];
-    for (chain_id, assets) in &assets_request {
-        for asset in assets {
-            let asset_key = AssetInfoKey::from(asset.clone());
-            WHITELIST.save(deps.storage, asset_key.clone(), chain_id)?;
+    let mut attrs = vec![("action".to_string(), "modify_assets".to_string())];
+
+    for asset in assets {
+        if asset.delete {
+            let asset_key = AssetInfoKey::from(asset.asset_info.clone());
+            WHITELIST.remove(deps.storage, asset_key);
+            ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
+                Ok(Decimal::zero())
+            })?;
+            attrs.extend_from_slice(&[
+                ("asset".to_string(), asset.asset_info.to_string()),
+                ("to_remove".to_string(), asset.delete.to_string()),
+            ]);
+        } else {
+            let reward_rate = asset.is_valid_reward_rate()?;
+            let asset_key = AssetInfoKey::from(asset.asset_info.clone());
+
+            WHITELIST.save(deps.storage, asset_key.clone(), &reward_rate)?;
             ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
                 Ok(rate.unwrap_or(Decimal::zero()))
             })?;
-        }
-        attrs.push(("chain_id".to_string(), chain_id.to_string()));
-        let assets_str = assets
-            .iter()
-            .map(|asset| asset.to_string())
-            .collect::<Vec<String>>()
-            .join(",");
 
-        attrs.push(("assets".to_string(), assets_str.to_string()));
+            attrs.extend_from_slice(&[
+                ("asset".to_string(), asset.asset_info.to_string()),
+                ("to_rewards_rate".to_string(), reward_rate.to_string()),
+            ]);
+        }
     }
+
     Ok(Response::new().add_attributes(attrs))
 }
 
-fn remove_assets(
-    deps: DepsMut,
-    info: MessageInfo,
-    assets: Vec<AssetInfo>,
-) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-    // Only allow the governance address to update whitelisted assets
-    is_governance(&info, &config)?;
-    for asset in &assets {
-        let asset_key = AssetInfoKey::from(asset.clone());
-        WHITELIST.remove(deps.storage, asset_key);
-    }
-    let assets_str = assets
-        .iter()
-        .map(|asset| asset.to_string())
-        .collect::<Vec<String>>()
-        .join(",");
-    Ok(Response::new().add_attributes(vec![("action", "remove_assets"), ("assets", &assets_str)]))
-}
-
-fn stake(deps: DepsMut, _env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+fn stake(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     if info.funds.len() != 1 {
         return Err(ContractError::OnlySingleAssetAllowed {});
     }
@@ -488,7 +478,7 @@ fn update_reward_callback(
         return Err(ContractError::Unauthorized {});
     }
     let config = CONFIG.load(deps.storage)?;
-    
+
     // TODO: maths
 
     Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
@@ -502,7 +492,7 @@ fn rebalance_emissions(
     // Allow execution only from the controller account
     let config = CONFIG.load(deps.storage)?;
     is_controller(&info, &config)?;
-    
+
     // Before starting with the rebalance emission process
     // rewards must be updated to the current block height
     // Skip if no reward distribution in the first place
@@ -557,13 +547,12 @@ pub fn reply(
                 config.alliance_token_supply = total_supply;
                 Ok(config)
             })?;
-            let symbol = "ALLIANCE_LP";
 
             let sub_msg_metadata = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
                 TokenExecuteMsg::SetMetadata {
                     denom: denom.clone(),
                     metadata: Metadata {
-                        description: "Staking token for the alliance protocol lp contract".to_string(),
+                        description: "Staking token for the alliance lp hub contract".to_string(),
                         denom_units: vec![DenomUnit {
                             denom: denom.clone(),
                             exponent: 0,
@@ -572,7 +561,7 @@ pub fn reply(
                         base: denom.to_string(),
                         display: denom.to_string(),
                         name: "Alliance LP Token".to_string(),
-                        symbol: symbol.to_string(),
+                        symbol: "ALLIANCE_LP".to_string(),
                     },
                 },
             )));

@@ -1,15 +1,12 @@
-use std::collections::{HashMap,HashSet};
-use alliance_protocol::{
-    alliance_oracle_types::ChainId, alliance_protocol::{
-        AllianceDelegateMsg, 
-        AllianceUndelegateMsg, 
-        AllianceRedelegateMsg,
-        AssetDistribution
-    },
-};
-use cosmwasm_schema::{QueryResponses, cw_serde};
-use cosmwasm_std::{Addr, Uint128};
-use cw_asset::{AssetInfo, Asset};
+use alliance_protocol::{alliance_protocol::{
+    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
+}, error::ContractError};
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Addr, Decimal, Uint128};
+use cw_asset::{Asset, AssetInfo};
+use std::collections::{HashMap, HashSet};
+
+pub type AssetDenom = String;
 
 #[cw_serde]
 pub struct Config {
@@ -36,8 +33,8 @@ pub enum ExecuteMsg {
     UpdateRewards {},
 
     // Privileged functions
-    WhitelistAssets(HashMap<ChainId, Vec<AssetInfo>>),
-    RemoveAssets(Vec<AssetInfo>),
+    ModifyAssets(Vec<ModifyAsset>),
+
     UpdateRewardsCallback {},
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
@@ -45,6 +42,38 @@ pub enum ExecuteMsg {
     RebalanceEmissions {},
     RebalanceEmissionsCallback {},
 }
+
+#[cw_serde]
+pub struct ModifyAsset {
+    pub asset_info: AssetInfo,
+    pub rewards_rate: Option<Decimal>,
+    pub delete: bool,
+}
+
+impl ModifyAsset {
+    pub fn new(asset_info: AssetInfo, rewards_rate: Option<Decimal>, delete: bool) -> Self {
+        ModifyAsset {
+            asset_info,
+            rewards_rate,
+            delete,
+        }
+    }
+
+    pub fn is_valid_reward_rate(&self) -> Result<Decimal, ContractError> {
+        match self.rewards_rate {
+            Some(rate) => {
+                if rate < Decimal::zero() || rate > Decimal::one() {
+                    return Err(ContractError::InvalidRewardRate(rate, self.asset_info.to_string()));
+                }
+                Ok(rate)
+            },
+            None => {
+                return Err(ContractError::InvalidRewardRate(Decimal::zero(), self.asset_info.to_string()));
+            }
+        }
+    }
+}
+
 
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -76,7 +105,7 @@ pub enum QueryMsg {
     #[returns(Vec<StakedBalanceRes>)]
     TotalStakedBalances {},
 }
-pub type WhitelistedAssetsResponse = HashMap<ChainId, Vec<AssetInfo>>;
+pub type WhitelistedAssetsResponse = HashMap<AssetDenom, Vec<AssetInfo>>;
 
 #[cw_serde]
 pub struct AllPendingRewardsQuery {
