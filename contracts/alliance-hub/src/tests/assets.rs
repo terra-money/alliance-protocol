@@ -1,9 +1,9 @@
 use crate::contract::execute;
-use alliance_protocol::error::ContractError;
+use crate::models::{ExecuteMsg, QueryMsg, WhitelistedAssetsResponse};
 use crate::query::query;
 use crate::state::WHITELIST;
 use crate::tests::helpers::{remove_assets, setup_contract, whitelist_assets};
-use crate::models::{ExecuteMsg, QueryMsg, WhitelistedAssetsResponse};
+use alliance_protocol::error::ContractError;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{from_json, Response};
 use cw_asset::{AssetInfo, AssetInfoKey};

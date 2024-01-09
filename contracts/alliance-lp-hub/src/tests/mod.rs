@@ -1,2 +1,2 @@
-mod instantiate;
 mod helpers;
+mod instantiate;

@@ -27,13 +27,13 @@ dependencies = [
  "cw2 1.0.1",
  "schemars",
  "serde",
- "terra-proto-rs 3.0.2",
+ "terra-proto-rs",
  "thiserror",
 ]
 
 [[package]]
 name = "alliance-lp-hub"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alliance-protocol",
  "cosmwasm-schema",
@@ -43,9 +43,10 @@ dependencies = [
  "cw-storage-plus 0.16.0",
  "cw-utils 1.0.1",
  "cw2 1.0.1",
+ "cw20 1.1.2",
  "schemars",
  "serde",
- "terra-proto-rs 3.0.2",
+ "terra-proto-rs",
  "thiserror",
 ]
 
@@ -62,7 +63,7 @@ dependencies = [
  "cw2 1.0.1",
  "schemars",
  "serde",
- "terra-proto-rs 4.0.2",
+ "terra-proto-rs",
  "thiserror",
 ]
 
@@ -198,9 +199,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-schema"
-version = "1.2.6"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "407aca6f1671a08b60db8167f03bb7cb6b2378f0ddd9a030367b66ba33c2fd41"
+checksum = "0df41ea55f2946b6b43579659eec048cc2f66e8c8e2e3652fc5e5e476f673856"
 dependencies = [
  "cosmwasm-schema-derive",
  "schemars",
@@ -211,9 +212,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-schema-derive"
-version = "1.2.6"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6d1e00b8fd27ff923c10303023626358e23a6f9079f8ebec23a8b4b0bfcd4b3"
+checksum = "43609e92ce1b9368aa951b334dd354a2d0dd4d484931a5f83ae10e12a26c8ba9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -306,7 +307,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 0.16.0",
  "cw1155",
- "cw20",
+ "cw20 0.16.0",
 ]
 
 [[package]]
@@ -409,6 +410,19 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-utils 0.16.0",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw20"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "526e39bb20534e25a1cd0386727f0038f4da294e5e535729ba3ef54055246abd"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-utils 1.0.1",
  "schemars",
  "serde",
 ]
@@ -699,9 +713,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.60"
+version = "1.0.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dec2b086b7a862cf4de201096214fa870344cf922b2b30c167badb3af3195406"
+checksum = "95fc56cda0b5c3325f5fbbd7ff9fda9e02bb00bb3dac51252d2f1bfa1cb8cc8c"
 dependencies = [
  "unicode-ident",
 ]
@@ -740,9 +754,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.28"
+version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b9ab9c7eadfd8df19006f1cf1a4aed13540ed5cbc047010ece5826e10825488"
+checksum = "291ec9ab5efd934aaf503a6466c5d5251535d108ee747472c3977cc5acc868ef"
 dependencies = [
  "proc-macro2",
 ]
@@ -780,9 +794,9 @@ checksum = "f91339c0467de62360649f8d3e185ca8de4224ff281f66000de5eb2a77a79041"
 
 [[package]]
 name = "schemars"
-version = "0.8.12"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02c613288622e5f0c3fdc5dbd4db1c5fbe752746b1d1a56a0630b78fd00de44f"
+checksum = "45a28f4c49489add4ce10783f7911893516f15afe45d015608d41faca6bc4d29"
 dependencies = [
  "dyn-clone",
  "schemars_derive",
@@ -792,9 +806,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "0.8.12"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "109da1e6b197438deb6db99952990c7f959572794b80ff93707d55a232545e7c"
+checksum = "c767fd6fa65d9ccf9cf026122c1b555f2ef9a4f0cea69da4d7dbc3e258d30967"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -824,9 +838,9 @@ checksum = "bebd363326d05ec3e2f532ab7660680f3b02130d780c299bca73469d521bc0ed"
 
 [[package]]
 name = "serde"
-version = "1.0.164"
+version = "1.0.195"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e8c8cf938e98f769bc164923b06dce91cea1751522f46f8466461af04c9027d"
+checksum = "63261df402c67811e9ac6def069e4786148c4563f4b50fd4bf30aa370d626b02"
 dependencies = [
  "serde_derive",
 ]
@@ -851,13 +865,13 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.164"
+version = "1.0.195"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9735b638ccc51c28bf6914d90a2e9725b377144fc612c49a611fddd1b631d68"
+checksum = "46fe8f8603d81ba86327b23a2e9cdf49e1255fb94a4c5f297f6ee0547178ea2c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.18",
+ "syn 2.0.48",
 ]
 
 [[package]]
@@ -960,9 +974,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.18"
+version = "2.0.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32d41677bcbe24c20c52e7c70b0d8db04134c5d1066bf98662e2871ad200ea3e"
+checksum = "0f3531638e407dfc0814761abb7c00a5b54992b849452a0646b7f65c9f770f3f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -985,18 +999,6 @@ dependencies = [
  "serde_bytes",
  "subtle-encoding",
  "time",
-]
-
-[[package]]
-name = "terra-proto-rs"
-version = "3.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f9b56644fc3e9ce972652ef772710fa281dfdf578d97fa035b644858dda4651"
-dependencies = [
- "getrandom",
- "prost",
- "prost-types",
- "tendermint-proto",
 ]
 
 [[package]]
@@ -1028,7 +1030,7 @@ checksum = "f9456a42c5b0d803c8cd86e73dd7cc9edd429499f37a3550d286d5e86720569f"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.18",
+ "syn 2.0.48",
 ]
 
 [[package]]
@@ -1101,7 +1103,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.18",
+ "syn 2.0.48",
  "wasm-bindgen-shared",
 ]
 
@@ -1123,7 +1125,7 @@ checksum = "54681b18a46765f095758388f2d0cf16eb8d4169b639ab575a8f5693af210c7b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.18",
+ "syn 2.0.48",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]

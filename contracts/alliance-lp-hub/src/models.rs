@@ -1,8 +1,12 @@
-use alliance_protocol::{alliance_protocol::{
-    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
-}, error::ContractError};
+use alliance_protocol::{
+    alliance_protocol::{
+        AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
+    },
+    error::ContractError,
+};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Uint128};
+use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
 use std::collections::{HashMap, HashSet};
 
@@ -26,16 +30,22 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    // Public functions
+    // Both functions are used to stake,
+    // - Stake is used for CosmosSDK::Coin
+    // - Receive is used for CW20 tokens
     Stake {},
+    Receive(Cw20ReceiveMsg),
+
+    // Used to do the other operations
+    // for staked assets
     Unstake(Asset),
     ClaimRewards(AssetInfo),
     UpdateRewards {},
+    UpdateRewardsCallback {},
 
     // Privileged functions
     ModifyAssets(Vec<ModifyAsset>),
 
-    UpdateRewardsCallback {},
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),
@@ -63,17 +73,20 @@ impl ModifyAsset {
         match self.rewards_rate {
             Some(rate) => {
                 if rate < Decimal::zero() || rate > Decimal::one() {
-                    return Err(ContractError::InvalidRewardRate(rate, self.asset_info.to_string()));
+                    return Err(ContractError::InvalidRewardRate(
+                        rate,
+                        self.asset_info.to_string(),
+                    ));
                 }
                 Ok(rate)
-            },
-            None => {
-                return Err(ContractError::InvalidRewardRate(Decimal::zero(), self.asset_info.to_string()));
             }
+            None => Err(ContractError::InvalidRewardRate(
+                Decimal::zero(),
+                self.asset_info.to_string(),
+            )),
         }
     }
 }
-
 
 #[cw_serde]
 #[derive(QueryResponses)]

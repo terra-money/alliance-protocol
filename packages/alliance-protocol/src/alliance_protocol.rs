@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Uint128, Decimal};
+use cosmwasm_std::{Decimal, Uint128};
 use cw_asset::AssetInfo;
 
 #[cw_serde]
@@ -32,7 +32,6 @@ pub struct AllianceRedelegateMsg {
 
 #[cw_serde]
 pub struct MigrateMsg {}
-
 
 #[cw_serde]
 pub struct AssetDistribution {

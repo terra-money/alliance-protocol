@@ -1,16 +1,13 @@
-use std::collections::{HashMap,HashSet};
 use alliance_protocol::{
-    alliance_oracle_types::ChainId, alliance_protocol::{
-        AllianceDelegateMsg, 
-        AllianceUndelegateMsg, 
-        AllianceRedelegateMsg,
-        AssetDistribution
+    alliance_oracle_types::ChainId,
+    alliance_protocol::{
+        AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
     },
 };
-use cosmwasm_schema::{QueryResponses, cw_serde};
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Timestamp, Uint128};
-use cw_asset::{AssetInfo, Asset};
-
+use cw_asset::{Asset, AssetInfo};
+use std::collections::{HashMap, HashSet};
 
 #[cw_serde]
 pub struct Config {

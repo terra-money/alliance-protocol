@@ -1,16 +1,16 @@
 use crate::contract::{execute, instantiate};
+use crate::models::{
+    AllPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, PendingRewardsRes,
+    QueryMsg, StakedBalanceRes,
+};
 use crate::query::query;
 use crate::state::CONFIG;
-use alliance_protocol::token_factory::CustomExecuteMsg;
 use alliance_protocol::alliance_oracle_types::ChainId;
 use alliance_protocol::alliance_protocol::{
-    AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg,
-    AllianceRedelegation, AllianceUndelegateMsg,
+    AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg, AllianceRedelegation,
+    AllianceUndelegateMsg,
 };
-use crate::models::{
-    AllPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg,
-    PendingRewardsRes, QueryMsg, StakedBalanceRes,
-};
+use alliance_protocol::token_factory::CustomExecuteMsg;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, from_json, Deps, DepsMut, Response, StdResult, Uint128};
 use cw_asset::{Asset, AssetInfo};

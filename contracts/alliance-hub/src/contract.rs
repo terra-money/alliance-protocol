@@ -6,6 +6,11 @@ use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
     MigrateMsg,
 };
+use alliance_protocol::{
+    alliance_oracle_types::{AssetStaked, ChainId, EmissionsDistribution},
+    error::ContractError,
+    token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg},
+};
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env,
     MessageInfo, Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Timestamp, Uint128,
@@ -15,18 +20,13 @@ use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoBase, AssetInfoKey, AssetInfoUnchecked};
 use cw_utils::parse_instantiate_response_data;
 use std::collections::{HashMap, HashSet};
-use alliance_protocol::{
-    alliance_oracle_types::{AssetStaked, ChainId, EmissionsDistribution},
-    token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg},
-    error::ContractError,
-};
 use terra_proto_rs::alliance::alliance::{
     MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate,
 };
 use terra_proto_rs::cosmos::base::v1beta1::Coin;
 use terra_proto_rs::traits::Message;
 
-use crate::models::{InstantiateMsg, Config, ExecuteMsg};
+use crate::models::{Config, ExecuteMsg, InstantiateMsg};
 use crate::state::{
     ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE, TOTAL_BALANCES,
     UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
@@ -96,7 +96,7 @@ pub fn execute(
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
-        
+
         ExecuteMsg::UpdateRewards {} => update_rewards(deps, env, info),
         ExecuteMsg::RebalanceEmissions {} => rebalance_emissions(deps, env, info),
 
@@ -578,13 +578,10 @@ fn rebalance_emissions_callback(
 
         // Oracle does not support non-native coins so skip if non-native
         if let AssetInfoBase::Native(denom) = asset {
-            distr_req
-                .entry(chain_id)
-                .or_insert_with(Vec::new)
-                .push(AssetStaked {
-                    denom,
-                    amount: total_balance,
-                });
+            distr_req.entry(chain_id).or_default().push(AssetStaked {
+                denom,
+                amount: total_balance,
+            });
         }
     }
 

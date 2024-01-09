@@ -1,4 +1,4 @@
-use cosmwasm_std::{DecimalRangeExceeded, StdError, Decimal};
+use cosmwasm_std::{Decimal, DecimalRangeExceeded, StdError};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]

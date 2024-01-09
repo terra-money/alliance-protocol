@@ -1,6 +1,6 @@
 use crate::models::{
-    AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, 
-    PendingRewardsRes, QueryMsg, StakedBalanceRes, WhitelistedAssetsResponse,
+    AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
+    StakedBalanceRes, WhitelistedAssetsResponse,
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -45,9 +45,10 @@ fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
     let mut res: WhitelistedAssetsResponse = HashMap::new();
 
     for item in whitelist {
-        let (key, chain_id) = item?;
+        let (key, _) = item?;
         let asset = key.check(deps.api, None)?;
-        res.entry(chain_id).or_insert_with(Vec::new).push(asset)
+
+        res.entry(asset.to_string()).or_default().push(asset)
     }
 
     to_json_binary(&res)

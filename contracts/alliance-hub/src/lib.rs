@@ -1,6 +1,6 @@
 pub mod contract;
+pub mod models;
 pub mod query;
 pub mod state;
-pub mod models;
 #[cfg(test)]
 mod tests;

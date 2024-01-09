@@ -1,5 +1,4 @@
 use alliance_protocol::{
-    alliance_oracle_types::ChainId,
     alliance_protocol::{
         AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, MigrateMsg,
     },
@@ -15,7 +14,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use terra_proto_rs::{
     alliance::alliance::{MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate},
     cosmos::base::v1beta1::Coin,
@@ -84,7 +83,21 @@ pub fn execute(
     match msg {
         ExecuteMsg::ModifyAssets(assets) => modify_assets(deps, info, assets),
 
-        ExecuteMsg::Stake {} => stake(deps, info),
+        ExecuteMsg::Receive(cw20_msg) => {
+            let received_asset = Asset::cw20(info.sender.clone(), cw20_msg.amount);
+
+            stake(deps, info, received_asset)
+        }
+        ExecuteMsg::Stake {} => {
+            if info.funds.len() != 1 {
+                return Err(ContractError::OnlySingleAssetAllowed {});
+            }
+            let coin = info.funds[0].clone();
+            if coin.amount.is_zero() {
+                return Err(ContractError::AmountCannotBeZero {});
+            }
+            stake(deps, info, coin.into())
+        }
         ExecuteMsg::Unstake(asset) => unstake(deps, info, asset),
         ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, info, asset),
 
@@ -115,8 +128,8 @@ fn modify_assets(
     for asset in assets {
         if asset.delete {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
-            WHITELIST.remove(deps.storage, asset_key);
-            ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
+            WHITELIST.remove(deps.storage, asset_key.clone());
+            ASSET_REWARD_RATE.update(deps.storage, asset_key, |_| -> StdResult<_> {
                 Ok(Decimal::zero())
             })?;
             attrs.extend_from_slice(&[
@@ -142,21 +155,21 @@ fn modify_assets(
     Ok(Response::new().add_attributes(attrs))
 }
 
-fn stake(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    if info.funds.len() != 1 {
-        return Err(ContractError::OnlySingleAssetAllowed {});
-    }
-    if info.funds[0].amount.is_zero() {
-        return Err(ContractError::AmountCannotBeZero {});
-    }
-    let asset = AssetInfo::native(&info.funds[0].denom);
-    let asset_key = AssetInfoKey::from(&asset);
+// This method is used to stake both native and CW20 tokens,
+// it checks if the asset is whitelisted and then proceeds to
+// update the user balance and the total balance for the asset.
+fn stake(
+    deps: DepsMut,
+    info: MessageInfo,
+    received_asset: Asset,
+) -> Result<Response, ContractError> {
+    let asset_key = AssetInfoKey::from(&received_asset.info);
     WHITELIST
         .load(deps.storage, asset_key.clone())
         .map_err(|_| ContractError::AssetNotWhitelisted {})?;
     let sender = info.sender.clone();
 
-    let rewards = _claim_reward(deps.storage, sender.clone(), asset.clone())?;
+    let rewards = _claim_reward(deps.storage, sender.clone(), received_asset.info.clone())?;
     if !rewards.is_zero() {
         UNCLAIMED_REWARDS.update(
             deps.storage,
@@ -193,7 +206,7 @@ fn stake(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     Ok(Response::new().add_attributes(vec![
         ("action", "stake"),
         ("user", info.sender.as_ref()),
-        ("asset", &asset.to_string()),
+        ("asset", &received_asset.info.to_string()),
         ("amount", &info.funds[0].amount.to_string()),
     ]))
 }
@@ -477,7 +490,7 @@ fn update_reward_callback(
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
-    let config = CONFIG.load(deps.storage)?;
+    let _config = CONFIG.load(deps.storage)?;
 
     // TODO: maths
 
@@ -510,7 +523,7 @@ fn rebalance_emissions(
 }
 
 fn rebalance_emissions_callback(
-    deps: DepsMut,
+    _deps: DepsMut,
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
@@ -552,7 +565,8 @@ pub fn reply(
                 TokenExecuteMsg::SetMetadata {
                     denom: denom.clone(),
                     metadata: Metadata {
-                        description: "Staking token for the alliance lp hub contract".to_string(),
+                        description: "Staking token for alliance protocol lp hub contract"
+                            .to_string(),
                         denom_units: vec![DenomUnit {
                             denom: denom.clone(),
                             exponent: 0,

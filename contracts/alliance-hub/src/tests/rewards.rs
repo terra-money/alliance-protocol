@@ -1,4 +1,5 @@
 use crate::contract::execute;
+use crate::models::{ExecuteMsg, PendingRewardsRes};
 use crate::state::{
     ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES,
     USER_ASSET_REWARD_RATE, VALIDATORS,
@@ -8,7 +9,6 @@ use crate::tests::helpers::{
     unstake, whitelist_assets, DENOM,
 };
 use alliance_protocol::alliance_protocol::AssetDistribution;
-use crate::models::{ExecuteMsg, PendingRewardsRes};
 use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
     coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg,

@@ -1,8 +1,8 @@
 use crate::contract::reply;
+use crate::models::{Config, QueryMsg};
 use crate::query::query;
 use crate::tests::helpers::setup_contract;
 use alliance_protocol::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg};
-use crate::models::{Config, QueryMsg};
 use cosmwasm_std::testing::{mock_dependencies, mock_env};
 use cosmwasm_std::{
     from_json, Addr, Binary, CosmosMsg, Reply, Response, SubMsg, SubMsgResponse, SubMsgResult,

@@ -3,11 +3,11 @@ use std::env;
 
 use alliance_protocol::{
     alliance_oracle_types::{
-        AssetStaked, ChainId, ChainInfo, ChainsInfo, Config, EmissionsDistribution, ExecuteMsg, Expire,
-        InstantiateMsg, MigrateMsg, QueryMsg,
+        AssetStaked, ChainId, ChainInfo, ChainsInfo, Config, EmissionsDistribution, ExecuteMsg,
+        Expire, InstantiateMsg, MigrateMsg, QueryMsg,
     },
-    signed_decimal::{Sign, SignedDecimal},
     error::ContractError,
+    signed_decimal::{Sign, SignedDecimal},
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;

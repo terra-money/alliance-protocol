@@ -4,10 +4,16 @@ use cosmwasm_std::{to_json_binary, Binary, Deps, Env, Order, StdResult, Uint128}
 use cw_asset::{AssetInfo, AssetInfoKey};
 use std::collections::HashMap;
 
-use crate::{state::{
-    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TOTAL_BALANCES,
-    UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
-}, models::{QueryMsg, WhitelistedAssetsResponse, StakedBalanceRes, AssetQuery, PendingRewardsRes, AllStakedBalancesQuery, AllPendingRewardsQuery}};
+use crate::{
+    models::{
+        AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
+        StakedBalanceRes, WhitelistedAssetsResponse,
+    },
+    state::{
+        ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TOTAL_BALANCES,
+        UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+    },
+};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
@@ -43,7 +49,7 @@ fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
     for item in whitelist {
         let (key, chain_id) = item?;
         let asset = key.check(deps.api, None)?;
-        res.entry(chain_id).or_insert_with(Vec::new).push(asset)
+        res.entry(chain_id).or_default().push(asset)
     }
 
     to_json_binary(&res)

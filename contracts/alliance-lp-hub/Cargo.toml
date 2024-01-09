@@ -1,32 +1,32 @@
 [package]
-name = "alliance-lp-hub"
-version = "0.1.0"
-authors = ["Terra Money <core@terra.money>"]
-edition = "2018"
+name              = "alliance-lp-hub"
+version           = "0.1.1"
+authors           = ["Terra Money <core@terra.money>"]
+edition           = "2018"
 
-exclude = [
+exclude           = [
   "contract.wasm",
   "hash.txt",
 ]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type        = ["cdylib", "rlib"]
 
 [features]
-backtraces = ["cosmwasm-std/backtraces"]
-library = []
+backtraces        = ["cosmwasm-std/backtraces"]
+library           = []
 
 [dependencies]
-cosmwasm-std = { workspace = true, features = ["stargate"] }
-cosmwasm-storage = { workspace = true }
-cosmwasm-schema = { workspace = true }
-cw-storage-plus = { workspace = true }
-cw-asset = { workspace = true }
-schemars = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-thiserror = { workspace = true }
+cosmwasm-std      = { workspace = true, features = ["stargate"] }
+cosmwasm-storage  = { workspace = true }
+cosmwasm-schema   = { workspace = true }
+cw-storage-plus   = { workspace = true }
+cw-asset          = { workspace = true }
+schemars          = { workspace = true }
+serde             = { workspace = true, features = ["derive"] }
+thiserror         = { workspace = true }
 alliance-protocol = { workspace = true }
-
-cw2 = "1.0.1"
-cw-utils = "1.0.1"
-terra-proto-rs = {version = "3.0.2", default-features = false}
+cw20              = { workspace = true }
+cw2               = { workspace = true }
+cw-utils          = { workspace = true }
+terra-proto-rs    = { workspace = true }

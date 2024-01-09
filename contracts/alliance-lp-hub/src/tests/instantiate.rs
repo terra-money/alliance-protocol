@@ -1,12 +1,11 @@
 use crate::contract::reply;
+use crate::models::{Config, QueryMsg};
 use crate::query::query;
 use crate::tests::helpers::setup_contract;
 use alliance_protocol::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, TokenExecuteMsg};
-use crate::models::{Config, QueryMsg};
 use cosmwasm_std::testing::{mock_dependencies, mock_env};
 use cosmwasm_std::{
-    from_json, Addr, Binary, CosmosMsg, Reply, 
-    Response, SubMsg, SubMsgResponse, SubMsgResult,
+    from_json, Addr, Binary, CosmosMsg, Reply, Response, SubMsg, SubMsgResponse, SubMsgResult,
     Uint128,
 };
 use terra_proto_rs::traits::MessageExt;
@@ -74,7 +73,7 @@ fn test_reply_create_token() {
         TokenExecuteMsg::SetMetadata {
             denom: "factory/cosmos2contract/ualliancelp".to_string(),
             metadata: Metadata {
-                description: "Staking token for the alliance protocol lp contract".to_string(),
+                description: "Staking token for alliance protocol lp hub contract".to_string(),
                 denom_units: vec![DenomUnit {
                     denom: "factory/cosmos2contract/ualliancelp".to_string(),
                     exponent: 0,
@@ -91,7 +90,10 @@ fn test_reply_create_token() {
         res,
         Response::default()
             .add_attributes(vec![
-                ("alliance_token_denom", "factory/cosmos2contract/ualliancelp"),
+                (
+                    "alliance_token_denom",
+                    "factory/cosmos2contract/ualliancelp"
+                ),
                 ("alliance_token_total_supply", "1000000000000"),
             ])
             .add_submessage(sub_msg)
