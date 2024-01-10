@@ -507,9 +507,9 @@ fn update_reward_callback(
         .fold(Decimal::zero(), |acc, (_,v ) | acc + v);
 
     // Move all unallocated rewards to the unallocated rewards bucket
-    if let Ok(unallocated_rewards) = Decimal::one().checked_sub(total_distribution) {
-        UNALLOCATED_REWARDS.update(deps.storage, |rewards| -> StdResult<_> {
-            Ok(rewards + unallocated_rewards.to_uint_floor())
+    if let Ok(unallocated_distribution) = Decimal::one().checked_sub(total_distribution) {
+        UNALLOCATED_REWARDS.update(deps.storage, |rewards| -> Result<_, ContractError> {
+            Ok(rewards + (Decimal::from_atomics(rewards_collected, 0)? * unallocated_distribution).to_uint_floor())
         })?;
     } else {
         return Err(ContractError::InvalidTotalDistribution(total_distribution));

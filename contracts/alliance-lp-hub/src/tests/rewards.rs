@@ -1,6 +1,6 @@
 use crate::contract::execute;
 use crate::models::{ExecuteMsg, ModifyAsset, PendingRewardsRes};
-use crate::state::{ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST};
+use crate::state::{ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, UNALLOCATED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST};
 use crate::tests::helpers::{
     claim_rewards, query_all_rewards, query_rewards, set_alliance_asset, setup_contract, stake,
     unstake, modify_asset, DENOM,
@@ -153,6 +153,70 @@ fn update_reward_callback() {
             AssetInfoKey::from(AssetInfo::Native("cMONKEY".to_string())),
         )
         .unwrap_err();
+
+    assert_eq!(
+        res,
+        Response::new().add_attributes(vec![("action", "update_rewards_callback"),])
+    );
+}
+
+#[test]
+fn update_reward_callback_with_unallocated() {
+    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    setup_contract(deps.as_mut());
+    set_alliance_asset(deps.as_mut());
+
+    TOTAL_BALANCES
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Uint128::new(1000000),
+        )
+        .unwrap();
+    TOTAL_BALANCES
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Uint128::new(100000),
+        )
+        .unwrap();
+
+    TEMP_BALANCE
+        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(10)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(60)).unwrap();
+
+    let res = execute(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("cosmos2contract", &[]),
+        ExecuteMsg::UpdateRewardsCallback {},
+    )
+        .unwrap();
+
+    let a_whale_rate = ASSET_REWARD_RATE
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+        )
+        .unwrap();
+    assert_eq!(
+        a_whale_rate,
+        Decimal::from_atomics(Uint128::one(), 1).unwrap()
+    );
+    let b_whale_rate = ASSET_REWARD_RATE
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+        )
+        .unwrap();
+    assert_eq!(
+        b_whale_rate,
+        Decimal::from_atomics(Uint128::new(6), 0).unwrap()
+    );
+    let unallocated_rewards =  UNALLOCATED_REWARDS.load(deps.as_ref().storage).unwrap();
+    assert_eq!(unallocated_rewards, Uint128::new(300000));
 
     assert_eq!(
         res,
