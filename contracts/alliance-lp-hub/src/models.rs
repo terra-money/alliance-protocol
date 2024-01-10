@@ -9,6 +9,7 @@ use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
 use std::collections::{HashMap, HashSet};
+use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
 
 pub type AssetDenom = String;
 
@@ -49,41 +50,21 @@ pub enum ExecuteMsg {
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),
-    RebalanceEmissions {},
-    RebalanceEmissionsCallback {},
+    RebalanceEmissions(Vec<EmissionsDistribution>),
+    RebalanceEmissionsCallback(Vec<EmissionsDistribution>),
 }
 
 #[cw_serde]
 pub struct ModifyAsset {
     pub asset_info: AssetInfo,
-    pub rewards_rate: Option<Decimal>,
     pub delete: bool,
 }
 
 impl ModifyAsset {
-    pub fn new(asset_info: AssetInfo, rewards_rate: Option<Decimal>, delete: bool) -> Self {
+    pub fn new(asset_info: AssetInfo, delete: bool) -> Self {
         ModifyAsset {
             asset_info,
-            rewards_rate,
             delete,
-        }
-    }
-
-    pub fn is_valid_reward_rate(&self) -> Result<Decimal, ContractError> {
-        match self.rewards_rate {
-            Some(rate) => {
-                if rate < Decimal::zero() || rate > Decimal::one() {
-                    return Err(ContractError::InvalidRewardRate(
-                        rate,
-                        self.asset_info.to_string(),
-                    ));
-                }
-                Ok(rate)
-            }
-            None => Err(ContractError::InvalidRewardRate(
-                Decimal::zero(),
-                self.asset_info.to_string(),
-            )),
         }
     }
 }

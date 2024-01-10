@@ -36,4 +36,7 @@ pub enum ContractError {
 
     #[error("Invalid reward rate '{0}' for denom '{1}'")]
     InvalidRewardRate(Decimal, String),
+
+    #[error("Invalid total distribution: {0}")]
+    InvalidTotalDistribution(Decimal),
 }

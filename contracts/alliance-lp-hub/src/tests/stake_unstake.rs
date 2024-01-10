@@ -19,7 +19,6 @@ fn test_stake() {
         vec![
             ModifyAsset {
                 asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
-                rewards_rate: Some(Decimal::new(Uint128::new(500_000_000_000_000_000u128))),
                 delete: false,
             }
         ]
@@ -96,7 +95,6 @@ fn test_stake_cw20() {
         vec![
             ModifyAsset {
                 asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
-                rewards_rate: Some(Decimal::new(Uint128::new(500_000_000_000_000_000u128))),
                 delete: false,
             }
         ]
@@ -174,7 +172,6 @@ fn test_unstake() {
         vec![
             ModifyAsset {
                 asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
-                rewards_rate: Some(Decimal::new(Uint128::new(500_000_000_000_000_000u128))),
                 delete: false,
             }
         ]
@@ -254,7 +251,6 @@ fn test_unstake_invalid() {
         vec![
             ModifyAsset {
                 asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
-                rewards_rate: Some(Decimal::new(Uint128::new(500_000_000_000_000_000u128))),
                 delete: false,
             }
         ]

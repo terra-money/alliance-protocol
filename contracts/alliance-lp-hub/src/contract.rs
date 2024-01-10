@@ -7,27 +7,29 @@ use alliance_protocol::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
-};
+use cosmwasm_std::{to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, Order};
 use cw2::set_contract_version;
-use cw_asset::{Asset, AssetInfo, AssetInfoKey};
+use cw_asset::{Asset, AssetInfo, AssetInfoKey, AssetInfoUnchecked};
 use cw_utils::parse_instantiate_response_data;
 use std::collections::HashSet;
+use std::convert::TryFrom;
+use std::str::FromStr;
 use terra_proto_rs::{
     alliance::alliance::{MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate},
     cosmos::base::v1beta1::Coin,
     traits::Message,
 };
+use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
+use alliance_protocol::alliance_protocol::AssetDistribution;
 
 use crate::{
     models::{Config, ExecuteMsg, InstantiateMsg, ModifyAsset},
     state::{
-        ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
+        ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
         TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
     },
 };
+use crate::state::UNALLOCATED_REWARDS;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-lp-hub";
@@ -67,6 +69,7 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
 
     VALIDATORS.save(deps.storage, &HashSet::new())?;
+    UNALLOCATED_REWARDS.save(deps.storage, &Uint128::zero())?;
 
     Ok(Response::new()
         .add_attributes(vec![("action", "instantiate")])
@@ -108,16 +111,15 @@ pub fn execute(
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
 
         ExecuteMsg::UpdateRewards {} => update_rewards(deps, env, info),
-        ExecuteMsg::RebalanceEmissions {} => rebalance_emissions(deps, env, info),
+        ExecuteMsg::RebalanceEmissions(distributions) => rebalance_emissions(deps, env, info, distributions),
 
         ExecuteMsg::UpdateRewardsCallback {} => update_reward_callback(deps, env, info),
-        ExecuteMsg::RebalanceEmissionsCallback {} => rebalance_emissions_callback(deps, env, info),
+        ExecuteMsg::RebalanceEmissionsCallback(distributions) => rebalance_emissions_callback(deps, env, info, distributions),
     }
 }
 
 // This method iterate through the list of assets to be modified,
 // for each asset it checks if it is being listed or delisted,
-// when listed and an asset already exists, it updates the reward rate.
 fn modify_assets(
     deps: DepsMut,
     info: MessageInfo,
@@ -131,25 +133,18 @@ fn modify_assets(
         if asset.delete {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
             WHITELIST.remove(deps.storage, asset_key.clone());
-            ASSET_REWARD_RATE.update(deps.storage, asset_key, |_| -> StdResult<_> {
-                Ok(Decimal::zero())
-            })?;
             attrs.extend_from_slice(&[
                 ("asset".to_string(), asset.asset_info.to_string()),
                 ("to_remove".to_string(), asset.delete.to_string()),
             ]);
         } else {
-            let reward_rate = asset.is_valid_reward_rate()?;
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
-
-            WHITELIST.save(deps.storage, asset_key.clone(), &reward_rate)?;
+            WHITELIST.save(deps.storage, asset_key.clone(), &Decimal::zero())?;
             ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
                 Ok(rate.unwrap_or(Decimal::zero()))
             })?;
-
             attrs.extend_from_slice(&[
                 ("asset".to_string(), asset.asset_info.to_string()),
-                ("to_rewards_rate".to_string(), reward_rate.to_string()),
             ]);
         }
     }
@@ -491,9 +486,60 @@ fn update_reward_callback(
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
-    let _config = CONFIG.load(deps.storage)?;
+    let config = CONFIG.load(deps.storage)?;
+    // We only deal with alliance rewards here. Other rewards (e.g. ASTRO) needs to be dealt with separately
+    // This is because the reward distribution only affects alliance rewards. LP rewards are directly distributed to LP holders
+    // and not pooled together and shared
+    let reward_asset = AssetInfo::native(config.reward_denom);
+    let current_balance = reward_asset.query_balance(&deps.querier, env.contract.address)?;
+    let previous_balance = TEMP_BALANCE.load(deps.storage)?;
+    let rewards_collected = current_balance - previous_balance;
 
-    // TODO: maths
+    let whitelist: StdResult<Vec<(AssetInfoKey, Decimal)>> = WHITELIST
+        .range_raw(deps.storage, None, None, Order::Ascending)
+        .map(|r| r.map(|(a,d)| (AssetInfoKey(a), d)))
+        .collect();
+
+    let whitelist = whitelist?;
+
+    let total_distribution = whitelist
+        .iter()
+        .fold(Decimal::zero(), |acc, (_,v ) | acc + v);
+
+    // Move all unallocated rewards to the unallocated rewards bucket
+    if let Ok(unallocated_rewards) = Decimal::one().checked_sub(total_distribution) {
+        UNALLOCATED_REWARDS.update(deps.storage, |rewards| -> StdResult<_> {
+            Ok(rewards + unallocated_rewards.to_uint_floor())
+        })?;
+    } else {
+        return Err(ContractError::InvalidTotalDistribution(total_distribution));
+    }
+
+    // Calculate the rewards for each asset
+    for (asset_key, distribution) in whitelist {
+        let total_reward_distributed: Decimal = Decimal::from_atomics(rewards_collected, 0)?
+            * distribution;
+
+        // If there are no balances, we stop updating the rate. This means that the emissions are not directed to any stakers.
+        let total_balance = TOTAL_BALANCES
+            .load(deps.storage, asset_key.clone())
+            .unwrap_or(Uint128::zero());
+        if total_balance.is_zero() {
+            continue
+        }
+
+        // Update reward rates for each asset
+        let rate_to_update =
+            total_reward_distributed / Decimal::from_atomics(total_balance, 0)?;
+        if rate_to_update > Decimal::zero() {
+            ASSET_REWARD_RATE.update(
+                deps.storage,
+                asset_key.clone(),
+                |rate| -> StdResult<_> { Ok(rate.unwrap_or(Decimal::zero()) + rate_to_update) },
+            )?;
+        }
+    }
+    TEMP_BALANCE.remove(deps.storage);
 
     Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
 }
@@ -502,37 +548,67 @@ fn rebalance_emissions(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
+    weights: Vec<EmissionsDistribution>,
 ) -> Result<Response, ContractError> {
     // Allow execution only from the controller account
     let config = CONFIG.load(deps.storage)?;
     is_controller(&info, &config)?;
 
-    // Before starting with the rebalance emission process
-    // rewards must be updated to the current block height
-    // Skip if no reward distribution in the first place
-    let res = if ASSET_REWARD_DISTRIBUTION.load(deps.storage).is_ok() {
-        update_rewards(deps, env.clone(), info)?
-    } else {
-        Response::new()
-    };
+    // // Before starting with the rebalance emission process
+    // // rewards must be updated to the current block height
+    // // Skip if no reward distribution in the first place
+    // let res = if ASSET_REWARD_DISTRIBUTION.load(deps.storage).is_ok() {
+    //     update_rewards(deps, env.clone(), info)?
+    // } else {
+    //     Response::new()
+    // };
 
+    let res = Response::new();
     Ok(res.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_json_binary(&ExecuteMsg::RebalanceEmissionsCallback {}).unwrap(),
+        msg: to_json_binary(&ExecuteMsg::RebalanceEmissionsCallback(weights)).unwrap(),
         funds: vec![],
     })))
 }
 
 fn rebalance_emissions_callback(
-    _deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
+    distributions: Vec<EmissionsDistribution>,
 ) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
-    // TODO maths
-    Ok(Response::new())
+
+    let total_distribution = distributions
+        .iter()
+        .map(|a| a.distribution.to_decimal().unwrap())
+        .fold(Decimal::zero(), |acc, v| acc + v);
+    if total_distribution > Decimal::one() {
+        return Err(ContractError::InvalidTotalDistribution(total_distribution));
+    }
+
+    for distribution in distributions.iter() {
+        let asset_info: AssetInfo = AssetInfoUnchecked::from_str(&distribution.denom)?.check(deps.api, None)?;
+        let asset_key = AssetInfoKey::from(asset_info.clone());
+        WHITELIST.update(deps.storage, asset_key, |current| -> Result<_, ContractError> {
+            if let Some(current) = current {
+                return Ok(current + distribution.distribution.to_decimal()?);
+            } else {
+                return Err(ContractError::AssetNotWhitelisted {});
+            }
+        })?;
+    }
+
+    let mut attrs = vec![("action".to_string(), "rebalance_emissions".to_string())];
+    for distribution in distributions {
+        attrs.push((
+            distribution.denom.to_string(),
+            distribution.distribution.to_string(),
+        ));
+    }
+    Ok(Response::new().add_attributes(attrs))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
