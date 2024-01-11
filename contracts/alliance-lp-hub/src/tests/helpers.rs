@@ -23,6 +23,7 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
 
     let init_msg = InstantiateMsg {
         governance: "gov".to_string(),
+        astro_incentives_addr : Addr::unchecked("astro_incentives"),
         controller: "controller".to_string(),
         reward_denom: "uluna".to_string(),
     };

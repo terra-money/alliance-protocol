@@ -164,7 +164,7 @@ fn stake(deps: DepsMut, _env: Env, info: MessageInfo) -> Result<Response, Contra
     let asset_key = AssetInfoKey::from(&asset);
     WHITELIST
         .load(deps.storage, asset_key.clone())
-        .map_err(|_| ContractError::AssetNotWhitelisted {})?;
+        .map_err(|_| ContractError::AssetNotWhitelisted(asset.to_string()))?;
     let sender = info.sender.clone();
 
     let rewards = _claim_reward(deps.storage, sender.clone(), asset.clone())?;

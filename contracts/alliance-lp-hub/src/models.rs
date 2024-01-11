@@ -1,11 +1,8 @@
-use alliance_protocol::{
-    alliance_protocol::{
+use alliance_protocol::alliance_protocol::{
         AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
-    },
-    error::ContractError,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
 use std::collections::{HashMap, HashSet};
@@ -17,6 +14,7 @@ pub type AssetDenom = String;
 pub struct Config {
     pub governance: Addr,
     pub controller: Addr,
+    pub astro_incentives_addr: Addr,
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
     pub reward_denom: String,
@@ -26,6 +24,7 @@ pub struct Config {
 pub struct InstantiateMsg {
     pub governance: String,
     pub controller: String,
+    pub astro_incentives_addr: Addr,
     pub reward_denom: String,
 }
 

@@ -19,8 +19,8 @@ pub enum ContractError {
     #[error("Only a single asset is allowed")]
     OnlySingleAssetAllowed {},
 
-    #[error("Asset not whitelisted")]
-    AssetNotWhitelisted {},
+    #[error("Asset '{0}' not whitelisted")]
+    AssetNotWhitelisted(String),
 
     #[error("Insufficient balance")]
     InsufficientBalance {},

@@ -1,5 +1,4 @@
 use crate::models::Config;
-use alliance_protocol::alliance_protocol::AssetDistribution;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_asset::AssetInfoKey;
 use cw_storage_plus::{Item, Map};

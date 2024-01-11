@@ -99,7 +99,7 @@ fn test_stake_invalid() {
     let msg = ExecuteMsg::Stake {};
     let info = mock_info("user1", &[coin(100, "asset2")]);
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(err, ContractError::AssetNotWhitelisted {});
+    assert_eq!(err, ContractError::AssetNotWhitelisted("native:asset1".to_string()));
 
     // Stake multiple assets in a single call
     let msg = ExecuteMsg::Stake {};
