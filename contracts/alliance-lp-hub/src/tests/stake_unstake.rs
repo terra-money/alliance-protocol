@@ -1,14 +1,18 @@
+use crate::astro_models::{ExecuteAstroMsg, Cw20Msg};
 use crate::contract::execute;
-use crate::models::{ExecuteMsg, StakedBalanceRes, ModifyAsset};
+use crate::models::{ExecuteMsg, ModifyAsset, StakedBalanceRes};
 use crate::state::{BALANCES, TOTAL_BALANCES};
 use crate::tests::helpers::{
-    query_all_staked_balances, setup_contract, stake, unstake, modify_asset, stake_cw20
+    modify_asset, query_all_staked_balances, setup_contract, stake, stake_cw20, unstake,
 };
+use crate::tests::mock_querier::mock_dependencies as astro_mock_dependencies;
 use alliance_protocol::error::ContractError;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::{coin, Addr, BankMsg, CosmosMsg, Response, Uint128, Decimal};
+use cosmwasm_std::{
+    coin, to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Response, Uint128, WasmMsg,
+};
+use cw20::{Cw20ReceiveMsg, Cw20ExecuteMsg};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
-use std::collections::HashMap;
 
 #[test]
 fn test_stake() {
@@ -16,12 +20,10 @@ fn test_stake() {
     setup_contract(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        vec![
-            ModifyAsset {
-                asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
-                delete: false,
-            }
-        ]
+        vec![ModifyAsset {
+            asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
+            delete: false,
+        }],
     );
 
     let res = stake(deps.as_mut(), "user1", 100, "native_asset");
@@ -87,17 +89,61 @@ fn test_stake() {
 }
 
 #[test]
+fn test_stake_astro_token() {
+    let mut deps = astro_mock_dependencies(&vec![Coin::new(1000, "token")]);
+    setup_contract(deps.as_mut());
+    modify_asset(
+        deps.as_mut(),
+        vec![ModifyAsset {
+            asset_info: AssetInfo::native(Addr::unchecked("astro_existent_native_coin")),
+            delete: false,
+        }],
+    );
+
+    let res = stake(deps.as_mut(), "user1", 100, "astro_existent_native_coin");
+
+    assert_eq!(
+        res,
+        Response::default()
+            .add_attributes(vec![
+                ("action", "stake"),
+                ("user", "user1"),
+                ("asset", "native:astro_existent_native_coin"),
+                ("amount", "100"),
+            ])
+            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: "astro_incentives".to_string(),
+                msg: to_json_binary(&ExecuteAstroMsg::Deposit { recipient: None }).unwrap(),
+                funds: vec![Coin {
+                    denom: "astro_existent_native_coin".to_string(),
+                    amount: Uint128::new(100),
+                }],
+            }))
+    );
+
+    let balance = BALANCES
+        .load(
+            deps.as_ref().storage,
+            (
+                Addr::unchecked("user1"),
+                AssetInfoKey::from(AssetInfo::Native("astro_existent_native_coin".to_string())),
+            ),
+        )
+        .unwrap();
+    assert_eq!(balance, Uint128::new(100));
+
+}
+
+#[test]
 fn test_stake_cw20() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        vec![
-            ModifyAsset {
-                asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
-                delete: false,
-            }
-        ]
+        vec![ModifyAsset {
+            asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
+            delete: false,
+        }],
     );
 
     let res = stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset");
@@ -163,18 +209,56 @@ fn test_stake_cw20() {
 }
 
 #[test]
+fn test_stake_astro_token_cw20() {
+    let mut deps = astro_mock_dependencies(&vec![Coin::new(1000, "token")]);
+    setup_contract(deps.as_mut());
+    modify_asset(
+        deps.as_mut(),
+        vec![ModifyAsset {
+            asset_info: AssetInfo::Cw20(Addr::unchecked("astro_existent_cw20")),
+            delete: false,
+        }],
+    );
+
+    let res = stake_cw20(deps.as_mut(), "user1", 100, "astro_existent_cw20");
+    assert_eq!(
+        res,
+        Response::default().add_attributes(vec![
+            ("action", "stake"),
+            ("user", "user1"),
+            ("asset", "cw20:astro_existent_cw20"),
+            ("amount", "100"),
+        ])
+        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: "astro_existent_cw20".to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Send {
+                contract: "astro_incentives".to_string(),
+                amount: Uint128::new(100),
+                msg: to_json_binary(&Cw20ReceiveMsg {
+                    sender: "cosmos2contract".to_string(),
+                    amount: Uint128::new(100),
+                    msg: to_json_binary(&Cw20Msg::Deposit {
+                        recipient: None,
+                    }).unwrap(),
+                }).unwrap(),
+            }).unwrap(),
+            funds: vec![],
+        }))
+    );
+}
+
+
+#[test]
 fn test_unstake() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
 
     modify_asset(
         deps.as_mut(),
-        vec![
-            ModifyAsset {
-                asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
-                delete: false,
-            }
-        ]
+        vec![ModifyAsset {
+            asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
+            delete: false,
+        }],
     );
     stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset");
 
@@ -248,12 +332,10 @@ fn test_unstake_invalid() {
 
     modify_asset(
         deps.as_mut(),
-        vec![
-            ModifyAsset {
-                asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
-                delete: false,
-            }
-        ]
+        vec![ModifyAsset {
+            asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
+            delete: false,
+        }],
     );
     stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset");
 

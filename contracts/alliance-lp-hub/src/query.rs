@@ -7,9 +7,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Deps, Env, Order, StdResult, Uint128, Decimal};
 use cw_asset::{AssetInfo, AssetInfoKey, AssetInfoUnchecked};
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
-use alliance_protocol::alliance_protocol::AssetDistribution;
 use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 
 use crate::state::{

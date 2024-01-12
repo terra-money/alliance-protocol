@@ -10,7 +10,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, Order};
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use cw_asset::{Asset, AssetInfo, AssetInfoKey, AssetInfoUnchecked, AssetInfoBase};
+use cw_asset::{Asset, AssetInfo, AssetInfoKey, AssetInfoUnchecked};
 use cw_utils::parse_instantiate_response_data;
 use std::{collections::HashSet, env};
 use std::str::FromStr;
@@ -178,13 +178,15 @@ fn stake(
     }
     let config = CONFIG.load(deps.storage)?;
     
-    // Query astro incentives 
+    // Query astro incentives, to do so we must first remove the prefix 
+    // from the asset info e.g. cw20:asset1 -> asset1 or native:uluna -> uluna
+    let lp_token = received_asset.info.to_string();
     let astro_incentives: Vec<RewardInfo> = deps.querier.query_wasm_smart(
         config.astro_incentives_addr.to_string(),
         &QueryAstroMsg::RewardInfo{
-            lp_token: received_asset.info.to_string(),
+            lp_token: lp_token.split(":").collect::<Vec<&str>>()[1].to_string(),
         },
-    )?;
+    ).unwrap_or_default();
 
     let mut res = Response::new().add_attributes(vec![
         ("action", "stake"),

@@ -5,14 +5,13 @@ use crate::tests::helpers::{
     claim_rewards, query_all_rewards, query_rewards, set_alliance_asset, setup_contract, stake,
     unstake, modify_asset, DENOM,
 };
-use alliance_protocol::alliance_protocol::AssetDistribution;
 use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
     coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg,
     Uint128, WasmMsg,
 };
 use cw_asset::{AssetInfo, AssetInfoKey};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::MsgClaimDelegationRewards;
 use terra_proto_rs::traits::Message;
 
