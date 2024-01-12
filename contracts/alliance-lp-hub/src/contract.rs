@@ -26,7 +26,7 @@ use crate::{
     state::{
         ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE,
         TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
-    }, astro_models::{QueryAstroMsg, RewardInfo, ExecuteAstroMsg},
+    }, astro_models::{QueryAstroMsg, RewardInfo, ExecuteAstroMsg, Cw20Msg},
 };
 use crate::state::UNALLOCATED_REWARDS;
 
@@ -180,7 +180,7 @@ fn stake(
     
     // Query astro incentives 
     let astro_incentives: Vec<RewardInfo> = deps.querier.query_wasm_smart(
-        config.astro_incentives_addr,
+        config.astro_incentives_addr.to_string(),
         &QueryAstroMsg::RewardInfo{
             lp_token: received_asset.info.to_string(),
         },
@@ -194,7 +194,7 @@ fn stake(
     ]);
 
     if !astro_incentives.is_empty() {
-        let msg = match received_asset.info {
+        let msg = match received_asset.info.clone() {
             AssetInfo::Native(native_asset) => {
                 // If the asset is native, we need to send it to the astro incentives contract
                 // using the ExecuteAstroMsg::Deposit message
@@ -205,7 +205,7 @@ fn stake(
                     })?,
                     funds: vec![CwCoin {
                         denom: native_asset,
-                        amount: received_asset.amount,
+                        amount: received_asset.amount.clone(),
                     }],
                 });
                 msg
@@ -213,6 +213,22 @@ fn stake(
             AssetInfo::Cw20(cw20_contract_addr) => {
                 // If the asset is a cw20 token, we need to send it to the astro incentives contract
                 // using the ExecuteAstroMsg::Receive message
+                let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: cw20_contract_addr.to_string(),
+                    msg: to_json_binary(&Cw20ExecuteMsg::Send {
+                        contract: config.astro_incentives_addr.to_string(),
+                        amount: received_asset.amount.clone(),
+                        msg: to_json_binary(&Cw20ReceiveMsg {
+                            sender: env.contract.address.to_string(),
+                            amount: received_asset.amount.clone(),
+                            msg: to_json_binary(&Cw20Msg::Deposit {
+                                recipient: None,
+                            })?,
+                        })?,
+                    })?,
+                    funds: vec![],
+                });
+                msg
                 
             },
             _ => {
@@ -220,7 +236,7 @@ fn stake(
             }
         };
 
-        res.add_message(msg);
+        res = res.add_message(msg);
     }
 
     BALANCES.update(
