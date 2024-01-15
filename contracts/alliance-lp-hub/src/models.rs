@@ -14,6 +14,7 @@ pub type AssetDenom = String;
 pub struct Config {
     pub governance: Addr,
     pub controller: Addr,
+    pub fee_collector_address: Addr,
     pub astro_incentives_addr: Addr,
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
@@ -24,7 +25,8 @@ pub struct Config {
 pub struct InstantiateMsg {
     pub governance: String,
     pub controller: String,
-    pub astro_incentives_addr: Addr,
+    pub fee_collector_address: String,
+    pub astro_incentives_address: String,
     pub reward_denom: String,
 }
 

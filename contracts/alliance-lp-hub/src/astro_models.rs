@@ -61,13 +61,6 @@ pub enum AstroRewardType {
 }
 
 /// This enum describes available Token types.
-/// ## Examples
-/// ```
-/// # use cosmwasm_std::Addr;
-/// # use astroport::asset::AssetInfo::{NativeToken, Token};
-/// Token { contract_addr: Addr::unchecked("stake...") };
-/// NativeToken { denom: String::from("uluna") };
-/// ```
 #[cw_serde]
 #[derive(Hash, Eq)]
 pub enum AstroAssetInfo {

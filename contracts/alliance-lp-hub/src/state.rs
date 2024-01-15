@@ -16,7 +16,5 @@ pub const ASSET_REWARD_RATE: Map<AssetInfoKey, Decimal> = Map::new("asset_reward
 pub const USER_ASSET_REWARD_RATE: Map<(Addr, AssetInfoKey), Decimal> =
     Map::new("user_asset_reward_rate");
 pub const UNCLAIMED_REWARDS: Map<(Addr, AssetInfoKey), Uint128> = Map::new("unclaimed_rewards");
-// Unallocated Alliance rewards that are to be returned to the fee pool for stakers
-pub const UNALLOCATED_REWARDS: Item<Uint128> = Item::new("unallocated_rewards");
 
 pub const TEMP_BALANCE: Item<Uint128> = Item::new("temp_balance");

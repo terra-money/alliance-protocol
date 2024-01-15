@@ -7,7 +7,7 @@ use alliance_protocol::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, Order};
+use cosmwasm_std::{to_json_binary, Addr, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, Order, BankMsg};
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey, AssetInfoUnchecked};
@@ -28,7 +28,6 @@ use crate::{
         TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
     }, astro_models::{QueryAstroMsg, RewardInfo, ExecuteAstroMsg, Cw20Msg},
 };
-use crate::state::UNALLOCATED_REWARDS;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-lp-hub";
@@ -51,6 +50,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let governance_address = deps.api.addr_validate(msg.governance.as_str())?;
     let controller_address = deps.api.addr_validate(msg.controller.as_str())?;
+    let astro_incentives_address = deps.api.addr_validate(msg.astro_incentives_address.as_str())?;
+    let fee_collector_address =  deps.api.addr_validate(msg.fee_collector_address.as_str())?;
     let create_msg = TokenExecuteMsg::CreateDenom {
         subdenom: "ualliancelp".to_string(),
     };
@@ -61,7 +62,8 @@ pub fn instantiate(
     let config = Config {
         governance: governance_address,
         controller: controller_address,
-        astro_incentives_addr: msg.astro_incentives_addr,
+        fee_collector_address: fee_collector_address,
+        astro_incentives_addr: astro_incentives_address,
         alliance_token_denom: "".to_string(),
         alliance_token_supply: Uint128::zero(),
         reward_denom: msg.reward_denom,
@@ -69,7 +71,6 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
 
     VALIDATORS.save(deps.storage, &HashSet::new())?;
-    UNALLOCATED_REWARDS.save(deps.storage, &Uint128::zero())?;
 
     Ok(Response::new()
         .add_attributes(vec![("action", "instantiate")])
@@ -547,10 +548,11 @@ fn update_reward_callback(
         return Err(ContractError::Unauthorized {});
     }
     let config = CONFIG.load(deps.storage)?;
+    let mut res = Response::new().add_attributes(vec![("action", "update_rewards_callback")]);
     // We only deal with alliance rewards here. Other rewards (e.g. ASTRO) needs to be dealt with separately
     // This is because the reward distribution only affects alliance rewards. LP rewards are directly distributed to LP holders
     // and not pooled together and shared
-    let reward_asset = AssetInfo::native(config.reward_denom);
+    let reward_asset = AssetInfo::native(config.reward_denom.clone());
     let current_balance = reward_asset.query_balance(&deps.querier, env.contract.address)?;
     let previous_balance = TEMP_BALANCE.load(deps.storage)?;
     let rewards_collected = current_balance - previous_balance;
@@ -568,9 +570,13 @@ fn update_reward_callback(
 
     // Move all unallocated rewards to the unallocated rewards bucket
     if let Ok(unallocated_distribution) = Decimal::one().checked_sub(total_distribution) {
-        UNALLOCATED_REWARDS.update(deps.storage, |rewards| -> Result<_, ContractError> {
-            Ok(rewards + (Decimal::from_atomics(rewards_collected, 0)? * unallocated_distribution).to_uint_floor())
-        })?;
+        let unallocated_rewards = (Decimal::from_atomics(rewards_collected, 0)? * unallocated_distribution).to_uint_floor();
+        if !unallocated_rewards.is_zero() {
+            res = res.add_message(BankMsg::Send {
+                to_address: config.fee_collector_address.to_string(),
+                amount: vec![CwCoin::new(unallocated_rewards.u128(), config.reward_denom)]
+            })
+        }
     } else {
         return Err(ContractError::InvalidTotalDistribution(total_distribution));
     }
@@ -601,7 +607,7 @@ fn update_reward_callback(
     }
     TEMP_BALANCE.remove(deps.storage);
 
-    Ok(Response::new().add_attributes(vec![("action", "update_rewards_callback")]))
+    Ok(res)
 }
 
 fn rebalance_emissions(

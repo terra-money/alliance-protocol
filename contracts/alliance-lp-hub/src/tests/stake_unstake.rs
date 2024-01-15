@@ -256,25 +256,26 @@ fn test_unstake() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAsset {
-            asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
+            asset_info: AssetInfo::native("native_asset"),
             delete: false,
         }],
     );
-    stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset");
-
-    let res = unstake(deps.as_mut(), "user1", 50, "cw20_asset");
+    stake(deps.as_mut(), "user1", 100, "native_asset");
+    
+    let asset_info = Asset::native(Addr::unchecked("native_asset"), 50u128);
+    let res = unstake(deps.as_mut(), "user1",asset_info);
     assert_eq!(
         res,
         Response::default()
             .add_attributes(vec![
                 ("action", "unstake"),
                 ("user", "user1"),
-                ("asset", "native:asset1"),
+                ("asset", "native:native_asset"),
                 ("amount", "50"),
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".into(),
-                amount: vec![coin(50, "asset1")],
+                amount: vec![coin(50, "native_asset")],
             }))
     );
 
@@ -283,25 +284,26 @@ fn test_unstake() {
             deps.as_ref().storage,
             (
                 Addr::unchecked("user1"),
-                AssetInfoKey::from(AssetInfo::Native("asset1".to_string())),
+                AssetInfoKey::from(AssetInfo::native(Addr::unchecked("native_asset"))),
             ),
         )
         .unwrap();
     assert_eq!(balance, Uint128::new(50));
 
-    let res = unstake(deps.as_mut(), "user1", 50, "asset1");
+    let asset_info = Asset::native(Addr::unchecked("native_asset"), 50u128);
+    let res = unstake(deps.as_mut(), "user1", asset_info);
     assert_eq!(
         res,
         Response::default()
             .add_attributes(vec![
                 ("action", "unstake"),
                 ("user", "user1"),
-                ("asset", "native:asset1"),
+                ("asset", "native:native_asset"),
                 ("amount", "50"),
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".into(),
-                amount: vec![coin(50, "asset1")],
+                amount: vec![coin(50, "native_asset")],
             }))
     );
 
@@ -310,7 +312,7 @@ fn test_unstake() {
             deps.as_ref().storage,
             (
                 Addr::unchecked("user1"),
-                AssetInfoKey::from(AssetInfo::Native("asset1".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("native_asset".to_string())),
             ),
         )
         .unwrap();
@@ -319,14 +321,14 @@ fn test_unstake() {
     let total_balance = TOTAL_BALANCES
         .load(
             deps.as_ref().storage,
-            AssetInfoKey::from(AssetInfo::Native("asset1".to_string())),
+            AssetInfoKey::from(AssetInfo::Native("native_asset".to_string())),
         )
         .unwrap();
     assert_eq!(total_balance, Uint128::new(0));
 }
 
 #[test]
-fn test_unstake_invalid() {
+fn test_unstake_cw20_invalid() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
 
@@ -341,19 +343,52 @@ fn test_unstake_invalid() {
 
     // User does not have any staked asset
     let info = mock_info("user2", &[]);
-    let msg = ExecuteMsg::Unstake(Asset::native("cw20_asset", 100u128));
+    let msg = ExecuteMsg::Unstake(Asset::cw20(Addr::unchecked("cw20_asset"), 100u128));
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(err, ContractError::InsufficientBalance {});
 
     // User unstakes more than they have
     let info = mock_info("user1", &[]);
-    let msg = ExecuteMsg::Unstake(Asset::native("cw20_asset", 101u128));
+    let msg = ExecuteMsg::Unstake(Asset::cw20(Addr::unchecked("cw20_asset"), 101u128));
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(err, ContractError::InsufficientBalance {});
 
     // User unstakes zero amount
     let info = mock_info("user1", &[]);
-    let msg = ExecuteMsg::Unstake(Asset::native("cw20_asset", 0u128));
+    let msg = ExecuteMsg::Unstake(Asset::cw20(Addr::unchecked("cw20_asset"), 0u128));
+    let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(err, ContractError::AmountCannotBeZero {});
+}
+
+#[test]
+fn test_unstake_native_invalid() {
+    let mut deps = mock_dependencies();
+    setup_contract(deps.as_mut());
+
+    modify_asset(
+        deps.as_mut(),
+        vec![ModifyAsset {
+            asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
+            delete: false,
+        }],
+    );
+    stake(deps.as_mut(), "user1", 100, "native_asset");
+
+    // User does not have any staked asset
+    let info = mock_info("user2", &[]);
+    let msg = ExecuteMsg::Unstake(Asset::native("native_asset", 100u128));
+    let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(err, ContractError::InsufficientBalance {});
+
+    // User unstakes more than they have
+    let info = mock_info("user1", &[]);
+    let msg = ExecuteMsg::Unstake(Asset::native("native_asset", 101u128));
+    let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(err, ContractError::InsufficientBalance {});
+
+    // User unstakes zero amount
+    let info = mock_info("user1", &[]);
+    let msg = ExecuteMsg::Unstake(Asset::native("native_asset", 0u128));
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(err, ContractError::AmountCannotBeZero {});
 }

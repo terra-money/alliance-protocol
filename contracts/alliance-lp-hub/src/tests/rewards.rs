@@ -1,6 +1,6 @@
 use crate::contract::execute;
 use crate::models::{ExecuteMsg, ModifyAsset, PendingRewardsRes};
-use crate::state::{ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, UNALLOCATED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST};
+use crate::state::{ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST};
 use crate::tests::helpers::{
     claim_rewards, query_all_rewards, query_rewards, set_alliance_asset, setup_contract, stake,
     unstake, modify_asset, DENOM,
@@ -10,7 +10,7 @@ use cosmwasm_std::{
     coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg,
     Uint128, WasmMsg,
 };
-use cw_asset::{AssetInfo, AssetInfoKey};
+use cw_asset::{AssetInfo, AssetInfoKey, Asset};
 use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::MsgClaimDelegationRewards;
 use terra_proto_rs::traits::Message;
@@ -214,12 +214,15 @@ fn update_reward_callback_with_unallocated() {
         b_whale_rate,
         Decimal::from_atomics(Uint128::new(6), 0).unwrap()
     );
-    let unallocated_rewards =  UNALLOCATED_REWARDS.load(deps.as_ref().storage).unwrap();
-    assert_eq!(unallocated_rewards, Uint128::new(300000));
 
     assert_eq!(
         res,
-        Response::new().add_attributes(vec![("action", "update_rewards_callback"),])
+        Response::new()
+            .add_attributes(vec![("action", "update_rewards_callback")])
+            .add_message(BankMsg::Send {
+                to_address: "collector_address".to_string(),
+                amount: vec![coin(300000, "uluna")]
+            })
     );
 }
 
@@ -475,7 +478,8 @@ fn claim_rewards_after_staking_and_unstaking() {
         .unwrap();
 
     // Unstake
-    unstake(deps.as_mut(), "user1", 1000000, "aWHALE");
+    let asset_info = Asset::native(Addr::unchecked("aWHALE"), 1000000u128);
+    unstake(deps.as_mut(), "user1", asset_info);
 
     // Accrue rewards again
     TEMP_BALANCE
