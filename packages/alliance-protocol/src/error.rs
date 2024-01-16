@@ -1,8 +1,13 @@
+use std::string::FromUtf8Error;
+
 use cosmwasm_std::{Decimal, DecimalRangeExceeded, StdError};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
+    #[error("{0}")]
+    FromUtf8Error(#[from] FromUtf8Error),
+
     #[error("{0}")]
     Std(#[from] StdError),
 
