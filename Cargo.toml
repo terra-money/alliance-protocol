@@ -2,6 +2,7 @@
 members = [
     "contracts/alliance-hub",
     "contracts/alliance-oracle",
+    "contracts/alliance-lp-hub",
     "packages/alliance-protocol",
 ]
 exclude = []
@@ -40,4 +41,6 @@ serde                   = { version = "1.0.152", default-features = false, featu
 terra-proto-rs          = { version = "4.0.2", default-features = false}
 thiserror               = { version = "1.0.38" }
 cw2                     = "1.0.1"
+cw20                    = "1.0.1"
+cw-utils                = "1.0.1"
 alliance-protocol       = { path = "./packages/alliance-protocol" }

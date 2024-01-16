@@ -1,4 +1,4 @@
-use cosmwasm_std::{DecimalRangeExceeded, StdError};
+use cosmwasm_std::{Decimal, DecimalRangeExceeded, StdError};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -19,8 +19,8 @@ pub enum ContractError {
     #[error("Only a single asset is allowed")]
     OnlySingleAssetAllowed {},
 
-    #[error("Asset not whitelisted")]
-    AssetNotWhitelisted {},
+    #[error("Asset '{0}' not whitelisted")]
+    AssetNotWhitelisted(String),
 
     #[error("Insufficient balance")]
     InsufficientBalance {},
@@ -33,4 +33,10 @@ pub enum ContractError {
 
     #[error("Empty delegation")]
     EmptyDelegation {},
+
+    #[error("Invalid reward rate '{0}' for denom '{1}'")]
+    InvalidRewardRate(Decimal, String),
+
+    #[error("Invalid total distribution: {0}")]
+    InvalidTotalDistribution(Decimal),
 }

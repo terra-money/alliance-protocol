@@ -1,21 +1,17 @@
 use crate::contract::execute;
-use crate::models::{ExecuteMsg, PendingRewardsRes};
-use crate::state::{
-    ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES,
-    USER_ASSET_REWARD_RATE, VALIDATORS,
-};
+use crate::models::{ExecuteMsg, ModifyAsset, PendingRewardsRes};
+use crate::state::{ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST};
 use crate::tests::helpers::{
     claim_rewards, query_all_rewards, query_rewards, set_alliance_asset, setup_contract, stake,
-    unstake, whitelist_assets, DENOM,
+    unstake, modify_asset, DENOM,
 };
-use alliance_protocol::alliance_protocol::AssetDistribution;
 use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
     coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg,
     Uint128, WasmMsg,
 };
-use cw_asset::{AssetInfo, AssetInfoKey};
-use std::collections::{HashMap, HashSet};
+use cw_asset::{AssetInfo, AssetInfoKey, Asset};
+use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::MsgClaimDelegationRewards;
 use terra_proto_rs::traits::Message;
 
@@ -118,25 +114,9 @@ fn update_reward_callback() {
     TEMP_BALANCE
         .save(deps.as_mut().storage, &Uint128::new(1000000))
         .unwrap();
-    ASSET_REWARD_DISTRIBUTION
-        .save(
-            deps.as_mut().storage,
-            &vec![
-                AssetDistribution {
-                    asset: AssetInfo::Native("aWHALE".to_string()),
-                    distribution: Decimal::percent(10),
-                },
-                AssetDistribution {
-                    asset: AssetInfo::Native("bWHALE".to_string()),
-                    distribution: Decimal::percent(60),
-                },
-                AssetDistribution {
-                    asset: AssetInfo::Native("aMONKEY".to_string()),
-                    distribution: Decimal::percent(30),
-                },
-            ],
-        )
-        .unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(10)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(60)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aMONKEY".to_string())), &Decimal::percent(30)).unwrap();
 
     let res = execute(
         deps.as_mut(),
@@ -180,35 +160,92 @@ fn update_reward_callback() {
 }
 
 #[test]
+fn update_reward_callback_with_unallocated() {
+    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    setup_contract(deps.as_mut());
+    set_alliance_asset(deps.as_mut());
+
+    TOTAL_BALANCES
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Uint128::new(1000000),
+        )
+        .unwrap();
+    TOTAL_BALANCES
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Uint128::new(100000),
+        )
+        .unwrap();
+
+    TEMP_BALANCE
+        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(10)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(60)).unwrap();
+
+    let res = execute(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("cosmos2contract", &[]),
+        ExecuteMsg::UpdateRewardsCallback {},
+    )
+        .unwrap();
+
+    let a_whale_rate = ASSET_REWARD_RATE
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+        )
+        .unwrap();
+    assert_eq!(
+        a_whale_rate,
+        Decimal::from_atomics(Uint128::one(), 1).unwrap()
+    );
+    let b_whale_rate = ASSET_REWARD_RATE
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+        )
+        .unwrap();
+    assert_eq!(
+        b_whale_rate,
+        Decimal::from_atomics(Uint128::new(6), 0).unwrap()
+    );
+
+    assert_eq!(
+        res,
+        Response::new()
+            .add_attributes(vec![("action", "update_rewards_callback")])
+            .add_message(BankMsg::Send {
+                to_address: "collector_address".to_string(),
+                amount: vec![coin(300000, "uluna")]
+            })
+    );
+}
+
+#[test]
 fn claim_user_rewards() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    whitelist_assets(
+    modify_asset(
         deps.as_mut(),
-        HashMap::from([(
-            "chain-1".to_string(),
-            vec![AssetInfo::Native("aWHALE".to_string())],
-        )]),
+        Vec::from([
+            ModifyAsset{
+                asset_info: AssetInfo::Native("aWHALE".to_string()),
+                delete: false,
+            }
+        ]),
     );
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(50)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(50)).unwrap();
+
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
 
-    ASSET_REWARD_DISTRIBUTION
-        .save(
-            deps.as_mut().storage,
-            &vec![
-                AssetDistribution {
-                    asset: AssetInfo::Native("aWHALE".to_string()),
-                    distribution: Decimal::percent(50),
-                },
-                AssetDistribution {
-                    asset: AssetInfo::Native("bWHALE".to_string()),
-                    distribution: Decimal::percent(50),
-                },
-            ],
-        )
-        .unwrap();
     TEMP_BALANCE
         .save(deps.as_mut().storage, &Uint128::new(1000000))
         .unwrap();
@@ -339,31 +376,21 @@ fn claim_user_rewards_after_staking() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    whitelist_assets(
+    modify_asset(
         deps.as_mut(),
-        HashMap::from([(
-            "chain-1".to_string(),
-            vec![AssetInfo::Native("aWHALE".to_string())],
-        )]),
+        Vec::from([
+            ModifyAsset{
+                asset_info: AssetInfo::Native("aWHALE".to_string()),
+                delete: false,
+            }
+        ]),
     );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
 
-    ASSET_REWARD_DISTRIBUTION
-        .save(
-            deps.as_mut().storage,
-            &vec![
-                AssetDistribution {
-                    asset: AssetInfo::Native("aWHALE".to_string()),
-                    distribution: Decimal::percent(50),
-                },
-                AssetDistribution {
-                    asset: AssetInfo::Native("bWHALE".to_string()),
-                    distribution: Decimal::percent(50),
-                },
-            ],
-        )
-        .unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(50)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(50)).unwrap();
+
     TEMP_BALANCE
         .save(deps.as_mut().storage, &Uint128::new(1000000))
         .unwrap();
@@ -411,35 +438,25 @@ fn claim_rewards_after_staking_and_unstaking() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    whitelist_assets(
+    modify_asset(
         deps.as_mut(),
-        HashMap::from([(
-            "chain-1".to_string(),
-            vec![
-                AssetInfo::Native("aWHALE".to_string()),
-                AssetInfo::Native("bWHALE".to_string()),
-            ],
-        )]),
+        Vec::from([
+            ModifyAsset{
+                asset_info: AssetInfo::Native("aWHALE".to_string()),
+                delete: false,
+            },
+            ModifyAsset{
+                asset_info: AssetInfo::Native("bWHALE".to_string()),
+                delete: false,
+            }
+        ]),
     );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
     stake(deps.as_mut(), "user2", 1000000, "bWHALE");
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(50)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(50)).unwrap();
 
-    ASSET_REWARD_DISTRIBUTION
-        .save(
-            deps.as_mut().storage,
-            &vec![
-                AssetDistribution {
-                    asset: AssetInfo::Native("aWHALE".to_string()),
-                    distribution: Decimal::percent(50),
-                },
-                AssetDistribution {
-                    asset: AssetInfo::Native("bWHALE".to_string()),
-                    distribution: Decimal::percent(50),
-                },
-            ],
-        )
-        .unwrap();
     TEMP_BALANCE
         .save(deps.as_mut().storage, &Uint128::new(1000000))
         .unwrap();
@@ -461,7 +478,8 @@ fn claim_rewards_after_staking_and_unstaking() {
         .unwrap();
 
     // Unstake
-    unstake(deps.as_mut(), "user1", 1000000, "aWHALE");
+    let asset_info = Asset::native(Addr::unchecked("aWHALE"), 1000000u128);
+    unstake(deps.as_mut(), "user1", asset_info);
 
     // Accrue rewards again
     TEMP_BALANCE
@@ -502,34 +520,24 @@ fn claim_rewards_after_rebalancing_emissions() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    whitelist_assets(
+    modify_asset(
         deps.as_mut(),
-        HashMap::from([(
-            "chain-1".to_string(),
-            vec![
-                AssetInfo::Native("aWHALE".to_string()),
-                AssetInfo::Native("bWHALE".to_string()),
-            ],
-        )]),
+        Vec::from([
+            ModifyAsset{
+                asset_info: AssetInfo::Native("aWHALE".to_string()),
+                delete: false,
+            },
+            ModifyAsset{
+                asset_info: AssetInfo::Native("bWHALE".to_string()),
+                delete: false,
+            }
+        ]),
     );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 1000000, "bWHALE");
 
-    ASSET_REWARD_DISTRIBUTION
-        .save(
-            deps.as_mut().storage,
-            &vec![
-                AssetDistribution {
-                    asset: AssetInfo::Native("aWHALE".to_string()),
-                    distribution: Decimal::percent(50),
-                },
-                AssetDistribution {
-                    asset: AssetInfo::Native("bWHALE".to_string()),
-                    distribution: Decimal::percent(50),
-                },
-            ],
-        )
-        .unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(50)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(50)).unwrap();
 
     TEMP_BALANCE
         .save(deps.as_mut().storage, &Uint128::new(1000000))
@@ -542,21 +550,8 @@ fn claim_rewards_after_rebalancing_emissions() {
     )
     .unwrap();
 
-    ASSET_REWARD_DISTRIBUTION
-        .save(
-            deps.as_mut().storage,
-            &vec![
-                AssetDistribution {
-                    asset: AssetInfo::Native("aWHALE".to_string()),
-                    distribution: Decimal::percent(100),
-                },
-                AssetDistribution {
-                    asset: AssetInfo::Native("bWHALE".to_string()),
-                    distribution: Decimal::percent(0),
-                },
-            ],
-        )
-        .unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(100)).unwrap();
+    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(0)).unwrap();
 
     TEMP_BALANCE
         .save(deps.as_mut().storage, &Uint128::new(1000000))

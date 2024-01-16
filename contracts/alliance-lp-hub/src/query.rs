@@ -1,18 +1,18 @@
+use crate::models::{
+    AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
+    StakedBalanceRes, WhitelistedAssetsResponse,
+};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Deps, Env, Order, StdResult, Uint128};
-use cw_asset::{AssetInfo, AssetInfoKey};
+use cosmwasm_std::{to_json_binary, Binary, Deps, Env, Order, StdResult, Uint128, Decimal};
+use cw_asset::{AssetInfo, AssetInfoKey, AssetInfoUnchecked};
 use std::collections::HashMap;
+use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
+use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 
-use crate::{
-    models::{
-        AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
-        StakedBalanceRes, WhitelistedAssetsResponse,
-    },
-    state::{
-        ASSET_REWARD_DISTRIBUTION, ASSET_REWARD_RATE, BALANCES, CONFIG, TOTAL_BALANCES,
-        UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
-    },
+use crate::state::{
+    ASSET_REWARD_RATE, BALANCES, CONFIG, TOTAL_BALANCES,
+    UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -47,18 +47,31 @@ fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
     let mut res: WhitelistedAssetsResponse = HashMap::new();
 
     for item in whitelist {
-        let (key, chain_id) = item?;
+        let (key, _) = item?;
         let asset = key.check(deps.api, None)?;
-        res.entry(chain_id).or_default().push(asset)
+
+        res.entry(asset.to_string()).or_default().push(asset)
     }
 
     to_json_binary(&res)
 }
 
 fn get_rewards_distribution(deps: Deps) -> StdResult<Binary> {
-    let asset_rewards_distr = ASSET_REWARD_DISTRIBUTION.load(deps.storage)?;
+    let whitelist: StdResult<Vec<(AssetInfoUnchecked, Decimal)>> = WHITELIST
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect();
+    let whitelist = whitelist?;
 
-    to_json_binary(&asset_rewards_distr)
+    let reward_distribution: Vec<EmissionsDistribution> = whitelist
+        .iter()
+        .map(|(asset_info, distribution) |
+            EmissionsDistribution {
+                denom: asset_info.check( deps.api, None).unwrap().to_string(),
+                distribution: SignedDecimal::from_decimal(*distribution, Sign::Positive),
+            }
+        )
+        .collect();
+    to_json_binary(&reward_distribution)
 }
 
 fn get_staked_balance(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary> {

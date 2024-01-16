@@ -1,10 +1,10 @@
 use crate::contract::execute;
-use crate::error::ContractError;
+use crate::models::{ExecuteMsg, StakedBalanceRes};
 use crate::state::{BALANCES, TOTAL_BALANCES};
 use crate::tests::helpers::{
     query_all_staked_balances, setup_contract, stake, unstake, whitelist_assets,
 };
-use alliance_protocol::alliance_protocol::{ExecuteMsg, StakedBalanceRes};
+use alliance_protocol::error::ContractError;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{coin, Addr, BankMsg, CosmosMsg, Response, Uint128};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
@@ -99,7 +99,7 @@ fn test_stake_invalid() {
     let msg = ExecuteMsg::Stake {};
     let info = mock_info("user1", &[coin(100, "asset2")]);
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(err, ContractError::AssetNotWhitelisted {});
+    assert_eq!(err, ContractError::AssetNotWhitelisted("native:asset2".to_string()));
 
     // Stake multiple assets in a single call
     let msg = ExecuteMsg::Stake {};

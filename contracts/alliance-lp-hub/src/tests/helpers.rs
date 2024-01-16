@@ -1,20 +1,19 @@
 use crate::contract::{execute, instantiate};
 use crate::models::{
     AllPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, PendingRewardsRes,
-    QueryMsg, StakedBalanceRes,
+    QueryMsg, StakedBalanceRes, ModifyAsset,
 };
 use crate::query::query;
 use crate::state::CONFIG;
-use alliance_protocol::alliance_oracle_types::ChainId;
 use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg, AllianceRedelegation,
     AllianceUndelegateMsg,
 };
 use alliance_protocol::token_factory::CustomExecuteMsg;
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{coin, from_json, Deps, DepsMut, Response, StdResult, Uint128};
+use cosmwasm_std::{coin, from_json, Deps, DepsMut, Response, StdResult, Uint128, Binary, Addr};
+use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
-use std::collections::HashMap;
 
 pub const DENOM: &str = "token_factory/token";
 
@@ -24,8 +23,9 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
 
     let init_msg = InstantiateMsg {
         governance: "gov".to_string(),
+        fee_collector_address: "collector_address".to_string(),
+        astro_incentives_address : "astro_incentives".to_string(),
         controller: "controller".to_string(),
-        oracle: "oracle".to_string(),
         reward_denom: "uluna".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()
@@ -43,21 +43,14 @@ pub fn set_alliance_asset(deps: DepsMut) {
         .unwrap();
 }
 
-pub fn whitelist_assets(deps: DepsMut, assets: HashMap<ChainId, Vec<AssetInfo>>) -> Response {
+pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAsset>) -> Response {
     let info = mock_info("gov", &[]);
     let env = mock_env();
 
-    let msg = ExecuteMsg::WhitelistAssets(assets);
+    let msg = ExecuteMsg::ModifyAssets(assets);
     execute(deps, env, info, msg).unwrap()
 }
 
-pub fn remove_assets(deps: DepsMut, assets: Vec<AssetInfo>) -> Response {
-    let info = mock_info("gov", &[]);
-    let env = mock_env();
-
-    let msg = ExecuteMsg::RemoveAssets(assets);
-    execute(deps, env, info, msg).unwrap()
-}
 
 pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
     let info = mock_info(user, &[coin(amount, denom)]);
@@ -66,11 +59,26 @@ pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
     execute(deps, env, info, msg).unwrap()
 }
 
-pub fn unstake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
+
+pub fn stake_cw20(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
+    let mut info = mock_info(user, &[]);
+    let env = mock_env();
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg{
+        sender: String::from(user),
+        amount: Uint128::new(amount),
+        msg: Binary::default(),
+    });
+    info.sender = Addr::unchecked(denom.to_owned());
+    execute(deps, env, info, msg).unwrap()
+}
+
+pub fn unstake(deps: DepsMut, user: &str, asset: Asset) -> Response {
     let info = mock_info(user, &[]);
     let env = mock_env();
-    let msg = ExecuteMsg::Unstake(Asset::native(denom, amount));
-    execute(deps, env, info, msg).unwrap()
+    let msg = ExecuteMsg::Unstake(asset);
+    let res = execute(deps, env, info, msg);
+
+    res.unwrap()
 }
 
 pub fn alliance_delegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Response {

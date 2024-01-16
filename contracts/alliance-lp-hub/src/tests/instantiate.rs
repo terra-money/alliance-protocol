@@ -6,7 +6,7 @@ use alliance_protocol::token_factory::{CustomExecuteMsg, DenomUnit, Metadata, To
 use cosmwasm_std::testing::{mock_dependencies, mock_env};
 use cosmwasm_std::{
     from_json, Addr, Binary, CosmosMsg, Reply, Response, SubMsg, SubMsgResponse, SubMsgResult,
-    Timestamp, Uint128,
+    Uint128,
 };
 use terra_proto_rs::traits::MessageExt;
 
@@ -14,7 +14,7 @@ use terra_proto_rs::traits::MessageExt;
 fn test_setup_contract() {
     let mut deps = mock_dependencies();
     let res = setup_contract(deps.as_mut());
-    let denom = "ualliance";
+    let denom = "ualliancelp";
     assert_eq!(
         res,
         Response::default()
@@ -37,11 +37,11 @@ fn test_setup_contract() {
         Config {
             governance: Addr::unchecked("gov"),
             controller: Addr::unchecked("controller"),
-            oracle: Addr::unchecked("oracle"),
+            fee_collector: Addr::unchecked("collector_address"),
+            astro_incentives: Addr::unchecked("astro_incentives"),
             reward_denom: "uluna".to_string(),
             alliance_token_denom: "".to_string(),
             alliance_token_supply: Uint128::new(0),
-            last_reward_update_timestamp: Timestamp::default(),
         }
     );
 }
@@ -57,7 +57,7 @@ fn test_reply_create_token() {
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(Binary::from(
-                String::from("factory/cosmos2contract/ualliance")
+                String::from("factory/cosmos2contract/ualliancelp")
                     .to_bytes()
                     .unwrap(),
             )),
@@ -67,24 +67,24 @@ fn test_reply_create_token() {
     let sub_msg = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
         TokenExecuteMsg::MintTokens {
             amount: Uint128::from(1000000000000u128),
-            denom: "factory/cosmos2contract/ualliance".to_string(),
+            denom: "factory/cosmos2contract/ualliancelp".to_string(),
             mint_to_address: "cosmos2contract".to_string(),
         },
     )));
     let sub_msg_metadata = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
         TokenExecuteMsg::SetMetadata {
-            denom: "factory/cosmos2contract/ualliance".to_string(),
+            denom: "factory/cosmos2contract/ualliancelp".to_string(),
             metadata: Metadata {
-                description: "Staking token for the alliance protocol".to_string(),
+                description: "Staking token for alliance protocol lp hub contract".to_string(),
                 denom_units: vec![DenomUnit {
-                    denom: "factory/cosmos2contract/ualliance".to_string(),
+                    denom: "factory/cosmos2contract/ualliancelp".to_string(),
                     exponent: 0,
                     aliases: vec![],
                 }],
-                base: "factory/cosmos2contract/ualliance".to_string(),
-                display: "factory/cosmos2contract/ualliance".to_string(),
-                name: "Alliance Token".to_string(),
-                symbol: "ALLIANCE".to_string(),
+                base: "factory/cosmos2contract/ualliancelp".to_string(),
+                display: "factory/cosmos2contract/ualliancelp".to_string(),
+                name: "Alliance LP Token".to_string(),
+                symbol: "ALLIANCE_LP".to_string(),
             },
         },
     )));
@@ -92,7 +92,10 @@ fn test_reply_create_token() {
         res,
         Response::default()
             .add_attributes(vec![
-                ("alliance_token_denom", "factory/cosmos2contract/ualliance"),
+                (
+                    "alliance_token_denom",
+                    "factory/cosmos2contract/ualliancelp"
+                ),
                 ("alliance_token_total_supply", "1000000000000"),
             ])
             .add_submessage(sub_msg)
@@ -106,11 +109,11 @@ fn test_reply_create_token() {
         Config {
             governance: Addr::unchecked("gov"),
             controller: Addr::unchecked("controller"),
-            oracle: Addr::unchecked("oracle"),
+            fee_collector: Addr::unchecked("collector_address"),
+            astro_incentives: Addr::unchecked("astro_incentives"),
             reward_denom: "uluna".to_string(),
-            alliance_token_denom: "factory/cosmos2contract/ualliance".to_string(),
+            alliance_token_denom: "factory/cosmos2contract/ualliancelp".to_string(),
             alliance_token_supply: Uint128::new(1000000000000),
-            last_reward_update_timestamp: Timestamp::default(),
         }
     );
 }

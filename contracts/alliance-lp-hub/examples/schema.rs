@@ -1,4 +1,4 @@
-use alliance_hub::models::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use alliance_lp_hub::models::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_schema::write_api;
 
 fn main() {
