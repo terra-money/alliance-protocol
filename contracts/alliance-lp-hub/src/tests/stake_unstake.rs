@@ -90,7 +90,7 @@ fn test_stake() {
 
 #[test]
 fn test_stake_astro_token() {
-    let mut deps = astro_mock_dependencies(&vec![Coin::new(1000, "token")]);
+    let mut deps = astro_mock_dependencies(&[Coin::new(1000, "token")]);
     setup_contract(deps.as_mut());
     modify_asset(
         deps.as_mut(),
@@ -210,7 +210,7 @@ fn test_stake_cw20() {
 
 #[test]
 fn test_stake_astro_token_cw20() {
-    let mut deps = astro_mock_dependencies(&vec![Coin::new(1000, "token")]);
+    let mut deps = astro_mock_dependencies(&[Coin::new(1000, "token")]);
     setup_contract(deps.as_mut());
     modify_asset(
         deps.as_mut(),

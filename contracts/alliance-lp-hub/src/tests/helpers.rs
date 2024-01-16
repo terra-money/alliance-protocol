@@ -13,7 +13,7 @@ use alliance_protocol::token_factory::CustomExecuteMsg;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, from_json, Deps, DepsMut, Response, StdResult, Uint128, Binary, Addr};
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{Asset, AssetInfo, AssetBase};
+use cw_asset::{Asset, AssetInfo};
 
 pub const DENOM: &str = "token_factory/token";
 

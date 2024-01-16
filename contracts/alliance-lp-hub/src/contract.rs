@@ -62,8 +62,8 @@ pub fn instantiate(
     let config = Config {
         governance: governance_address,
         controller: controller_address,
-        fee_collector_address: fee_collector_address,
-        astro_incentives_addr: astro_incentives_address,
+        fee_collector: fee_collector_address,
+        astro_incentives: astro_incentives_address,
         alliance_token_denom: "".to_string(),
         alliance_token_supply: Uint128::zero(),
         reward_denom: msg.reward_denom,
@@ -183,9 +183,9 @@ fn stake(
     // from the asset info e.g. cw20:asset1 -> asset1 or native:uluna -> uluna
     let lp_token = received_asset.info.to_string();
     let astro_incentives: Vec<RewardInfo> = deps.querier.query_wasm_smart(
-        config.astro_incentives_addr.to_string(),
+        config.astro_incentives.to_string(),
         &QueryAstroMsg::RewardInfo{
-            lp_token: lp_token.split(":").collect::<Vec<&str>>()[1].to_string(),
+            lp_token: lp_token.split(':').collect::<Vec<&str>>()[1].to_string(),
         },
     ).unwrap_or_default();
 
@@ -201,38 +201,35 @@ fn stake(
             AssetInfo::Native(native_asset) => {
                 // If the asset is native, we need to send it to the astro incentives contract
                 // using the ExecuteAstroMsg::Deposit message
-                let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: config.astro_incentives_addr.to_string(),
+                CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: config.astro_incentives.to_string(),
                     msg: to_json_binary(&ExecuteAstroMsg::Deposit {
                         recipient: None,
                     })?,
                     funds: vec![CwCoin {
                         denom: native_asset,
-                        amount: received_asset.amount.clone(),
+                        amount: received_asset.amount,
                     }],
-                });
-                msg
+                })
             }
             AssetInfo::Cw20(cw20_contract_addr) => {
                 // If the asset is a cw20 token, we need to send it to the astro incentives contract
                 // using the ExecuteAstroMsg::Receive message
-                let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: cw20_contract_addr.to_string(),
                     msg: to_json_binary(&Cw20ExecuteMsg::Send {
-                        contract: config.astro_incentives_addr.to_string(),
-                        amount: received_asset.amount.clone(),
+                        contract: config.astro_incentives.to_string(),
+                        amount: received_asset.amount,
                         msg: to_json_binary(&Cw20ReceiveMsg {
                             sender: env.contract.address.to_string(),
-                            amount: received_asset.amount.clone(),
+                            amount: received_asset.amount,
                             msg: to_json_binary(&Cw20Msg::Deposit {
                                 recipient: None,
                             })?,
                         })?,
                     })?,
                     funds: vec![],
-                });
-                msg
-                
+                })
             },
             _ => {
                 return Err(ContractError::AssetNotWhitelisted(received_asset.info.to_string()));
@@ -573,7 +570,7 @@ fn update_reward_callback(
         let unallocated_rewards = (Decimal::from_atomics(rewards_collected, 0)? * unallocated_distribution).to_uint_floor();
         if !unallocated_rewards.is_zero() {
             res = res.add_message(BankMsg::Send {
-                to_address: config.fee_collector_address.to_string(),
+                to_address: config.fee_collector.to_string(),
                 amount: vec![CwCoin::new(unallocated_rewards.u128(), config.reward_denom)]
             })
         }
@@ -660,9 +657,9 @@ fn rebalance_emissions_callback(
         let asset_key = AssetInfoKey::from(asset_info.clone());
         WHITELIST.update(deps.storage, asset_key, |current| -> Result<_, ContractError> {
             if let Some(current) = current {
-                return Ok(current + distribution.distribution.to_decimal()?);
+                Ok(current + distribution.distribution.to_decimal()?)
             } else {
-                return Err(ContractError::AssetNotWhitelisted(asset_info.to_string()));
+                Err(ContractError::AssetNotWhitelisted(asset_info.to_string()))
             }
         })?;
     }

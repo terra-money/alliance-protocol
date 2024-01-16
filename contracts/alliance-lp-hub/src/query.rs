@@ -67,7 +67,7 @@ fn get_rewards_distribution(deps: Deps) -> StdResult<Binary> {
         .map(|(asset_info, distribution) |
             EmissionsDistribution {
                 denom: asset_info.check( deps.api, None).unwrap().to_string(),
-                distribution: SignedDecimal::from_decimal(distribution.clone(), Sign::Positive),
+                distribution: SignedDecimal::from_decimal(*distribution, Sign::Positive),
             }
         )
         .collect();
