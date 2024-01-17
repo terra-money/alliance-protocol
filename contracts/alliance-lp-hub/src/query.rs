@@ -1,6 +1,6 @@
 use crate::models::{
     AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
-    StakedBalanceRes, WhitelistedAssetsResponse,
+    StakedBalanceRes, WhitelistedAssetsResponse, AssetUnclaimedRewards,
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -95,11 +95,13 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
     let user_balance = BALANCES.load(deps.storage, key.clone())?;
     let unclaimed_rewards = UNCLAIMED_REWARDS
         .load(deps.storage, key)
-        .unwrap_or(Uint128::zero());
-    let pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
+        .unwrap_or(AssetUnclaimedRewards::zero());
+    let alliance_pending_rewards = (asset_reward_rate.alliance_reward_rate - user_reward_rate.alliance_reward_rate) * user_balance;
+    let astro_pending_rewards = (asset_reward_rate.astro_reward_rate - user_reward_rate.astro_reward_rate) * user_balance;
 
     to_json_binary(&PendingRewardsRes {
-        rewards: unclaimed_rewards + pending_rewards,
+        alliance_rewards: unclaimed_rewards.alliance_reward_rate + alliance_pending_rewards,
+        astro_rewards: unclaimed_rewards.astro_reward_rate + astro_pending_rewards,
         staked_asset: asset_query.asset,
         reward_asset: AssetInfo::Native(config.reward_denom),
     })
@@ -150,10 +152,13 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
                     deps.storage,
                     (addr.clone(), AssetInfoKey::from(asset.clone())),
                 )
-                .unwrap_or(Uint128::zero());
-            let pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
+                .unwrap_or(AssetUnclaimedRewards::zero());
+            let alliance_pending_rewards = (asset_reward_rate.alliance_reward_rate - user_reward_rate.alliance_reward_rate) * user_balance;
+            let astro_pending_rewards = (asset_reward_rate.astro_reward_rate - user_reward_rate.astro_reward_rate) * user_balance;
+
             Ok(PendingRewardsRes {
-                rewards: pending_rewards + unclaimed_rewards,
+                alliance_rewards: alliance_pending_rewards + unclaimed_rewards.alliance_reward_rate,
+                astro_rewards: astro_pending_rewards + unclaimed_rewards.astro_reward_rate,
                 staked_asset: asset,
                 reward_asset: AssetInfo::Native(config.reward_denom.to_string()),
             })

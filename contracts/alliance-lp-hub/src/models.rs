@@ -2,7 +2,7 @@ use alliance_protocol::alliance_protocol::{
         AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Uint128, Decimal};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
 use std::collections::{HashMap, HashSet};
@@ -116,7 +116,8 @@ pub struct AllStakedBalancesQuery {
 pub struct PendingRewardsRes {
     pub staked_asset: AssetInfo,
     pub reward_asset: AssetInfo,
-    pub rewards: Uint128,
+    pub alliance_rewards: Uint128,
+    pub astro_rewards: Uint128,
 }
 
 #[cw_serde]
@@ -129,4 +130,48 @@ pub struct AssetQuery {
 pub struct StakedBalanceRes {
     pub asset: AssetInfo,
     pub balance: Uint128,
+}
+
+#[cw_serde]
+pub struct AssetRewardRate {
+    pub alliance_reward_rate: Decimal,
+    pub astro_reward_rate: Decimal,
+}
+
+impl AssetRewardRate {
+    pub fn new(alliance_reward_rate: Decimal, astro_reward_rate: Decimal) -> Self {
+        AssetRewardRate {
+            alliance_reward_rate,
+            astro_reward_rate,
+        }
+    }
+
+    pub fn zero() -> Self {
+        AssetRewardRate {
+            alliance_reward_rate: Decimal::zero(),
+            astro_reward_rate: Decimal::zero(),
+        }
+    }
+}
+
+#[cw_serde]
+pub struct AssetUnclaimedRewards {
+    pub alliance_reward_rate: Uint128,
+    pub astro_reward_rate: Uint128,
+}
+
+impl AssetUnclaimedRewards {
+    pub fn new(alliance_reward_rate: Uint128, astro_reward_rate: Uint128) -> Self {
+        AssetUnclaimedRewards {
+            alliance_reward_rate,
+            astro_reward_rate,
+        }
+    }
+
+    pub fn zero() -> Self {
+        AssetUnclaimedRewards {
+            alliance_reward_rate: Uint128::zero(),
+            astro_reward_rate: Uint128::zero(),
+        }
+    }
 }

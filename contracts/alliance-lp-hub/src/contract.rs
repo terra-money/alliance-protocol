@@ -24,6 +24,7 @@ use terra_proto_rs::{
     traits::Message,
 };
 
+use crate::models::{AssetRewardRate, AssetUnclaimedRewards};
 use crate::{
     astro_models::{Cw20Msg, ExecuteAstroMsg, QueryAstroMsg, RewardInfo},
     models::{Config, ExecuteMsg, InstantiateMsg, ModifyAsset, PendingRewardsRes},
@@ -151,8 +152,8 @@ fn modify_assets(
         } else {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
             WHITELIST.save(deps.storage, asset_key.clone(), &Decimal::zero())?;
-            ASSET_REWARD_RATE.update(deps.storage, asset_key, |rate| -> StdResult<_> {
-                Ok(rate.unwrap_or(Decimal::zero()))
+            ASSET_REWARD_RATE.update(deps.storage, asset_key, |asset_reward_rate| -> StdResult<_> {
+                Ok(asset_reward_rate.unwrap_or(AssetRewardRate::zero()))
             })?;
             attrs.extend_from_slice(&[("asset".to_string(), asset.asset_info.to_string())]);
         }
@@ -181,7 +182,9 @@ fn stake(
             deps.storage,
             (sender.clone(), asset_key.clone()),
             |balance| -> Result<_, ContractError> {
-                Ok(balance.unwrap_or(Uint128::zero()) + rewards)
+                let mut unclaimed_rewards = balance.unwrap_or(AssetUnclaimedRewards::zero());
+                unclaimed_rewards.alliance_reward_rate += rewards;
+                Ok(unclaimed_rewards)
             },
         )?;
     }
@@ -268,7 +271,7 @@ fn stake(
 
     let asset_reward_rate = ASSET_REWARD_RATE
         .load(deps.storage, asset_key.clone())
-        .unwrap_or(Decimal::zero());
+        .unwrap_or(AssetRewardRate::zero());
     USER_ASSET_REWARD_RATE.save(
         deps.storage,
         (sender.clone(), asset_key),
@@ -291,7 +294,9 @@ fn unstake(deps: DepsMut, info: MessageInfo, asset: Asset) -> Result<Response, C
             deps.storage,
             (sender.clone(), asset_key.clone()),
             |balance| -> Result<_, ContractError> {
-                Ok(balance.unwrap_or(Uint128::zero()) + rewards)
+                let mut unclaimed_rewards = balance.unwrap_or(AssetUnclaimedRewards::zero());
+                unclaimed_rewards.alliance_reward_rate += rewards;
+                Ok(unclaimed_rewards)
             },
         )?;
     }
@@ -348,8 +353,8 @@ fn claim_rewards(
             deps.storage,
             (user.clone(), AssetInfoKey::from(asset.clone())),
         )
-        .unwrap_or(Uint128::zero());
-    let final_rewards = rewards + unclaimed_rewards;
+        .unwrap_or(AssetUnclaimedRewards::zero());
+    let final_rewards = rewards + unclaimed_rewards.alliance_reward_rate;
     UNCLAIMED_REWARDS.remove(
         deps.storage,
         (user.clone(), AssetInfoKey::from(asset.clone())),
@@ -382,7 +387,7 @@ fn _claim_reward(
 
     if let Ok(user_reward_rate) = user_reward_rate {
         let user_staked = BALANCES.load(storage, (user.clone(), asset_key.clone()))?;
-        let rewards = ((asset_reward_rate - user_reward_rate)
+        let rewards = ((asset_reward_rate.alliance_reward_rate - user_reward_rate.alliance_reward_rate)
             * Decimal::from_atomics(user_staked, 0)?)
         .to_uint_floor();
         if rewards.is_zero() {
@@ -514,7 +519,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         Uint128::zero()
     };
 
-    let astr_incentives_rewards = _generate_update_astro_rewards(
+    let astr_incentives_rewards = _update_astro_rewards(
         &deps,
         env.contract.address.clone(),
         config.astro_incentives.clone(),
@@ -558,7 +563,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         .add_message(msg))
 }
 
-fn _generate_update_astro_rewards(
+fn _update_astro_rewards(
     deps: &DepsMut,
     contract_addr: Addr,
     astro_incentives: Addr,
@@ -583,7 +588,7 @@ fn _generate_update_astro_rewards(
             .unwrap_or_default();
 
         for pr in pending_rewards {
-            if !pr.rewards.is_zero() {
+            if !pr.astro_rewards.is_zero() {
                 lp_tokens_list.push(lp_token.clone())
             }
         }
@@ -664,7 +669,9 @@ fn update_reward_callback(
         let rate_to_update = total_reward_distributed / Decimal::from_atomics(total_balance, 0)?;
         if rate_to_update > Decimal::zero() {
             ASSET_REWARD_RATE.update(deps.storage, asset_key.clone(), |rate| -> StdResult<_> {
-                Ok(rate.unwrap_or(Decimal::zero()) + rate_to_update)
+                let mut reward_rate = rate.unwrap_or(AssetRewardRate::zero());
+                reward_rate.alliance_reward_rate = reward_rate.alliance_reward_rate + rate_to_update;
+                Ok(reward_rate)
             })?;
         }
     }

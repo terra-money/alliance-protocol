@@ -133,7 +133,7 @@ fn update_reward_callback() {
         )
         .unwrap();
     assert_eq!(
-        a_whale_rate,
+        a_whale_rate.alliance_reward_rate,
         Decimal::from_atomics(Uint128::one(), 1).unwrap()
     );
     let b_whale_rate = ASSET_REWARD_RATE
@@ -143,7 +143,7 @@ fn update_reward_callback() {
         )
         .unwrap();
     assert_eq!(
-        b_whale_rate,
+        b_whale_rate.alliance_reward_rate,
         Decimal::from_atomics(Uint128::new(6), 0).unwrap()
     );
     ASSET_REWARD_RATE
@@ -201,7 +201,7 @@ fn update_reward_callback_with_unallocated() {
         )
         .unwrap();
     assert_eq!(
-        a_whale_rate,
+        a_whale_rate.alliance_reward_rate,
         Decimal::from_atomics(Uint128::one(), 1).unwrap()
     );
     let b_whale_rate = ASSET_REWARD_RATE
@@ -211,7 +211,7 @@ fn update_reward_callback_with_unallocated() {
         )
         .unwrap();
     assert_eq!(
-        b_whale_rate,
+        b_whale_rate.alliance_reward_rate,
         Decimal::from_atomics(Uint128::new(6), 0).unwrap()
     );
 
@@ -261,7 +261,8 @@ fn claim_user_rewards() {
     assert_eq!(
         rewards,
         PendingRewardsRes {
-            rewards: Uint128::new(100000),
+            alliance_rewards: Uint128::new(100000),
+            astro_rewards: Uint128::zero(),
             reward_asset: AssetInfo::Native("uluna".to_string()),
             staked_asset: AssetInfo::Native("aWHALE".to_string()),
         }
@@ -271,7 +272,8 @@ fn claim_user_rewards() {
     assert_eq!(
         all_rewards,
         vec![PendingRewardsRes {
-            rewards: Uint128::new(100000),
+            alliance_rewards: Uint128::new(100000),
+            astro_rewards: Uint128::zero(),
             reward_asset: AssetInfo::Native("uluna".to_string()),
             staked_asset: AssetInfo::Native("aWHALE".to_string()),
         }]
@@ -314,7 +316,8 @@ fn claim_user_rewards() {
     assert_eq!(
         rewards,
         PendingRewardsRes {
-            rewards: Uint128::new(0),
+            alliance_rewards: Uint128::zero(),
+            astro_rewards: Uint128::zero(),
             reward_asset: AssetInfo::Native("uluna".to_string()),
             staked_asset: AssetInfo::Native("aWHALE".to_string()),
         }
@@ -324,7 +327,8 @@ fn claim_user_rewards() {
     assert_eq!(
         all_rewards,
         vec![PendingRewardsRes {
-            rewards: Uint128::new(0),
+            alliance_rewards: Uint128::zero(),
+            astro_rewards: Uint128::zero(),
             reward_asset: AssetInfo::Native("uluna".to_string()),
             staked_asset: AssetInfo::Native("aWHALE".to_string()),
         }]
@@ -499,20 +503,20 @@ fn claim_rewards_after_staking_and_unstaking() {
             AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
         )
         .unwrap();
-    assert!(curr_rate > prev_rate);
+    assert!(curr_rate.alliance_reward_rate > prev_rate.alliance_reward_rate);
 
     // User 1 stakes back
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
 
     // User 1 should not have any rewards
     let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE");
-    assert_eq!(rewards.rewards, Uint128::zero());
+    assert_eq!(rewards.alliance_rewards, Uint128::zero());
 
     // User 2 should receive all the rewards in the contract
     let rewards = query_rewards(deps.as_ref(), "user2", "aWHALE");
-    assert_eq!(rewards.rewards, Uint128::new(900000));
+    assert_eq!(rewards.alliance_rewards, Uint128::new(900000));
     let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE");
-    assert_eq!(rewards.rewards, Uint128::new(1000000));
+    assert_eq!(rewards.alliance_rewards, Uint128::new(1000000));
 }
 
 #[test]
@@ -565,8 +569,8 @@ fn claim_rewards_after_rebalancing_emissions() {
     .unwrap();
 
     let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE");
-    assert_eq!(rewards.rewards, Uint128::new(1500000));
+    assert_eq!(rewards.alliance_rewards, Uint128::new(1500000));
     // User 2 should receive all the rewards in the contract
     let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE");
-    assert_eq!(rewards.rewards, Uint128::new(500000));
+    assert_eq!(rewards.alliance_rewards, Uint128::new(500000));
 }
