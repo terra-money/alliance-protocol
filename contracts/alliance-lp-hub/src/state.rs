@@ -17,4 +17,4 @@ pub const USER_ASSET_REWARD_RATE: Map<(Addr, AssetInfoKey), AssetRewardRate> =
     Map::new("user_asset_reward_rate");
 pub const UNCLAIMED_REWARDS: Map<(Addr, AssetInfoKey), AssetUnclaimedRewards> = Map::new("unclaimed_rewards");
 
-pub const TEMP_BALANCE: Item<Uint128> = Item::new("temp_balance");
+pub const TEMP_BALANCE: Map<AssetInfoKey, Uint128> = Map::new("temp_balance");

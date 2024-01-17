@@ -1,16 +1,18 @@
 use crate::contract::execute;
 use crate::models::{ExecuteMsg, ModifyAsset, PendingRewardsRes};
-use crate::state::{ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST};
+use crate::state::{
+    ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+};
 use crate::tests::helpers::{
-    claim_rewards, query_all_rewards, query_rewards, set_alliance_asset, setup_contract, stake,
-    unstake, modify_asset, DENOM,
+    claim_rewards, modify_asset, query_all_rewards, query_rewards, set_alliance_asset,
+    setup_contract, stake, unstake, DENOM,
 };
 use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
 use cosmwasm_std::{
     coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Response, SubMsg,
     Uint128, WasmMsg,
 };
-use cw_asset::{AssetInfo, AssetInfoKey, Asset};
+use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::MsgClaimDelegationRewards;
 use terra_proto_rs::traits::Message;
@@ -59,7 +61,12 @@ fn test_update_rewards() {
             }))
         ]
     );
-    let prev_balance = TEMP_BALANCE.load(deps.as_ref().storage).unwrap();
+    let prev_balance = TEMP_BALANCE
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+        )
+        .unwrap();
     assert_eq!(prev_balance, Uint128::new(1000000));
 }
 
@@ -85,7 +92,12 @@ fn test_update_rewards_with_funds_sent() {
         ExecuteMsg::UpdateRewards {},
     )
     .unwrap();
-    let prev_balance = TEMP_BALANCE.load(deps.as_ref().storage).unwrap();
+    let prev_balance = TEMP_BALANCE
+        .load(
+            deps.as_ref().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+        )
+        .unwrap();
     assert_eq!(res.messages.len(), 3);
     assert_eq!(prev_balance, Uint128::new(1000000));
 }
@@ -112,11 +124,33 @@ fn update_reward_callback() {
         .unwrap();
 
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1000000),
+        )
         .unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(10)).unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(60)).unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aMONKEY".to_string())), &Decimal::percent(30)).unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Decimal::percent(10),
+        )
+        .unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Decimal::percent(60),
+        )
+        .unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aMONKEY".to_string())),
+            &Decimal::percent(30),
+        )
+        .unwrap();
 
     let res = execute(
         deps.as_mut(),
@@ -181,10 +215,26 @@ fn update_reward_callback_with_unallocated() {
         .unwrap();
 
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1000000),
+        )
         .unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(10)).unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(60)).unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Decimal::percent(10),
+        )
+        .unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Decimal::percent(60),
+        )
+        .unwrap();
 
     let res = execute(
         deps.as_mut(),
@@ -192,7 +242,7 @@ fn update_reward_callback_with_unallocated() {
         mock_info("cosmos2contract", &[]),
         ExecuteMsg::UpdateRewardsCallback {},
     )
-        .unwrap();
+    .unwrap();
 
     let a_whale_rate = ASSET_REWARD_RATE
         .load(
@@ -233,21 +283,35 @@ fn claim_user_rewards() {
     set_alliance_asset(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        Vec::from([
-            ModifyAsset{
-                asset_info: AssetInfo::Native("aWHALE".to_string()),
-                delete: false,
-            }
-        ]),
+        Vec::from([ModifyAsset {
+            asset_info: AssetInfo::Native("aWHALE".to_string()),
+            delete: false,
+        }]),
     );
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(50)).unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(50)).unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Decimal::percent(50),
+        )
+        .unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Decimal::percent(50),
+        )
+        .unwrap();
 
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
 
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1000000),
+        )
         .unwrap();
     execute(
         deps.as_mut(),
@@ -349,7 +413,11 @@ fn claim_user_rewards() {
     deps.querier
         .update_balance("cosmos2contract", vec![coin(1900000 + 100000, "uluna")]);
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1900000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1900000),
+        )
         .unwrap();
     execute(
         deps.as_mut(),
@@ -382,21 +450,35 @@ fn claim_user_rewards_after_staking() {
     set_alliance_asset(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        Vec::from([
-            ModifyAsset{
-                asset_info: AssetInfo::Native("aWHALE".to_string()),
-                delete: false,
-            }
-        ]),
+        Vec::from([ModifyAsset {
+            asset_info: AssetInfo::Native("aWHALE".to_string()),
+            delete: false,
+        }]),
     );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
 
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(50)).unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(50)).unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Decimal::percent(50),
+        )
+        .unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Decimal::percent(50),
+        )
+        .unwrap();
 
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1000000),
+        )
         .unwrap();
     execute(
         deps.as_mut(),
@@ -445,24 +527,40 @@ fn claim_rewards_after_staking_and_unstaking() {
     modify_asset(
         deps.as_mut(),
         Vec::from([
-            ModifyAsset{
+            ModifyAsset {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
                 delete: false,
             },
-            ModifyAsset{
+            ModifyAsset {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
                 delete: false,
-            }
+            },
         ]),
     );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 4000000, "aWHALE");
     stake(deps.as_mut(), "user2", 1000000, "bWHALE");
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(50)).unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(50)).unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Decimal::percent(50),
+        )
+        .unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Decimal::percent(50),
+        )
+        .unwrap();
 
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1000000),
+        )
         .unwrap();
     execute(
         deps.as_mut(),
@@ -487,7 +585,11 @@ fn claim_rewards_after_staking_and_unstaking() {
 
     // Accrue rewards again
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1000000),
+        )
         .unwrap();
     execute(
         deps.as_mut(),
@@ -527,24 +629,40 @@ fn claim_rewards_after_rebalancing_emissions() {
     modify_asset(
         deps.as_mut(),
         Vec::from([
-            ModifyAsset{
+            ModifyAsset {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
                 delete: false,
             },
-            ModifyAsset{
+            ModifyAsset {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
                 delete: false,
-            }
+            },
         ]),
     );
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
     stake(deps.as_mut(), "user2", 1000000, "bWHALE");
 
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(50)).unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(50)).unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Decimal::percent(50),
+        )
+        .unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Decimal::percent(50),
+        )
+        .unwrap();
 
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1000000),
+        )
         .unwrap();
     execute(
         deps.as_mut(),
@@ -554,11 +672,27 @@ fn claim_rewards_after_rebalancing_emissions() {
     )
     .unwrap();
 
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())), &Decimal::percent(100)).unwrap();
-    WHITELIST.save(deps.as_mut().storage, AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())), &Decimal::percent(0)).unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            &Decimal::percent(100),
+        )
+        .unwrap();
+    WHITELIST
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            &Decimal::percent(0),
+        )
+        .unwrap();
 
     TEMP_BALANCE
-        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .save(
+            deps.as_mut().storage,
+            AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            &Uint128::new(1000000),
+        )
         .unwrap();
     execute(
         deps.as_mut(),

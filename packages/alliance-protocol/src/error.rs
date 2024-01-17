@@ -44,4 +44,7 @@ pub enum ContractError {
 
     #[error("Invalid total distribution: {0}")]
     InvalidTotalDistribution(Decimal),
+
+    #[error("Invalid contract callback with key: {0} and type: {1}")]
+    InvalidContractCallback(String, String),
 }

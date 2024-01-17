@@ -27,6 +27,7 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
         astro_incentives_address : "astro_incentives".to_string(),
         controller: "controller".to_string(),
         reward_denom: "uluna".to_string(),
+        astro_reward_denom: "uastro".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()
 }

@@ -40,6 +40,7 @@ fn test_setup_contract() {
             fee_collector: Addr::unchecked("collector_address"),
             astro_incentives: Addr::unchecked("astro_incentives"),
             reward_denom: "uluna".to_string(),
+            astro_reward_denom: "uastro".to_string(),
             alliance_token_denom: "".to_string(),
             alliance_token_supply: Uint128::new(0),
         }
@@ -111,6 +112,7 @@ fn test_reply_create_token() {
             controller: Addr::unchecked("controller"),
             fee_collector: Addr::unchecked("collector_address"),
             astro_incentives: Addr::unchecked("astro_incentives"),
+            astro_reward_denom: "uastro".to_string(),
             reward_denom: "uluna".to_string(),
             alliance_token_denom: "factory/cosmos2contract/ualliancelp".to_string(),
             alliance_token_supply: Uint128::new(1000000000000),

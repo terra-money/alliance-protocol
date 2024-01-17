@@ -19,6 +19,7 @@ pub struct Config {
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
     pub reward_denom: String,
+    pub astro_reward_denom: String
 }
 
 #[cw_serde]
@@ -28,6 +29,7 @@ pub struct InstantiateMsg {
     pub fee_collector_address: String,
     pub astro_incentives_address: String,
     pub reward_denom: String,
+    pub astro_reward_denom: String,
 }
 
 #[cw_serde]

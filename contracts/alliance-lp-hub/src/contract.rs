@@ -18,6 +18,7 @@ use cw_asset::{Asset, AssetInfo, AssetInfoKey, AssetInfoUnchecked};
 use cw_utils::parse_instantiate_response_data;
 use std::str::FromStr;
 use std::{collections::HashSet, env};
+use terra_proto_rs::cosmos::evidence;
 use terra_proto_rs::{
     alliance::alliance::{MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate},
     cosmos::base::v1beta1::Coin,
@@ -39,6 +40,7 @@ const CONTRACT_NAME: &str = "crates.io:terra-alliance-lp-hub";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
 const CLAIM_REWARD_ERROR_REPLY_ID: u64 = 2;
+const CLAIM_ASTRO_REWARD_REPLY_ID: u64 = 3;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
@@ -55,6 +57,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let governance_address = deps.api.addr_validate(msg.governance.as_str())?;
     let controller_address = deps.api.addr_validate(msg.controller.as_str())?;
+    deps.api.addr_validate(msg.astro_reward_denom.as_str())?;
     let astro_incentives_address = deps
         .api
         .addr_validate(msg.astro_incentives_address.as_str())?;
@@ -69,6 +72,7 @@ pub fn instantiate(
     let config = Config {
         governance: governance_address,
         controller: controller_address,
+        astro_reward_denom: msg.astro_reward_denom,
         fee_collector: fee_collector_address,
         astro_incentives: astro_incentives_address,
         alliance_token_denom: "".to_string(),
@@ -152,9 +156,13 @@ fn modify_assets(
         } else {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
             WHITELIST.save(deps.storage, asset_key.clone(), &Decimal::zero())?;
-            ASSET_REWARD_RATE.update(deps.storage, asset_key, |asset_reward_rate| -> StdResult<_> {
-                Ok(asset_reward_rate.unwrap_or(AssetRewardRate::zero()))
-            })?;
+            ASSET_REWARD_RATE.update(
+                deps.storage,
+                asset_key,
+                |asset_reward_rate| -> StdResult<_> {
+                    Ok(asset_reward_rate.unwrap_or(AssetRewardRate::zero()))
+                },
+            )?;
             attrs.extend_from_slice(&[("asset".to_string(), asset.asset_info.to_string())]);
         }
     }
@@ -387,7 +395,8 @@ fn _claim_reward(
 
     if let Ok(user_reward_rate) = user_reward_rate {
         let user_staked = BALANCES.load(storage, (user.clone(), asset_key.clone()))?;
-        let rewards = ((asset_reward_rate.alliance_reward_rate - user_reward_rate.alliance_reward_rate)
+        let rewards = ((asset_reward_rate.alliance_reward_rate
+            - user_reward_rate.alliance_reward_rate)
             * Decimal::from_atomics(user_staked, 0)?)
         .to_uint_floor();
         if rewards.is_zero() {
@@ -534,7 +543,11 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
 
     // Contract balance is guaranteed to be greater than sent balance
     // since contract balance = previous contract balance + sent balance > sent balance
-    TEMP_BALANCE.save(deps.storage, &(contract_balance - sent_balance))?;
+    TEMP_BALANCE.save(
+        deps.storage,
+        AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string())),
+        &(contract_balance - sent_balance),
+    )?;
     let validators = VALIDATORS.load(deps.storage)?;
     let alliance_sub_msg: Vec<SubMsg> = validators
         .iter()
@@ -558,9 +571,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         funds: vec![],
     });
 
-    Ok(res
-        .add_submessages(alliance_sub_msg)
-        .add_message(msg))
+    Ok(res.add_submessages(alliance_sub_msg).add_message(msg))
 }
 
 fn _update_astro_rewards(
@@ -597,13 +608,13 @@ fn _update_astro_rewards(
     if !lp_tokens_list.is_empty() {
         let msg: CosmosMsg<_> = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: astro_incentives.to_string(),
-            msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards { 
+            msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards {
                 lp_tokens: lp_tokens_list,
             })?,
             funds: vec![],
         });
 
-        return Ok(Some(SubMsg::reply_on_error(msg, CLAIM_REWARD_ERROR_REPLY_ID)))
+        return Ok(Some(SubMsg::reply_always(msg, CLAIM_REWARD_ERROR_REPLY_ID)));
     }
 
     Ok(None)
@@ -624,7 +635,10 @@ fn update_reward_callback(
     // and not pooled together and shared
     let reward_asset = AssetInfo::native(config.reward_denom.clone());
     let current_balance = reward_asset.query_balance(&deps.querier, env.contract.address)?;
-    let previous_balance = TEMP_BALANCE.load(deps.storage)?;
+    let previous_balance = TEMP_BALANCE.load(
+        deps.storage,
+        AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string())),
+    )?;
     let rewards_collected = current_balance - previous_balance;
 
     let whitelist: StdResult<Vec<(AssetInfoKey, Decimal)>> = WHITELIST
@@ -645,7 +659,10 @@ fn update_reward_callback(
         if !unallocated_rewards.is_zero() {
             res = res.add_message(BankMsg::Send {
                 to_address: config.fee_collector.to_string(),
-                amount: vec![CwCoin::new(unallocated_rewards.u128(), config.reward_denom)],
+                amount: vec![CwCoin::new(
+                    unallocated_rewards.u128(),
+                    config.reward_denom.clone(),
+                )],
             })
         }
     } else {
@@ -670,12 +687,16 @@ fn update_reward_callback(
         if rate_to_update > Decimal::zero() {
             ASSET_REWARD_RATE.update(deps.storage, asset_key.clone(), |rate| -> StdResult<_> {
                 let mut reward_rate = rate.unwrap_or(AssetRewardRate::zero());
-                reward_rate.alliance_reward_rate = reward_rate.alliance_reward_rate + rate_to_update;
+                reward_rate.alliance_reward_rate =
+                    reward_rate.alliance_reward_rate + rate_to_update;
                 Ok(reward_rate)
             })?;
         }
     }
-    TEMP_BALANCE.remove(deps.storage);
+    TEMP_BALANCE.remove(
+        deps.storage,
+        AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string())),
+    );
 
     Ok(res)
 }
@@ -808,8 +829,43 @@ pub fn reply(
         CLAIM_REWARD_ERROR_REPLY_ID => {
             Ok(Response::new().add_attributes(vec![("action", "claim_reward_error")]))
         }
+        CLAIM_ASTRO_REWARD_REPLY_ID => reply_astro_rewards(deps, reply),
         _ => Err(ContractError::InvalidReplyId(reply.id)),
     }
+}
+
+// Example of a response https://terrasco.pe/testnet/tx/EC20D82F519B8B76EBFF1DDB75592330CA5A1CACE21943B22BAA4F46468AB5E7
+fn reply_astro_rewards(
+    deps: DepsMut,
+    reply: Reply,
+) -> Result<Response<CustomExecuteMsg>, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    let result = reply.result.unwrap();
+    let event = result
+        .events
+        .iter()
+        .find(|event| event.ty == "wasm")
+        .ok_or_else(|| StdError::generic_err("cannot find `wasm` event"))?;
+
+    let first_attr = event.attributes[0].clone();
+    let event_key = first_attr.key.clone();
+    let even_value = first_attr.value.clone();
+
+    if event_key != "_contract_address" && even_value != config.astro_incentives {
+        return Err(ContractError::InvalidContractCallback(
+            event_key, even_value,
+        ));
+    }
+    
+    for attr in event.attributes.clone() {
+        if attr.key == "claimed_position" {
+            // TODO : find the claimed_rewards
+        }
+
+        
+    }
+
+    Ok(Response::new().add_attributes(vec![("action", "reply_astro_rewards")]))
 }
 
 // Controller is used to perform administrative operations that deals with delegating the virtual
