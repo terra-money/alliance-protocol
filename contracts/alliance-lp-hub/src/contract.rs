@@ -1,3 +1,11 @@
+use crate::{
+    astro_models::{Cw20Msg, ExecuteAstroMsg, QueryAstroMsg, RewardInfo},
+    models::{Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair, PendingRewardsRes},
+    state::{
+        ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE, TOTAL_BALANCES, UNCLAIMED_REWARDS,
+        USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+    },
+};
 use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
 use alliance_protocol::{
     alliance_protocol::{
@@ -18,21 +26,10 @@ use cw_asset::{Asset, AssetInfo, AssetInfoKey, AssetInfoUnchecked};
 use cw_utils::parse_instantiate_response_data;
 use std::str::FromStr;
 use std::{collections::HashSet, env};
-use terra_proto_rs::cosmos::evidence;
 use terra_proto_rs::{
     alliance::alliance::{MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate},
     cosmos::base::v1beta1::Coin,
     traits::Message,
-};
-
-use crate::models::{AssetRewardRate, AssetUnclaimedRewards};
-use crate::{
-    astro_models::{Cw20Msg, ExecuteAstroMsg, QueryAstroMsg, RewardInfo},
-    models::{Config, ExecuteMsg, InstantiateMsg, ModifyAsset, PendingRewardsRes},
-    state::{
-        ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE, TOTAL_BALANCES, UNCLAIMED_REWARDS,
-        USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
-    },
 };
 
 // version info for migration info
@@ -57,7 +54,6 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let governance_address = deps.api.addr_validate(msg.governance.as_str())?;
     let controller_address = deps.api.addr_validate(msg.controller.as_str())?;
-    deps.api.addr_validate(msg.astro_reward_denom.as_str())?;
     let astro_incentives_address = deps
         .api
         .addr_validate(msg.astro_incentives_address.as_str())?;
@@ -72,7 +68,6 @@ pub fn instantiate(
     let config = Config {
         governance: governance_address,
         controller: controller_address,
-        astro_reward_denom: msg.astro_reward_denom,
         fee_collector: fee_collector_address,
         astro_incentives: astro_incentives_address,
         alliance_token_denom: "".to_string(),
@@ -96,7 +91,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ModifyAssets(assets) => modify_assets(deps, info, assets),
+        ExecuteMsg::ModifyAssetPairs(assets) => modify_assets(deps, info, assets),
 
         ExecuteMsg::Receive(cw20_msg) => {
             let sender = deps.api.addr_validate(&cw20_msg.sender)?;
@@ -139,7 +134,7 @@ pub fn execute(
 fn modify_assets(
     deps: DepsMut,
     info: MessageInfo,
-    assets: Vec<ModifyAsset>,
+    assets: Vec<ModifyAssetPair>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     is_governance(&info, &config)?;
@@ -155,12 +150,21 @@ fn modify_assets(
             ]);
         } else {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
+            let reward_asset_info_key = match asset.reward_asset_info {
+                Some(reward_asset_info) => AssetInfoKey::from(reward_asset_info),
+                None => {
+                    return Err(ContractError::MissingRewardAsset(
+                        asset.asset_info.to_string(),
+                    ))
+                }
+            };
+
             WHITELIST.save(deps.storage, asset_key.clone(), &Decimal::zero())?;
             ASSET_REWARD_RATE.update(
                 deps.storage,
-                asset_key,
+                (asset_key, reward_asset_info_key),
                 |asset_reward_rate| -> StdResult<_> {
-                    Ok(asset_reward_rate.unwrap_or(AssetRewardRate::zero()))
+                    Ok(asset_reward_rate.unwrap_or(Decimal::zero()))
                 },
             )?;
             attrs.extend_from_slice(&[("asset".to_string(), asset.asset_info.to_string())]);
@@ -183,20 +187,25 @@ fn stake(
     WHITELIST
         .load(deps.storage, asset_key.clone())
         .map_err(|_| ContractError::AssetNotWhitelisted(received_asset.info.to_string()))?;
-
-    let rewards = _claim_reward(deps.storage, sender.clone(), received_asset.info.clone())?;
+    let config = CONFIG.load(deps.storage)?;
+    let reward_token = AssetInfoKey::from(AssetInfo::Native(config.alliance_token_denom));
+    let rewards = _claim_alliance_rewards(
+        deps.storage,
+        sender.clone(),
+        received_asset.info.clone(),
+        reward_token,
+    )?;
     if !rewards.is_zero() {
         UNCLAIMED_REWARDS.update(
             deps.storage,
             (sender.clone(), asset_key.clone()),
             |balance| -> Result<_, ContractError> {
-                let mut unclaimed_rewards = balance.unwrap_or(AssetUnclaimedRewards::zero());
-                unclaimed_rewards.alliance_reward_rate += rewards;
+                let mut unclaimed_rewards = balance.unwrap_or(Uint128::zero());
+                unclaimed_rewards += rewards;
                 Ok(unclaimed_rewards)
             },
         )?;
     }
-    let config = CONFIG.load(deps.storage)?;
 
     // Query astro incentives, to do so we must first remove the prefix
     // from the asset info e.g. cw20:asset1 -> asset1 or native:uluna -> uluna
@@ -279,7 +288,8 @@ fn stake(
 
     let asset_reward_rate = ASSET_REWARD_RATE
         .load(deps.storage, asset_key.clone())
-        .unwrap_or(AssetRewardRate::zero());
+        .unwrap_or_default();
+
     USER_ASSET_REWARD_RATE.save(
         deps.storage,
         (sender.clone(), asset_key),
@@ -295,15 +305,21 @@ fn unstake(deps: DepsMut, info: MessageInfo, asset: Asset) -> Result<Response, C
     if asset.amount.is_zero() {
         return Err(ContractError::AmountCannotBeZero {});
     }
-
-    let rewards = _claim_reward(deps.storage, sender.clone(), asset.info.clone())?;
+    let config = CONFIG.load(deps.storage)?;
+    let reward_token = AssetInfoKey::from(AssetInfo::Native(config.alliance_token_denom));
+    let rewards = _claim_alliance_rewards(
+        deps.storage,
+        sender.clone(),
+        asset.info.clone(),
+        reward_token,
+    )?;
     if !rewards.is_zero() {
         UNCLAIMED_REWARDS.update(
             deps.storage,
             (sender.clone(), asset_key.clone()),
             |balance| -> Result<_, ContractError> {
-                let mut unclaimed_rewards = balance.unwrap_or(AssetUnclaimedRewards::zero());
-                unclaimed_rewards.alliance_reward_rate += rewards;
+                let mut unclaimed_rewards = balance.unwrap_or_default();
+                unclaimed_rewards += rewards;
                 Ok(unclaimed_rewards)
             },
         )?;
@@ -355,14 +371,15 @@ fn claim_rewards(
 ) -> Result<Response, ContractError> {
     let user = info.sender;
     let config = CONFIG.load(deps.storage)?;
-    let rewards = _claim_reward(deps.storage, user.clone(), asset.clone())?;
+    let reward_token = AssetInfoKey::from(AssetInfo::Native(config.alliance_token_denom));
+    let rewards = _claim_alliance_rewards(deps.storage, user.clone(), asset.clone(), reward_token)?;
     let unclaimed_rewards = UNCLAIMED_REWARDS
         .load(
             deps.storage,
             (user.clone(), AssetInfoKey::from(asset.clone())),
         )
-        .unwrap_or(AssetUnclaimedRewards::zero());
-    let final_rewards = rewards + unclaimed_rewards.alliance_reward_rate;
+        .unwrap_or_default();
+    let final_rewards = rewards + unclaimed_rewards;
     UNCLAIMED_REWARDS.remove(
         deps.storage,
         (user.clone(), AssetInfoKey::from(asset.clone())),
@@ -384,32 +401,31 @@ fn claim_rewards(
     }
 }
 
-fn _claim_reward(
+fn _claim_alliance_rewards(
     storage: &mut dyn Storage,
     user: Addr,
-    asset: AssetInfo,
+    staked_asset: AssetInfo,
+    reward_denom: AssetInfoKey,
 ) -> Result<Uint128, ContractError> {
-    let asset_key = AssetInfoKey::from(&asset);
-    let user_reward_rate = USER_ASSET_REWARD_RATE.load(storage, (user.clone(), asset_key.clone()));
-    let asset_reward_rate = ASSET_REWARD_RATE.load(storage, asset_key.clone())?;
+    let asset_key = AssetInfoKey::from(&staked_asset);
+    let asset_reward_rate = ASSET_REWARD_RATE.load(storage, (asset_key.clone(), reward_denom))?;
+    let user_staked = BALANCES.load(storage, (user.clone(), asset_key.clone()))?;
+    let user_staked = Decimal::from_atomics(user_staked, 0)?;
 
+    let user_reward_rate = USER_ASSET_REWARD_RATE.load(storage, (user, asset_key, reward_denom));
     if let Ok(user_reward_rate) = user_reward_rate {
-        let user_staked = BALANCES.load(storage, (user.clone(), asset_key.clone()))?;
-        let rewards = ((asset_reward_rate.alliance_reward_rate
-            - user_reward_rate.alliance_reward_rate)
-            * Decimal::from_atomics(user_staked, 0)?)
-        .to_uint_floor();
+
+        let rewards = ((asset_reward_rate - user_reward_rate) * user_staked).to_uint_floor();
         if rewards.is_zero() {
-            Ok(Uint128::zero())
+            return Ok(Uint128::zero())
         } else {
-            USER_ASSET_REWARD_RATE.save(storage, (user, asset_key), &asset_reward_rate)?;
-            Ok(rewards)
+            USER_ASSET_REWARD_RATE.save(storage, (user, asset_key, reward_denom), &asset_reward_rate)?;
+            return Ok(rewards)
         }
     } else {
-        // If cannot find user_reward_rate, assume this is the first time they are staking and set it to the current asset_reward_rate
-        USER_ASSET_REWARD_RATE.save(storage, (user, asset_key), &asset_reward_rate)?;
-
-        Ok(Uint128::zero())
+        USER_ASSET_REWARD_RATE.save(storage, (user, asset_key, reward_denom), &asset_reward_rate)?;
+        return Ok(Uint128::zero())
+    
     }
 }
 
@@ -587,7 +603,7 @@ fn _update_astro_rewards(
 
     for (asset_info, _) in whitelist {
         let lp_token = String::from_utf8(asset_info.0)?;
-        let pending_rewards: Vec<PendingRewardsRes> = deps
+        let pending_rewards: Vec<Asset> = deps
             .querier
             .query_wasm_smart(
                 astro_incentives.to_string(),
@@ -599,7 +615,7 @@ fn _update_astro_rewards(
             .unwrap_or_default();
 
         for pr in pending_rewards {
-            if !pr.astro_rewards.is_zero() {
+            if !pr.amount.is_zero() {
                 lp_tokens_list.push(lp_token.clone())
             }
         }
@@ -634,10 +650,11 @@ fn update_reward_callback(
     // This is because the reward distribution only affects alliance rewards. LP rewards are directly distributed to LP holders
     // and not pooled together and shared
     let reward_asset = AssetInfo::native(config.reward_denom.clone());
+    let reward_asset_info_key = AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string()));
     let current_balance = reward_asset.query_balance(&deps.querier, env.contract.address)?;
     let previous_balance = TEMP_BALANCE.load(
         deps.storage,
-        AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string())),
+        reward_asset_info_key.clone(),
     )?;
     let rewards_collected = current_balance - previous_balance;
 
@@ -685,10 +702,9 @@ fn update_reward_callback(
         // Update reward rates for each asset
         let rate_to_update = total_reward_distributed / Decimal::from_atomics(total_balance, 0)?;
         if rate_to_update > Decimal::zero() {
-            ASSET_REWARD_RATE.update(deps.storage, asset_key.clone(), |rate| -> StdResult<_> {
-                let mut reward_rate = rate.unwrap_or(AssetRewardRate::zero());
-                reward_rate.alliance_reward_rate =
-                    reward_rate.alliance_reward_rate + rate_to_update;
+            ASSET_REWARD_RATE.update(deps.storage, (asset_key.clone(),reward_asset_info_key), |rate| -> StdResult<_> {
+                let mut reward_rate = rate.unwrap_or_default();
+                reward_rate = reward_rate + rate_to_update;
                 Ok(reward_rate)
             })?;
         }
@@ -856,7 +872,7 @@ fn reply_astro_rewards(
             event_key, even_value,
         ));
     }
-    
+
     for attr in event.attributes.clone() {
         if attr.key == "claimed_position" {
             // TODO : find the claimed_rewards

@@ -1,7 +1,7 @@
 use crate::contract::{execute, instantiate};
 use crate::models::{
     AllPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, PendingRewardsRes,
-    QueryMsg, StakedBalanceRes, ModifyAsset,
+    QueryMsg, StakedBalanceRes, ModifyAssetPair,
 };
 use crate::query::query;
 use crate::state::CONFIG;
@@ -27,7 +27,6 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
         astro_incentives_address : "astro_incentives".to_string(),
         controller: "controller".to_string(),
         reward_denom: "uluna".to_string(),
-        astro_reward_denom: "uastro".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()
 }
@@ -44,11 +43,11 @@ pub fn set_alliance_asset(deps: DepsMut) {
         .unwrap();
 }
 
-pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAsset>) -> Response {
+pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAssetPair>) -> Response {
     let info = mock_info("gov", &[]);
     let env = mock_env();
 
-    let msg = ExecuteMsg::ModifyAssets(assets);
+    let msg = ExecuteMsg::ModifyAssetPairs(assets);
     execute(deps, env, info, msg).unwrap()
 }
 

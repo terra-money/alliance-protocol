@@ -2,7 +2,7 @@ use alliance_protocol::alliance_protocol::{
         AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Decimal};
+use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
 use std::collections::{HashMap, HashSet};
@@ -19,7 +19,6 @@ pub struct Config {
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
     pub reward_denom: String,
-    pub astro_reward_denom: String
 }
 
 #[cw_serde]
@@ -29,7 +28,6 @@ pub struct InstantiateMsg {
     pub fee_collector_address: String,
     pub astro_incentives_address: String,
     pub reward_denom: String,
-    pub astro_reward_denom: String,
 }
 
 #[cw_serde]
@@ -48,7 +46,7 @@ pub enum ExecuteMsg {
     UpdateRewardsCallback {},
 
     // Privileged functions
-    ModifyAssets(Vec<ModifyAsset>),
+    ModifyAssetPairs(Vec<ModifyAssetPair>),
 
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
@@ -58,15 +56,17 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
-pub struct ModifyAsset {
+pub struct ModifyAssetPair {
     pub asset_info: AssetInfo,
+    pub reward_asset_info: Option<AssetInfo>,
     pub delete: bool,
 }
 
-impl ModifyAsset {
-    pub fn new(asset_info: AssetInfo, delete: bool) -> Self {
-        ModifyAsset {
+impl ModifyAssetPair {
+    pub fn new(asset_info: AssetInfo, reward_asset_info: Option<AssetInfo>, delete: bool) -> Self {
+        ModifyAssetPair {
             asset_info,
+            reward_asset_info,
             delete,
         }
     }
@@ -116,64 +116,20 @@ pub struct AllStakedBalancesQuery {
 
 #[cw_serde]
 pub struct PendingRewardsRes {
-    pub staked_asset: AssetInfo,
+    pub deposit_asset: AssetInfo,
     pub reward_asset: AssetInfo,
-    pub alliance_rewards: Uint128,
-    pub astro_rewards: Uint128,
+    pub rewards: Uint128,
 }
 
 #[cw_serde]
 pub struct AssetQuery {
     pub address: String,
-    pub asset: AssetInfo,
+    pub deposit_asset: AssetInfo,
+    pub reward_asset: AssetInfo,
 }
 
 #[cw_serde]
 pub struct StakedBalanceRes {
-    pub asset: AssetInfo,
+    pub deposit_asset: AssetInfo,
     pub balance: Uint128,
-}
-
-#[cw_serde]
-pub struct AssetRewardRate {
-    pub alliance_reward_rate: Decimal,
-    pub astro_reward_rate: Decimal,
-}
-
-impl AssetRewardRate {
-    pub fn new(alliance_reward_rate: Decimal, astro_reward_rate: Decimal) -> Self {
-        AssetRewardRate {
-            alliance_reward_rate,
-            astro_reward_rate,
-        }
-    }
-
-    pub fn zero() -> Self {
-        AssetRewardRate {
-            alliance_reward_rate: Decimal::zero(),
-            astro_reward_rate: Decimal::zero(),
-        }
-    }
-}
-
-#[cw_serde]
-pub struct AssetUnclaimedRewards {
-    pub alliance_reward_rate: Uint128,
-    pub astro_reward_rate: Uint128,
-}
-
-impl AssetUnclaimedRewards {
-    pub fn new(alliance_reward_rate: Uint128, astro_reward_rate: Uint128) -> Self {
-        AssetUnclaimedRewards {
-            alliance_reward_rate,
-            astro_reward_rate,
-        }
-    }
-
-    pub fn zero() -> Self {
-        AssetUnclaimedRewards {
-            alliance_reward_rate: Uint128::zero(),
-            astro_reward_rate: Uint128::zero(),
-        }
-    }
 }

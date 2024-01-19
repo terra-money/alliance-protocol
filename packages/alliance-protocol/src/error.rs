@@ -47,4 +47,7 @@ pub enum ContractError {
 
     #[error("Invalid contract callback with key: {0} and type: {1}")]
     InvalidContractCallback(String, String),
+    
+    #[error("Missing reward asset info for asset {0}")]
+    MissingRewardAsset(String),
 }
