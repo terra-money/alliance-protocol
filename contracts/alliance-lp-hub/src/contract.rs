@@ -614,7 +614,7 @@ fn _update_astro_rewards(
             funds: vec![],
         });
 
-        return Ok(Some(SubMsg::reply_always(msg, CLAIM_REWARD_ERROR_REPLY_ID)));
+        return Ok(Some(SubMsg::reply_always(msg, CLAIM_ASTRO_REWARD_REPLY_ID)));
     }
 
     Ok(None)
@@ -861,8 +861,6 @@ fn reply_astro_rewards(
         if attr.key == "claimed_position" {
             // TODO : find the claimed_rewards
         }
-
-        
     }
 
     Ok(Response::new().add_attributes(vec![("action", "reply_astro_rewards")]))
