@@ -1,5 +1,5 @@
 use crate::contract::execute;
-use crate::models::{ExecuteMsg, ModifyAsset, PendingRewardsRes};
+use crate::models::{ExecuteMsg, ModifyAssetPair, PendingRewardsRes};
 use crate::state::{
     ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
@@ -57,7 +57,7 @@ fn test_update_rewards() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 funds: vec![],
                 contract_addr: "cosmos2contract".to_string(),
-                msg: to_json_binary(&ExecuteMsg::UpdateRewardsCallback {}).unwrap()
+                msg: to_json_binary(&ExecuteMsg::UpdateAllianceRewardsCallback {}).unwrap()
             }))
         ]
     );
@@ -156,34 +156,43 @@ fn update_reward_callback() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
 
     let a_whale_rate = ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
-            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            (
+                AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            ),
         )
         .unwrap();
     assert_eq!(
-        a_whale_rate.alliance_reward_rate,
+        a_whale_rate,
         Decimal::from_atomics(Uint128::one(), 1).unwrap()
     );
     let b_whale_rate = ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
-            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            (
+                AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            ),
         )
         .unwrap();
     assert_eq!(
-        b_whale_rate.alliance_reward_rate,
+        b_whale_rate,
         Decimal::from_atomics(Uint128::new(6), 0).unwrap()
     );
     ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
-            AssetInfoKey::from(AssetInfo::Native("cMONKEY".to_string())),
+            (
+                AssetInfoKey::from(AssetInfo::Native("cMONKEY".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            ),
         )
         .unwrap_err();
 
@@ -240,28 +249,34 @@ fn update_reward_callback_with_unallocated() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
 
     let a_whale_rate = ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
-            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            (
+                AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            ),
         )
         .unwrap();
     assert_eq!(
-        a_whale_rate.alliance_reward_rate,
+        a_whale_rate,
         Decimal::from_atomics(Uint128::one(), 1).unwrap()
     );
     let b_whale_rate = ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
-            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+            (
+                AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            ),
         )
         .unwrap();
     assert_eq!(
-        b_whale_rate.alliance_reward_rate,
+        b_whale_rate,
         Decimal::from_atomics(Uint128::new(6), 0).unwrap()
     );
 
@@ -283,8 +298,9 @@ fn claim_user_rewards() {
     set_alliance_asset(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        Vec::from([ModifyAsset {
+        Vec::from([ModifyAssetPair {
             asset_info: AssetInfo::Native("aWHALE".to_string()),
+            reward_asset_info: None,
             delete: false,
         }]),
     );
@@ -317,18 +333,17 @@ fn claim_user_rewards() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
 
-    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE");
+    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE", "uluna");
     assert_eq!(
         rewards,
         PendingRewardsRes {
-            alliance_rewards: Uint128::new(100000),
-            astro_rewards: Uint128::zero(),
+            rewards: Uint128::new(100000),
+            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
             reward_asset: AssetInfo::Native("uluna".to_string()),
-            staked_asset: AssetInfo::Native("aWHALE".to_string()),
         }
     );
 
@@ -336,10 +351,9 @@ fn claim_user_rewards() {
     assert_eq!(
         all_rewards,
         vec![PendingRewardsRes {
-            alliance_rewards: Uint128::new(100000),
-            astro_rewards: Uint128::zero(),
+            rewards: Uint128::new(100000),
+            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
             reward_asset: AssetInfo::Native("uluna".to_string()),
-            staked_asset: AssetInfo::Native("aWHALE".to_string()),
         }]
     );
 
@@ -365,25 +379,28 @@ fn claim_user_rewards() {
             (
                 Addr::unchecked("user1"),
                 AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
             ),
         )
         .unwrap();
     let asset_reward_rate = ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
-            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            (
+                AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            ),
         )
         .unwrap();
     assert_eq!(user_reward_rate, asset_reward_rate);
 
-    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE");
+    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE", "uluna");
     assert_eq!(
         rewards,
         PendingRewardsRes {
-            alliance_rewards: Uint128::zero(),
-            astro_rewards: Uint128::zero(),
+            rewards: Uint128::zero(),
+            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
             reward_asset: AssetInfo::Native("uluna".to_string()),
-            staked_asset: AssetInfo::Native("aWHALE".to_string()),
         }
     );
 
@@ -391,10 +408,9 @@ fn claim_user_rewards() {
     assert_eq!(
         all_rewards,
         vec![PendingRewardsRes {
-            alliance_rewards: Uint128::zero(),
-            astro_rewards: Uint128::zero(),
+            rewards: Uint128::zero(),
+            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
             reward_asset: AssetInfo::Native("uluna".to_string()),
-            staked_asset: AssetInfo::Native("aWHALE".to_string()),
         }]
     );
 
@@ -423,7 +439,7 @@ fn claim_user_rewards() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
     let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
@@ -450,8 +466,9 @@ fn claim_user_rewards_after_staking() {
     set_alliance_asset(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        Vec::from([ModifyAsset {
+        Vec::from([ModifyAssetPair {
             asset_info: AssetInfo::Native("aWHALE".to_string()),
+            reward_asset_info: None,
             delete: false,
         }]),
     );
@@ -484,7 +501,7 @@ fn claim_user_rewards_after_staking() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
 
@@ -527,12 +544,14 @@ fn claim_rewards_after_staking_and_unstaking() {
     modify_asset(
         deps.as_mut(),
         Vec::from([
-            ModifyAsset {
+            ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
+                reward_asset_info: None,
                 delete: false,
             },
-            ModifyAsset {
+            ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
+                reward_asset_info: None,
                 delete: false,
             },
         ]),
@@ -566,7 +585,7 @@ fn claim_rewards_after_staking_and_unstaking() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
     claim_rewards(deps.as_mut(), "user1", "aWHALE");
@@ -575,7 +594,10 @@ fn claim_rewards_after_staking_and_unstaking() {
     let prev_rate = ASSET_REWARD_RATE
         .load(
             deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            (
+                AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            ),
         )
         .unwrap();
 
@@ -595,30 +617,33 @@ fn claim_rewards_after_staking_and_unstaking() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
 
     let curr_rate = ASSET_REWARD_RATE
         .load(
             deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            (
+                AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+                AssetInfoKey::from(AssetInfo::Native("uluna".to_string())),
+            ),
         )
         .unwrap();
-    assert!(curr_rate.alliance_reward_rate > prev_rate.alliance_reward_rate);
+    assert!(curr_rate > prev_rate);
 
     // User 1 stakes back
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
 
     // User 1 should not have any rewards
-    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE");
-    assert_eq!(rewards.alliance_rewards, Uint128::zero());
+    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE","uluna");
+    assert_eq!(rewards.rewards, Uint128::zero());
 
     // User 2 should receive all the rewards in the contract
-    let rewards = query_rewards(deps.as_ref(), "user2", "aWHALE");
-    assert_eq!(rewards.alliance_rewards, Uint128::new(900000));
-    let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE");
-    assert_eq!(rewards.alliance_rewards, Uint128::new(1000000));
+    let rewards = query_rewards(deps.as_ref(), "user2", "aWHALE","uluna");
+    assert_eq!(rewards.rewards, Uint128::new(900000));
+    let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE","uluna");
+    assert_eq!(rewards.rewards, Uint128::new(1000000));
 }
 
 #[test]
@@ -629,12 +654,14 @@ fn claim_rewards_after_rebalancing_emissions() {
     modify_asset(
         deps.as_mut(),
         Vec::from([
-            ModifyAsset {
+            ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
+                reward_asset_info: None,
                 delete: false,
             },
-            ModifyAsset {
+            ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
+                reward_asset_info: None,
                 delete: false,
             },
         ]),
@@ -668,7 +695,7 @@ fn claim_rewards_after_rebalancing_emissions() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
 
@@ -698,13 +725,13 @@ fn claim_rewards_after_rebalancing_emissions() {
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
-        ExecuteMsg::UpdateRewardsCallback {},
+        ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
 
-    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE");
-    assert_eq!(rewards.alliance_rewards, Uint128::new(1500000));
+    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE","uluna");
+    assert_eq!(rewards.rewards, Uint128::new(1500000));
     // User 2 should receive all the rewards in the contract
-    let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE");
-    assert_eq!(rewards.alliance_rewards, Uint128::new(500000));
+    let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE","uluna");
+    assert_eq!(rewards.rewards, Uint128::new(500000));
 }

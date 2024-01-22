@@ -1,6 +1,7 @@
 use crate::{
     astro_models::{Cw20Msg, ExecuteAstroMsg, QueryAstroMsg, RewardInfo},
-    models::{Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair, PendingRewardsRes},
+    helpers::{is_controller, is_governance},
+    models::{Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair},
     state::{
         ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE, TOTAL_BALANCES, UNCLAIMED_REWARDS,
         USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
@@ -22,9 +23,8 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use cw_asset::{Asset, AssetInfo, AssetInfoKey, AssetInfoUnchecked};
+use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
-use std::str::FromStr;
 use std::{collections::HashSet, env};
 use terra_proto_rs::{
     alliance::alliance::{MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate},
@@ -36,8 +36,8 @@ use terra_proto_rs::{
 const CONTRACT_NAME: &str = "crates.io:terra-alliance-lp-hub";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
-const CLAIM_REWARD_ERROR_REPLY_ID: u64 = 2;
-const CLAIM_ASTRO_REWARD_REPLY_ID: u64 = 3;
+const CLAIM_ALLIANCE_REWARDS_ERROR_REPLY_ID: u64 = 2;
+const CLAIM_ASTRO_REWARDS_ERROR_REPLY_ID: u64 = 3;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
@@ -47,8 +47,8 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Respons
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
+    _: Env,
+    _: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response<CustomExecuteMsg>, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -91,8 +91,10 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        // Used to whitelist, modify or delete assets from the allowed list
         ExecuteMsg::ModifyAssetPairs(assets) => modify_assets(deps, info, assets),
 
+        // User interactions Stake, Unstake and ClaimRewards
         ExecuteMsg::Receive(cw20_msg) => {
             let sender = deps.api.addr_validate(&cw20_msg.sender)?;
             let received_asset = Asset::cw20(info.sender.clone(), cw20_msg.amount);
@@ -109,23 +111,20 @@ pub fn execute(
             }
             stake(deps, env, info.sender, coin.into())
         }
-
         ExecuteMsg::Unstake(asset) => unstake(deps, info, asset),
         ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, info, asset),
 
+        // Alliance interactions Delegate, undelegate and redelegate
         ExecuteMsg::AllianceDelegate(msg) => alliance_delegate(deps, env, info, msg),
         ExecuteMsg::AllianceUndelegate(msg) => alliance_undelegate(deps, env, info, msg),
         ExecuteMsg::AllianceRedelegate(msg) => alliance_redelegate(deps, env, info, msg),
 
+        // Rewards related messages
         ExecuteMsg::UpdateRewards {} => update_rewards(deps, env, info),
-        ExecuteMsg::RebalanceEmissions(distributions) => {
-            rebalance_emissions(deps, env, info, distributions)
+        ExecuteMsg::UpdateAllianceRewardsCallback {} => {
+            update_alliance_reward_callback(deps, env, info)
         }
-
-        ExecuteMsg::UpdateRewardsCallback {} => update_reward_callback(deps, env, info),
-        ExecuteMsg::RebalanceEmissionsCallback(distributions) => {
-            rebalance_emissions_callback(deps, env, info, distributions)
-        }
+        ExecuteMsg::UpdateAstroRewardsCallback {} => update_astro_reward_callback(deps, env, info),
     }
 }
 
@@ -414,18 +413,24 @@ fn _claim_alliance_rewards(
 
     let user_reward_rate = USER_ASSET_REWARD_RATE.load(storage, (user, asset_key, reward_denom));
     if let Ok(user_reward_rate) = user_reward_rate {
-
         let rewards = ((asset_reward_rate - user_reward_rate) * user_staked).to_uint_floor();
         if rewards.is_zero() {
-            return Ok(Uint128::zero())
+            return Ok(Uint128::zero());
         } else {
-            USER_ASSET_REWARD_RATE.save(storage, (user, asset_key, reward_denom), &asset_reward_rate)?;
-            return Ok(rewards)
+            USER_ASSET_REWARD_RATE.save(
+                storage,
+                (user, asset_key, reward_denom),
+                &asset_reward_rate,
+            )?;
+            return Ok(rewards);
         }
     } else {
-        USER_ASSET_REWARD_RATE.save(storage, (user, asset_key, reward_denom), &asset_reward_rate)?;
-        return Ok(Uint128::zero())
-    
+        USER_ASSET_REWARD_RATE.save(
+            storage,
+            (user, asset_key, reward_denom),
+            &asset_reward_rate,
+        )?;
+        return Ok(Uint128::zero());
     }
 }
 
@@ -533,6 +538,65 @@ fn alliance_redelegate(
         .add_messages(msgs))
 }
 
+// Example of a response https://terrasco.pe/testnet/tx/EC20D82F519B8B76EBFF1DDB75592330CA5A1CACE21943B22BAA4F46468AB5E7
+fn update_astro_reward_callback(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    // TODO: add astro rewards to the state of the app
+    Ok(Response::new().add_attributes(vec![("action", "reply_astro_rewards")]))
+}
+
+fn _update_astro_rewards(
+    deps: &DepsMut,
+    contract_addr: Addr,
+    astro_incentives: Addr,
+) -> Result<Option<SubMsg>, ContractError> {
+    let whitelist = WHITELIST
+        .range_raw(deps.storage, None, None, Order::Ascending)
+        .map(|r| r.map(|(a, d)| (AssetInfoKey(a), d)))
+        .collect::<StdResult<Vec<(AssetInfoKey, Decimal)>>>()?;
+    let mut lp_tokens_list: Vec<String> = vec![];
+
+    for (asset_info, _) in whitelist {
+        let lp_token = String::from_utf8(asset_info.0)?;
+        let pending_rewards: Vec<Asset> = deps
+            .querier
+            .query_wasm_smart(
+                astro_incentives.to_string(),
+                &QueryAstroMsg::PendingRewards {
+                    lp_token: lp_token.clone(),
+                    user: contract_addr.to_string(),
+                },
+            )
+            .unwrap_or_default();
+
+        for pr in pending_rewards {
+            if !pr.amount.is_zero() {
+                lp_tokens_list.push(lp_token.clone())
+            }
+        }
+    }
+
+    if !lp_tokens_list.is_empty() {
+        let msg: CosmosMsg<_> = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: astro_incentives.to_string(),
+            msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards {
+                lp_tokens: lp_tokens_list,
+            })?,
+            funds: vec![],
+        });
+
+        return Ok(Some(SubMsg::reply_on_error(
+            msg,
+            CLAIM_ASTRO_REWARDS_ERROR_REPLY_ID,
+        )));
+    }
+
+    Ok(None)
+}
+
 fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let mut res = Response::new().add_attributes(vec![("action", "update_rewards")]);
@@ -578,65 +642,19 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
                 value: Binary::from(msg.encode_to_vec()),
             };
             // Reply on error here is used to ignore errors from claiming rewards with validators that we did not delegate to
-            SubMsg::reply_on_error(msg, CLAIM_REWARD_ERROR_REPLY_ID)
+            SubMsg::reply_on_error(msg, CLAIM_ALLIANCE_REWARDS_ERROR_REPLY_ID)
         })
         .collect();
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_json_binary(&ExecuteMsg::UpdateRewardsCallback {}).unwrap(),
+        msg: to_json_binary(&ExecuteMsg::UpdateAllianceRewardsCallback {}).unwrap(),
         funds: vec![],
     });
 
     Ok(res.add_submessages(alliance_sub_msg).add_message(msg))
 }
 
-fn _update_astro_rewards(
-    deps: &DepsMut,
-    contract_addr: Addr,
-    astro_incentives: Addr,
-) -> Result<Option<SubMsg>, ContractError> {
-    let whitelist = WHITELIST
-        .range_raw(deps.storage, None, None, Order::Ascending)
-        .map(|r| r.map(|(a, d)| (AssetInfoKey(a), d)))
-        .collect::<StdResult<Vec<(AssetInfoKey, Decimal)>>>()?;
-    let mut lp_tokens_list: Vec<String> = vec![];
-
-    for (asset_info, _) in whitelist {
-        let lp_token = String::from_utf8(asset_info.0)?;
-        let pending_rewards: Vec<Asset> = deps
-            .querier
-            .query_wasm_smart(
-                astro_incentives.to_string(),
-                &QueryAstroMsg::PendingRewards {
-                    lp_token: lp_token.clone(),
-                    user: contract_addr.to_string(),
-                },
-            )
-            .unwrap_or_default();
-
-        for pr in pending_rewards {
-            if !pr.amount.is_zero() {
-                lp_tokens_list.push(lp_token.clone())
-            }
-        }
-    }
-
-    if !lp_tokens_list.is_empty() {
-        let msg: CosmosMsg<_> = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: astro_incentives.to_string(),
-            msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards {
-                lp_tokens: lp_tokens_list,
-            })?,
-            funds: vec![],
-        });
-
-        return Ok(Some(SubMsg::reply_always(msg, CLAIM_ASTRO_REWARD_REPLY_ID)));
-    }
-
-    Ok(None)
-}
-
-fn update_reward_callback(
+fn update_alliance_reward_callback(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -650,12 +668,10 @@ fn update_reward_callback(
     // This is because the reward distribution only affects alliance rewards. LP rewards are directly distributed to LP holders
     // and not pooled together and shared
     let reward_asset = AssetInfo::native(config.reward_denom.clone());
-    let reward_asset_info_key = AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string()));
+    let reward_asset_info_key =
+        AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string()));
     let current_balance = reward_asset.query_balance(&deps.querier, env.contract.address)?;
-    let previous_balance = TEMP_BALANCE.load(
-        deps.storage,
-        reward_asset_info_key.clone(),
-    )?;
+    let previous_balance = TEMP_BALANCE.load(deps.storage, reward_asset_info_key.clone())?;
     let rewards_collected = current_balance - previous_balance;
 
     let whitelist: StdResult<Vec<(AssetInfoKey, Decimal)>> = WHITELIST
@@ -702,11 +718,15 @@ fn update_reward_callback(
         // Update reward rates for each asset
         let rate_to_update = total_reward_distributed / Decimal::from_atomics(total_balance, 0)?;
         if rate_to_update > Decimal::zero() {
-            ASSET_REWARD_RATE.update(deps.storage, (asset_key.clone(),reward_asset_info_key), |rate| -> StdResult<_> {
-                let mut reward_rate = rate.unwrap_or_default();
-                reward_rate = reward_rate + rate_to_update;
-                Ok(reward_rate)
-            })?;
+            ASSET_REWARD_RATE.update(
+                deps.storage,
+                (asset_key.clone(), reward_asset_info_key),
+                |rate| -> StdResult<_> {
+                    let mut reward_rate = rate.unwrap_or_default();
+                    reward_rate = reward_rate + rate_to_update;
+                    Ok(reward_rate)
+                },
+            )?;
         }
     }
     TEMP_BALANCE.remove(
@@ -715,78 +735,6 @@ fn update_reward_callback(
     );
 
     Ok(res)
-}
-
-fn rebalance_emissions(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    weights: Vec<EmissionsDistribution>,
-) -> Result<Response, ContractError> {
-    // Allow execution only from the controller account
-    let config = CONFIG.load(deps.storage)?;
-    is_controller(&info, &config)?;
-
-    // // Before starting with the rebalance emission process
-    // // rewards must be updated to the current block height
-    // // Skip if no reward distribution in the first place
-    // let res = if ASSET_REWARD_DISTRIBUTION.load(deps.storage).is_ok() {
-    //     update_rewards(deps, env.clone(), info)?
-    // } else {
-    //     Response::new()
-    // };
-
-    let res = Response::new();
-    Ok(res.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: env.contract.address.to_string(),
-        msg: to_json_binary(&ExecuteMsg::RebalanceEmissionsCallback(weights)).unwrap(),
-        funds: vec![],
-    })))
-}
-
-fn rebalance_emissions_callback(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    distributions: Vec<EmissionsDistribution>,
-) -> Result<Response, ContractError> {
-    if info.sender != env.contract.address {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    let total_distribution = distributions
-        .iter()
-        .map(|a| a.distribution.to_decimal().unwrap())
-        .fold(Decimal::zero(), |acc, v| acc + v);
-    if total_distribution > Decimal::one() {
-        return Err(ContractError::InvalidTotalDistribution(total_distribution));
-    }
-
-    for distribution in distributions.iter() {
-        let asset_info: AssetInfo =
-            AssetInfoUnchecked::from_str(&distribution.denom)?.check(deps.api, None)?;
-        let asset_key = AssetInfoKey::from(asset_info.clone());
-        WHITELIST.update(
-            deps.storage,
-            asset_key,
-            |current| -> Result<_, ContractError> {
-                if let Some(current) = current {
-                    Ok(current + distribution.distribution.to_decimal()?)
-                } else {
-                    Err(ContractError::AssetNotWhitelisted(asset_info.to_string()))
-                }
-            },
-        )?;
-    }
-
-    let mut attrs = vec![("action".to_string(), "rebalance_emissions".to_string())];
-    for distribution in distributions {
-        attrs.push((
-            distribution.denom.to_string(),
-            distribution.distribution.to_string(),
-        ));
-    }
-    Ok(Response::new().add_attributes(attrs))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -842,59 +790,12 @@ pub fn reply(
                 .add_submessage(sub_msg_mint)
                 .add_submessage(sub_msg_metadata))
         }
-        CLAIM_REWARD_ERROR_REPLY_ID => {
-            Ok(Response::new().add_attributes(vec![("action", "claim_reward_error")]))
+        CLAIM_ALLIANCE_REWARDS_ERROR_REPLY_ID => {
+            Ok(Response::new().add_attributes(vec![("action", "claim_alliance_rewards_error")]))
         }
-        CLAIM_ASTRO_REWARD_REPLY_ID => reply_astro_rewards(deps, reply),
+        CLAIM_ASTRO_REWARDS_ERROR_REPLY_ID => {
+            Ok(Response::new().add_attributes(vec![("action", "claim_astro_rewards_error")]))
+        }
         _ => Err(ContractError::InvalidReplyId(reply.id)),
     }
-}
-
-// Example of a response https://terrasco.pe/testnet/tx/EC20D82F519B8B76EBFF1DDB75592330CA5A1CACE21943B22BAA4F46468AB5E7
-fn reply_astro_rewards(
-    deps: DepsMut,
-    reply: Reply,
-) -> Result<Response<CustomExecuteMsg>, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-    let result = reply.result.unwrap();
-    let event = result
-        .events
-        .iter()
-        .find(|event| event.ty == "wasm")
-        .ok_or_else(|| StdError::generic_err("cannot find `wasm` event"))?;
-
-    let first_attr = event.attributes[0].clone();
-    let event_key = first_attr.key.clone();
-    let even_value = first_attr.value.clone();
-
-    if event_key != "_contract_address" && even_value != config.astro_incentives {
-        return Err(ContractError::InvalidContractCallback(
-            event_key, even_value,
-        ));
-    }
-
-    for attr in event.attributes.clone() {
-        if attr.key == "claimed_position" {
-            // TODO : find the claimed_rewards
-        }
-    }
-
-    Ok(Response::new().add_attributes(vec![("action", "reply_astro_rewards")]))
-}
-
-// Controller is used to perform administrative operations that deals with delegating the virtual
-// tokens to the expected validators
-fn is_controller(info: &MessageInfo, config: &Config) -> Result<(), ContractError> {
-    if info.sender != config.controller {
-        return Err(ContractError::Unauthorized {});
-    }
-    Ok(())
-}
-
-// Only governance (through a on-chain prop) can change the whitelisted assets
-fn is_governance(info: &MessageInfo, config: &Config) -> Result<(), ContractError> {
-    if info.sender != config.governance {
-        return Err(ContractError::Unauthorized {});
-    }
-    Ok(())
 }

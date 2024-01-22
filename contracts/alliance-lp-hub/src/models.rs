@@ -6,7 +6,6 @@ use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
 use std::collections::{HashMap, HashSet};
-use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
 
 pub type AssetDenom = String;
 
@@ -32,27 +31,28 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    // Privileged function used to whitelist, 
+    // modify or delete assets from the allowed list
+    ModifyAssetPairs(Vec<ModifyAssetPair>),
+
     // Both functions are used to stake,
     // - Stake is used for CosmosSDK::Coin
     // - Receive is used for CW20 tokens
-    Stake {},
     Receive(Cw20ReceiveMsg),
-
-    // Used to do the other operations
-    // for staked assets
+    Stake {},
+    // Used to do the other operations for staked assets
     Unstake(Asset),
     ClaimRewards(AssetInfo),
-    UpdateRewards {},
-    UpdateRewardsCallback {},
 
-    // Privileged functions
-    ModifyAssetPairs(Vec<ModifyAssetPair>),
-
+    // Alliance interactions used to delegate, undelegate and redelegate 
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),
-    RebalanceEmissions(Vec<EmissionsDistribution>),
-    RebalanceEmissionsCallback(Vec<EmissionsDistribution>),
+
+    // Rewards related messages
+    UpdateRewards {},
+    UpdateAllianceRewardsCallback {},
+    UpdateAstroRewardsCallback {},
 }
 
 #[cw_serde]

@@ -1,6 +1,6 @@
 use crate::astro_models::{ExecuteAstroMsg, Cw20Msg};
 use crate::contract::execute;
-use crate::models::{ExecuteMsg, ModifyAsset, StakedBalanceRes};
+use crate::models::{ExecuteMsg, ModifyAssetPair, StakedBalanceRes};
 use crate::state::{BALANCES, TOTAL_BALANCES};
 use crate::tests::helpers::{
     modify_asset, query_all_staked_balances, setup_contract, stake, stake_cw20, unstake,
@@ -20,8 +20,9 @@ fn test_stake() {
     setup_contract(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        vec![ModifyAsset {
+        vec![ModifyAssetPair {
             asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
+            reward_asset_info: None,
             delete: false,
         }],
     );
@@ -82,7 +83,7 @@ fn test_stake() {
     assert_eq!(
         total_balances_res,
         vec![StakedBalanceRes {
-            asset: AssetInfo::Native("native_asset".to_string()),
+            deposit_asset: AssetInfo::Native("native_asset".to_string()),
             balance: Uint128::new(200),
         }]
     );
@@ -94,8 +95,9 @@ fn test_stake_astro_token() {
     setup_contract(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        vec![ModifyAsset {
+        vec![ModifyAssetPair {
             asset_info: AssetInfo::native(Addr::unchecked("astro_existent_native_coin")),
+            reward_asset_info: None,
             delete: false,
         }],
     );
@@ -140,8 +142,9 @@ fn test_stake_cw20() {
     setup_contract(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        vec![ModifyAsset {
+        vec![ModifyAssetPair {
             asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
+            reward_asset_info: None,
             delete: false,
         }],
     );
@@ -202,7 +205,7 @@ fn test_stake_cw20() {
     assert_eq!(
         total_balances_res,
         vec![StakedBalanceRes {
-            asset: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
+            deposit_asset: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
             balance: Uint128::new(200),
         }]
     );
@@ -214,8 +217,9 @@ fn test_stake_astro_token_cw20() {
     setup_contract(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        vec![ModifyAsset {
+        vec![ModifyAssetPair {
             asset_info: AssetInfo::Cw20(Addr::unchecked("astro_existent_cw20")),
+            reward_asset_info: None,
             delete: false,
         }],
     );
@@ -255,8 +259,9 @@ fn test_unstake() {
 
     modify_asset(
         deps.as_mut(),
-        vec![ModifyAsset {
+        vec![ModifyAssetPair {
             asset_info: AssetInfo::native("native_asset"),
+            reward_asset_info: None,
             delete: false,
         }],
     );
@@ -334,8 +339,9 @@ fn test_unstake_cw20_invalid() {
 
     modify_asset(
         deps.as_mut(),
-        vec![ModifyAsset {
+        vec![ModifyAssetPair {
             asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
+            reward_asset_info: None,
             delete: false,
         }],
     );
@@ -367,8 +373,9 @@ fn test_unstake_native_invalid() {
 
     modify_asset(
         deps.as_mut(),
-        vec![ModifyAsset {
+        vec![ModifyAssetPair {
             asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
+            reward_asset_info: None,
             delete: false,
         }],
     );

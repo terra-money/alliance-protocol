@@ -133,14 +133,15 @@ pub fn claim_rewards(deps: DepsMut, user: &str, denom: &str) -> Response {
     execute(deps, env, info, msg).unwrap()
 }
 
-pub fn query_rewards(deps: Deps, user: &str, denom: &str) -> PendingRewardsRes {
+pub fn query_rewards(deps: Deps, user: &str, deposit_asset: &str, reward_asset: &str ) -> PendingRewardsRes {
     from_json(
         query(
             deps,
             mock_env(),
             QueryMsg::PendingRewards(AssetQuery {
                 address: user.to_string(),
-                asset: AssetInfo::Native(denom.to_string()),
+                deposit_asset: AssetInfo::Native(deposit_asset.to_string()),
+                reward_asset: AssetInfo::Native(reward_asset.to_string()),
             }),
         )
         .unwrap(),
