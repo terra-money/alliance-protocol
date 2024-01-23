@@ -1,11 +1,16 @@
-use alliance_protocol::alliance_protocol::{
+use alliance_protocol::{
+    alliance_protocol::{
         AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
+    },
+    error::ContractError,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Coins, Uint128};
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{Asset, AssetInfo};
-use std::collections::{HashMap, HashSet};
+use cw_asset::{Asset, AssetInfo, AssetInfoKey};
+use std::{
+    collections::{HashMap, HashSet},
+};
 
 pub type AssetDenom = String;
 
@@ -13,11 +18,11 @@ pub type AssetDenom = String;
 pub struct Config {
     pub governance: Addr,
     pub controller: Addr,
-    pub fee_collector: Addr,
-    pub astro_incentives: Addr,
+    pub fee_collector_addr: Addr,
+    pub astro_incentives_addr: Addr,
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
-    pub reward_denom: String,
+    pub alliance_reward_denom: String,
 }
 
 #[cw_serde]
@@ -31,7 +36,7 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    // Privileged function used to whitelist, 
+    // Privileged function used to whitelist,
     // modify or delete assets from the allowed list
     ModifyAssetPairs(Vec<ModifyAssetPair>),
 
@@ -44,7 +49,7 @@ pub enum ExecuteMsg {
     Unstake(Asset),
     ClaimRewards(AssetInfo),
 
-    // Alliance interactions used to delegate, undelegate and redelegate 
+    // Alliance interactions used to delegate, undelegate and redelegate
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),
@@ -52,7 +57,6 @@ pub enum ExecuteMsg {
     // Rewards related messages
     UpdateRewards {},
     UpdateAllianceRewardsCallback {},
-    UpdateAstroRewardsCallback {},
 }
 
 #[cw_serde]
@@ -132,4 +136,23 @@ pub struct AssetQuery {
 pub struct StakedBalanceRes {
     pub deposit_asset: AssetInfo,
     pub balance: Uint128,
+}
+
+#[derive(Clone, Default)]
+pub struct AstroClaimRewardsPosition {
+    pub deposited_asset: String,
+    pub rewards: Coins,
+}
+
+pub fn from_string_to_asset_info(denom: String) -> Result<AssetInfoKey, ContractError> {
+    if denom.starts_with("ibc/") || denom.starts_with("factory/") {
+        let asset_info = AssetInfoKey::from(AssetInfo::Native(denom));
+        return Ok(asset_info);
+    } else if denom.starts_with("terra") {
+        let from = Addr::unchecked(denom);
+        let asset_info = AssetInfoKey::from(AssetInfo::Cw20(from));
+        return Ok(asset_info);
+    }
+
+    Err(ContractError::InvalidDenom(denom))
 }

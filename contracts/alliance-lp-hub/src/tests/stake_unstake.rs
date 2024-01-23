@@ -22,7 +22,7 @@ fn test_stake() {
         deps.as_mut(),
         vec![ModifyAssetPair {
             asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
     );
@@ -97,7 +97,7 @@ fn test_stake_astro_token() {
         deps.as_mut(),
         vec![ModifyAssetPair {
             asset_info: AssetInfo::native(Addr::unchecked("astro_existent_native_coin")),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
     );
@@ -144,7 +144,7 @@ fn test_stake_cw20() {
         deps.as_mut(),
         vec![ModifyAssetPair {
             asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
     );
@@ -219,7 +219,7 @@ fn test_stake_astro_token_cw20() {
         deps.as_mut(),
         vec![ModifyAssetPair {
             asset_info: AssetInfo::Cw20(Addr::unchecked("astro_existent_cw20")),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
     );
@@ -261,7 +261,7 @@ fn test_unstake() {
         deps.as_mut(),
         vec![ModifyAssetPair {
             asset_info: AssetInfo::native("native_asset"),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
     );
@@ -341,7 +341,7 @@ fn test_unstake_cw20_invalid() {
         deps.as_mut(),
         vec![ModifyAssetPair {
             asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
     );
@@ -375,7 +375,7 @@ fn test_unstake_native_invalid() {
         deps.as_mut(),
         vec![ModifyAssetPair {
             asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
     );

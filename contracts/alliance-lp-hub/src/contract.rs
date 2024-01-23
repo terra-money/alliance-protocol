@@ -1,13 +1,15 @@
 use crate::{
     astro_models::{Cw20Msg, ExecuteAstroMsg, QueryAstroMsg, RewardInfo},
     helpers::{is_controller, is_governance},
-    models::{Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair},
+    models::{
+        from_string_to_asset_info, AstroClaimRewardsPosition, Config, ExecuteMsg, InstantiateMsg,
+        ModifyAssetPair,
+    },
     state::{
         ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE, TOTAL_BALANCES, UNCLAIMED_REWARDS,
         USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
     },
 };
-use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
 use alliance_protocol::{
     alliance_protocol::{
         AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, MigrateMsg,
@@ -25,7 +27,7 @@ use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
-use std::{collections::HashSet, env};
+use std::{collections::HashSet, env, str::FromStr};
 use terra_proto_rs::{
     alliance::alliance::{MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate},
     cosmos::base::v1beta1::Coin,
@@ -37,7 +39,7 @@ const CONTRACT_NAME: &str = "crates.io:terra-alliance-lp-hub";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_REPLY_ID: u64 = 1;
 const CLAIM_ALLIANCE_REWARDS_ERROR_REPLY_ID: u64 = 2;
-const CLAIM_ASTRO_REWARDS_ERROR_REPLY_ID: u64 = 3;
+const CLAIM_ASTRO_REWARDS_REPLY_ID: u64 = 3;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
@@ -68,11 +70,11 @@ pub fn instantiate(
     let config = Config {
         governance: governance_address,
         controller: controller_address,
-        fee_collector: fee_collector_address,
-        astro_incentives: astro_incentives_address,
+        fee_collector_addr: fee_collector_address,
+        astro_incentives_addr: astro_incentives_address,
         alliance_token_denom: "".to_string(),
         alliance_token_supply: Uint128::zero(),
-        reward_denom: msg.reward_denom,
+        alliance_reward_denom: msg.reward_denom,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -124,7 +126,6 @@ pub fn execute(
         ExecuteMsg::UpdateAllianceRewardsCallback {} => {
             update_alliance_reward_callback(deps, env, info)
         }
-        ExecuteMsg::UpdateAstroRewardsCallback {} => update_astro_reward_callback(deps, env, info),
     }
 }
 
@@ -187,7 +188,7 @@ fn stake(
         .load(deps.storage, asset_key.clone())
         .map_err(|_| ContractError::AssetNotWhitelisted(received_asset.info.to_string()))?;
     let config = CONFIG.load(deps.storage)?;
-    let reward_token = AssetInfoKey::from(AssetInfo::Native(config.alliance_token_denom));
+    let reward_token = AssetInfoKey::from(AssetInfo::Native(config.alliance_reward_denom));
     let rewards = _claim_alliance_rewards(
         deps.storage,
         sender.clone(),
@@ -199,7 +200,7 @@ fn stake(
             deps.storage,
             (sender.clone(), asset_key.clone()),
             |balance| -> Result<_, ContractError> {
-                let mut unclaimed_rewards = balance.unwrap_or(Uint128::zero());
+                let mut unclaimed_rewards = balance.unwrap_or_default();
                 unclaimed_rewards += rewards;
                 Ok(unclaimed_rewards)
             },
@@ -212,7 +213,7 @@ fn stake(
     let astro_incentives: Vec<RewardInfo> = deps
         .querier
         .query_wasm_smart(
-            config.astro_incentives.to_string(),
+            config.astro_incentives_addr.to_string(),
             &QueryAstroMsg::RewardInfo {
                 lp_token: lp_token.split(':').collect::<Vec<&str>>()[1].to_string(),
             },
@@ -232,7 +233,7 @@ fn stake(
                 // If the asset is native, we need to send it to the astro incentives contract
                 // using the ExecuteAstroMsg::Deposit message
                 CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: config.astro_incentives.to_string(),
+                    contract_addr: config.astro_incentives_addr.to_string(),
                     msg: to_json_binary(&ExecuteAstroMsg::Deposit { recipient: None })?,
                     funds: vec![CwCoin {
                         denom: native_asset,
@@ -246,7 +247,7 @@ fn stake(
                 CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: cw20_contract_addr.to_string(),
                     msg: to_json_binary(&Cw20ExecuteMsg::Send {
-                        contract: config.astro_incentives.to_string(),
+                        contract: config.astro_incentives_addr.to_string(),
                         amount: received_asset.amount,
                         msg: to_json_binary(&Cw20ReceiveMsg {
                             sender: env.contract.address.to_string(),
@@ -284,17 +285,6 @@ fn stake(
             Ok(balance.unwrap_or(Uint128::zero()) + received_asset.amount)
         },
     )?;
-
-    let asset_reward_rate = ASSET_REWARD_RATE
-        .load(deps.storage, asset_key.clone())
-        .unwrap_or_default();
-
-    USER_ASSET_REWARD_RATE.save(
-        deps.storage,
-        (sender.clone(), asset_key),
-        &asset_reward_rate,
-    )?;
-
     Ok(res)
 }
 
@@ -391,7 +381,7 @@ fn claim_rewards(
     ]);
     if !final_rewards.is_zero() {
         let rewards_asset = Asset {
-            info: AssetInfo::Native(config.reward_denom),
+            info: AssetInfo::Native(config.alliance_reward_denom),
             amount: final_rewards,
         };
         Ok(response.add_message(rewards_asset.transfer_msg(&user)?))
@@ -407,29 +397,27 @@ fn _claim_alliance_rewards(
     reward_denom: AssetInfoKey,
 ) -> Result<Uint128, ContractError> {
     let asset_key = AssetInfoKey::from(&staked_asset);
-    let asset_reward_rate = ASSET_REWARD_RATE.load(storage, (asset_key.clone(), reward_denom))?;
-    let user_staked = BALANCES.load(storage, (user.clone(), asset_key.clone()))?;
-    let user_staked = Decimal::from_atomics(user_staked, 0)?;
+    let state_key = (user.clone(), asset_key.clone(), reward_denom.clone());
+    let user_reward_rate = USER_ASSET_REWARD_RATE.load(storage, state_key.clone());
+    let asset_reward_rate = ASSET_REWARD_RATE
+        .load(storage, (asset_key.clone(), reward_denom.clone()))
+        .unwrap_or_default();
 
-    let user_reward_rate = USER_ASSET_REWARD_RATE.load(storage, (user, asset_key, reward_denom));
     if let Ok(user_reward_rate) = user_reward_rate {
+        let user_staked = BALANCES
+            .load(storage, (user.clone(), asset_key.clone()))
+            .unwrap_or_default();
+        let user_staked = Decimal::from_atomics(user_staked, 0)?;
         let rewards = ((asset_reward_rate - user_reward_rate) * user_staked).to_uint_floor();
+
         if rewards.is_zero() {
             return Ok(Uint128::zero());
         } else {
-            USER_ASSET_REWARD_RATE.save(
-                storage,
-                (user, asset_key, reward_denom),
-                &asset_reward_rate,
-            )?;
+            USER_ASSET_REWARD_RATE.save(storage, state_key, &asset_reward_rate)?;
             return Ok(rewards);
         }
     } else {
-        USER_ASSET_REWARD_RATE.save(
-            storage,
-            (user, asset_key, reward_denom),
-            &asset_reward_rate,
-        )?;
+        USER_ASSET_REWARD_RATE.save(storage, state_key, &asset_reward_rate)?;
         return Ok(Uint128::zero());
     }
 }
@@ -538,16 +526,6 @@ fn alliance_redelegate(
         .add_messages(msgs))
 }
 
-// Example of a response https://terrasco.pe/testnet/tx/EC20D82F519B8B76EBFF1DDB75592330CA5A1CACE21943B22BAA4F46468AB5E7
-fn update_astro_reward_callback(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
-    // TODO: add astro rewards to the state of the app
-    Ok(Response::new().add_attributes(vec![("action", "reply_astro_rewards")]))
-}
-
 fn _update_astro_rewards(
     deps: &DepsMut,
     contract_addr: Addr,
@@ -588,9 +566,9 @@ fn _update_astro_rewards(
             funds: vec![],
         });
 
-        return Ok(Some(SubMsg::reply_on_error(
+        return Ok(Some(SubMsg::reply_always(
             msg,
-            CLAIM_ASTRO_REWARDS_ERROR_REPLY_ID,
+            CLAIM_ASTRO_REWARDS_REPLY_ID,
         )));
     }
 
@@ -600,34 +578,43 @@ fn _update_astro_rewards(
 fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let mut res = Response::new().add_attributes(vec![("action", "update_rewards")]);
-    let reward_sent_in_tx: Option<&CwCoin> =
-        info.funds.iter().find(|c| c.denom == config.reward_denom);
-    let sent_balance = if let Some(coin) = reward_sent_in_tx {
-        coin.amount
+
+    // Iterate over received funds, check the balance of the smart contract
+    // and finally update the temp balance with the difference between the
+    // contract balance and coin received.
+    if !info.funds.is_empty() {
+        info.funds.iter().try_for_each(|coin| {
+            let asset_info = AssetInfo::Native(coin.denom.clone());
+            let contract_balance =
+                asset_info.query_balance(&deps.querier, env.contract.address.clone())?;
+
+            TEMP_BALANCE.save(
+                deps.storage,
+                AssetInfoKey::from(asset_info),
+                &(contract_balance - coin.amount),
+            )
+        })?;
     } else {
-        Uint128::zero()
-    };
+        let asset_info = AssetInfo::Native(config.alliance_reward_denom.clone());
+        let contract_balance =
+            asset_info.query_balance(&deps.querier, env.contract.address.clone())?;
+
+        TEMP_BALANCE.save(
+            deps.storage,
+            AssetInfoKey::from(asset_info),
+            &contract_balance,
+        )?
+    }
 
     let astr_incentives_rewards = _update_astro_rewards(
         &deps,
         env.contract.address.clone(),
-        config.astro_incentives.clone(),
+        config.astro_incentives_addr.clone(),
     )?;
     if let Some(msg) = astr_incentives_rewards {
         res = res.add_submessage(msg)
     };
 
-    let reward_asset = AssetInfo::native(config.reward_denom.clone());
-    let contract_balance =
-        reward_asset.query_balance(&deps.querier, env.contract.address.clone())?;
-
-    // Contract balance is guaranteed to be greater than sent balance
-    // since contract balance = previous contract balance + sent balance > sent balance
-    TEMP_BALANCE.save(
-        deps.storage,
-        AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string())),
-        &(contract_balance - sent_balance),
-    )?;
     let validators = VALIDATORS.load(deps.storage)?;
     let alliance_sub_msg: Vec<SubMsg> = validators
         .iter()
@@ -663,13 +650,14 @@ fn update_alliance_reward_callback(
         return Err(ContractError::Unauthorized {});
     }
     let config = CONFIG.load(deps.storage)?;
-    let mut res = Response::new().add_attributes(vec![("action", "update_rewards_callback")]);
+    let mut res =
+        Response::new().add_attributes(vec![("action", "update_alliance_rewards_callback")]);
     // We only deal with alliance rewards here. Other rewards (e.g. ASTRO) needs to be dealt with separately
     // This is because the reward distribution only affects alliance rewards. LP rewards are directly distributed to LP holders
     // and not pooled together and shared
-    let reward_asset = AssetInfo::native(config.reward_denom.clone());
+    let reward_asset = AssetInfo::native(config.alliance_reward_denom.clone());
     let reward_asset_info_key =
-        AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string()));
+        AssetInfoKey::from(AssetInfo::Native(config.alliance_reward_denom.to_string()));
     let current_balance = reward_asset.query_balance(&deps.querier, env.contract.address)?;
     let previous_balance = TEMP_BALANCE.load(deps.storage, reward_asset_info_key.clone())?;
     let rewards_collected = current_balance - previous_balance;
@@ -691,10 +679,10 @@ fn update_alliance_reward_callback(
             .to_uint_floor();
         if !unallocated_rewards.is_zero() {
             res = res.add_message(BankMsg::Send {
-                to_address: config.fee_collector.to_string(),
+                to_address: config.fee_collector_addr.to_string(),
                 amount: vec![CwCoin::new(
                     unallocated_rewards.u128(),
-                    config.reward_denom.clone(),
+                    config.alliance_reward_denom.clone(),
                 )],
             })
         }
@@ -720,7 +708,7 @@ fn update_alliance_reward_callback(
         if rate_to_update > Decimal::zero() {
             ASSET_REWARD_RATE.update(
                 deps.storage,
-                (asset_key.clone(), reward_asset_info_key),
+                (asset_key.clone(), reward_asset_info_key.clone()),
                 |rate| -> StdResult<_> {
                     let mut reward_rate = rate.unwrap_or_default();
                     reward_rate = reward_rate + rate_to_update;
@@ -731,7 +719,7 @@ fn update_alliance_reward_callback(
     }
     TEMP_BALANCE.remove(
         deps.storage,
-        AssetInfoKey::from(AssetInfo::Native(config.reward_denom.to_string())),
+        AssetInfoKey::from(AssetInfo::Native(config.alliance_reward_denom.to_string())),
     );
 
     Ok(res)
@@ -744,58 +732,151 @@ pub fn reply(
     reply: Reply,
 ) -> Result<Response<CustomExecuteMsg>, ContractError> {
     match reply.id {
-        CREATE_REPLY_ID => {
-            let response = reply.result.unwrap();
-            // It works because the response data is a protobuf encoded string that contains the denom in the first slot (similar to the contract instantiation response)
-            let denom = parse_instantiate_response_data(response.data.unwrap().as_slice())
-                .map_err(|_| ContractError::Std(StdError::generic_err("parse error".to_string())))?
-                .contract_address;
-            let total_supply = Uint128::from(1_000_000_000_000_u128);
-            let sub_msg_mint = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
-                TokenExecuteMsg::MintTokens {
-                    denom: denom.clone(),
-                    amount: total_supply,
-                    mint_to_address: env.contract.address.to_string(),
-                },
-            )));
-            CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
-                config.alliance_token_denom = denom.clone();
-                config.alliance_token_supply = total_supply;
-                Ok(config)
-            })?;
-
-            let sub_msg_metadata = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
-                TokenExecuteMsg::SetMetadata {
-                    denom: denom.clone(),
-                    metadata: Metadata {
-                        description: "Staking token for alliance protocol lp hub contract"
-                            .to_string(),
-                        denom_units: vec![DenomUnit {
-                            denom: denom.clone(),
-                            exponent: 0,
-                            aliases: vec![],
-                        }],
-                        base: denom.to_string(),
-                        display: denom.to_string(),
-                        name: "Alliance LP Token".to_string(),
-                        symbol: "ALLIANCE_LP".to_string(),
-                    },
-                },
-            )));
-            Ok(Response::new()
-                .add_attributes(vec![
-                    ("alliance_token_denom", denom),
-                    ("alliance_token_total_supply", total_supply.to_string()),
-                ])
-                .add_submessage(sub_msg_mint)
-                .add_submessage(sub_msg_metadata))
-        }
+        CREATE_REPLY_ID => reply_instantiate(deps, env, reply),
         CLAIM_ALLIANCE_REWARDS_ERROR_REPLY_ID => {
             Ok(Response::new().add_attributes(vec![("action", "claim_alliance_rewards_error")]))
         }
-        CLAIM_ASTRO_REWARDS_ERROR_REPLY_ID => {
-            Ok(Response::new().add_attributes(vec![("action", "claim_astro_rewards_error")]))
-        }
+        CLAIM_ASTRO_REWARDS_REPLY_ID => reply_claim_astro_rewards(deps, reply),
         _ => Err(ContractError::InvalidReplyId(reply.id)),
     }
+}
+
+fn reply_instantiate(
+    deps: DepsMut,
+    env: Env,
+    reply: Reply,
+) -> Result<Response<CustomExecuteMsg>, ContractError> {
+    let response = reply.result.unwrap();
+    // It works because the response data is a protobuf encoded string that contains the denom in the first slot (similar to the contract instantiation response)
+    let denom = parse_instantiate_response_data(response.data.unwrap().as_slice())
+        .map_err(|_| ContractError::Std(StdError::generic_err("parse error".to_string())))?
+        .contract_address;
+    let total_supply = Uint128::from(1_000_000_000_000_u128);
+    let sub_msg_mint = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
+        TokenExecuteMsg::MintTokens {
+            denom: denom.clone(),
+            amount: total_supply,
+            mint_to_address: env.contract.address.to_string(),
+        },
+    )));
+    CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
+        config.alliance_token_denom = denom.clone();
+        config.alliance_token_supply = total_supply;
+        Ok(config)
+    })?;
+
+    let sub_msg_metadata = SubMsg::new(CosmosMsg::Custom(CustomExecuteMsg::Token(
+        TokenExecuteMsg::SetMetadata {
+            denom: denom.clone(),
+            metadata: Metadata {
+                description: "Staking token for alliance protocol lp hub contract".to_string(),
+                denom_units: vec![DenomUnit {
+                    denom: denom.clone(),
+                    exponent: 0,
+                    aliases: vec![],
+                }],
+                base: denom.to_string(),
+                display: denom.to_string(),
+                name: "Alliance LP Token".to_string(),
+                symbol: "ALLIANCE_LP".to_string(),
+            },
+        },
+    )));
+    Ok(Response::new()
+        .add_attributes(vec![
+            ("alliance_token_denom", denom),
+            ("alliance_token_total_supply", total_supply.to_string()),
+        ])
+        .add_submessage(sub_msg_mint)
+        .add_submessage(sub_msg_metadata))
+}
+
+// This is an example of a response from claiming astro rewards
+// https://terrasco.pe/testnet/tx/EC20D82F519B8B76EBFF1DDB75592330CA5A1CACE21943B22BAA4F46468AB5E7
+fn reply_claim_astro_rewards(
+    deps: DepsMut,
+    reply: Reply,
+) -> Result<Response<CustomExecuteMsg>, ContractError> {
+    let mut res = Response::new();
+
+    // Check if the reply result returns an error and
+    // if it does so wrap the error in the response
+    // attribute and return the response.
+    if reply.result.is_err() {
+        res = res.add_attributes(vec![
+            ("action", "claim_astro_rewards_error"),
+            ("error", &reply.result.unwrap_err()),
+        ]);
+
+        return Ok(res);
+    }
+
+    // If the request has been successful, we need to check
+    // if the contract address and the event attributes are
+    // correct and account for the rewards.
+    let config = CONFIG.load(deps.storage)?;
+    let result = reply.result.unwrap();
+    let event = result
+        .events
+        .iter()
+        .find(|event| event.ty == "wasm")
+        .ok_or_else(|| StdError::generic_err("cannot find `wasm` event on astro reply"))?;
+
+    // Check if the callback comes from the correct contract
+    let first_attr = event.attributes[0].clone();
+    let event_key = first_attr.key.clone();
+    let even_value = first_attr.value.clone();
+    if event_key != "_contract_address" && even_value != config.astro_incentives_addr {
+        return Err(ContractError::InvalidContractCallback(
+            event_key, even_value,
+        ));
+    }
+
+    // In the list of attributes we need to find the **claimed_positions**,
+    // and group all the **claimed_reward** for each claimed position.
+    let mut astro_claims: Vec<AstroClaimRewardsPosition> = vec![];
+    let mut astro_claim = AstroClaimRewardsPosition::default();
+    let mut add_to_next_claim_position = false;
+    for attr in event.attributes.iter() {
+        if attr.key == "claimed_position" {
+            if add_to_next_claim_position {
+                astro_claims.push(astro_claim.clone());
+                astro_claim = AstroClaimRewardsPosition::default();
+                add_to_next_claim_position = false;
+            } else {
+                astro_claim.deposited_asset = attr.value.clone();
+            }
+        }
+
+        if attr.key == "claimed_reward" {
+            let coin = CwCoin::from_str(&attr.value)?;
+            astro_claim.rewards.add(coin)?;
+            add_to_next_claim_position = true
+        }
+    }
+
+    // Given the claimed rewards account them to the state of the contract
+    // dividing the reward_amount per total_lp_staked summing the already
+    // accounted asset_reward_rate.
+    for claim in astro_claims {
+        let deposit_asset_key = from_string_to_asset_info(claim.deposited_asset)?;
+        let total_lp_staked = TOTAL_BALANCES.load(deps.storage, deposit_asset_key.clone())?;
+        let total_lp_staked = Decimal::from_atomics(total_lp_staked, 0)?;
+
+        for reward in claim.rewards {
+            let reward_asset_key = from_string_to_asset_info(reward.denom)?;
+            let reward_ammount = Decimal::from_atomics(reward.amount, 0)?;
+
+            ASSET_REWARD_RATE.update(
+                deps.storage,
+                (deposit_asset_key.clone(), reward_asset_key),
+                |a| -> StdResult<_> {
+                    let mut asset_reward_rate = a.unwrap_or_default();
+                    asset_reward_rate = (reward_ammount / total_lp_staked) + asset_reward_rate;
+                    Ok(asset_reward_rate)
+                },
+            )?;
+        }
+    }
+    return Ok(res.add_attribute("action", "claim_astro_rewards_success"));
 }

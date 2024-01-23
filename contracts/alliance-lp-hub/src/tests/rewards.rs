@@ -103,7 +103,7 @@ fn test_update_rewards_with_funds_sent() {
 }
 
 #[test]
-fn update_reward_callback() {
+fn update_alliance_reward_callback() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
@@ -198,12 +198,12 @@ fn update_reward_callback() {
 
     assert_eq!(
         res,
-        Response::new().add_attributes(vec![("action", "update_rewards_callback"),])
+        Response::new().add_attributes(vec![("action", "update_alliance_rewards_callback"),])
     );
 }
 
 #[test]
-fn update_reward_callback_with_unallocated() {
+fn update_alliance_rewards_callback_with_unallocated() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
@@ -283,7 +283,7 @@ fn update_reward_callback_with_unallocated() {
     assert_eq!(
         res,
         Response::new()
-            .add_attributes(vec![("action", "update_rewards_callback")])
+            .add_attributes(vec![("action", "update_alliance_rewards_callback")])
             .add_message(BankMsg::Send {
                 to_address: "collector_address".to_string(),
                 amount: vec![coin(300000, "uluna")]
@@ -300,7 +300,7 @@ fn claim_user_rewards() {
         deps.as_mut(),
         Vec::from([ModifyAssetPair {
             asset_info: AssetInfo::Native("aWHALE".to_string()),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }]),
     );
@@ -468,7 +468,7 @@ fn claim_user_rewards_after_staking() {
         deps.as_mut(),
         Vec::from([ModifyAssetPair {
             asset_info: AssetInfo::Native("aWHALE".to_string()),
-            reward_asset_info: None,
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }]),
     );
@@ -546,12 +546,12 @@ fn claim_rewards_after_staking_and_unstaking() {
         Vec::from([
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
-                reward_asset_info: None,
+                reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
-                reward_asset_info: None,
+                reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
         ]),
@@ -636,14 +636,26 @@ fn claim_rewards_after_staking_and_unstaking() {
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
 
     // User 1 should not have any rewards
-    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE","uluna");
-    assert_eq!(rewards.rewards, Uint128::zero());
+    let res = query_rewards(deps.as_ref(), "user1", "aWHALE","uluna");
+    assert_eq!(res, PendingRewardsRes {
+        rewards: Uint128::zero(),
+        deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+        reward_asset: AssetInfo::Native("uluna".to_string()),
+    });
 
     // User 2 should receive all the rewards in the contract
-    let rewards = query_rewards(deps.as_ref(), "user2", "aWHALE","uluna");
-    assert_eq!(rewards.rewards, Uint128::new(900000));
-    let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE","uluna");
-    assert_eq!(rewards.rewards, Uint128::new(1000000));
+    let res = query_rewards(deps.as_ref(), "user2", "aWHALE","uluna");
+    assert_eq!(res, PendingRewardsRes {
+        rewards: Uint128::new(900000),
+        deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+        reward_asset: AssetInfo::Native("uluna".to_string()),
+    });
+    let res = query_rewards(deps.as_ref(), "user2", "bWHALE","uluna");
+    assert_eq!(res, PendingRewardsRes {
+        rewards: Uint128::new(1000000),
+        deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+        reward_asset: AssetInfo::Native("uluna".to_string()),
+    });
 }
 
 #[test]
@@ -656,12 +668,12 @@ fn claim_rewards_after_rebalancing_emissions() {
         Vec::from([
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
-                reward_asset_info: None,
+                reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
-                reward_asset_info: None,
+                reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
         ]),

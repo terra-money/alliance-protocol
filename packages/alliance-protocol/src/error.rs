@@ -1,6 +1,6 @@
 use std::string::FromUtf8Error;
 
-use cosmwasm_std::{Decimal, DecimalRangeExceeded, StdError};
+use cosmwasm_std::{CoinFromStrError, Decimal, DecimalRangeExceeded, StdError};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -13,6 +13,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     DecimalRangeExceeded(#[from] DecimalRangeExceeded),
+
+    #[error("{0}")]
+    CoinFromStrError(#[from] CoinFromStrError),
 
     #[error("Unauthorized")]
     Unauthorized {},
@@ -48,6 +51,9 @@ pub enum ContractError {
     #[error("Invalid contract callback with key: {0} and type: {1}")]
     InvalidContractCallback(String, String),
     
+    #[error("Invalid denom: {0}")]
+    InvalidDenom(String),
+
     #[error("Missing reward asset info for asset {0}")]
     MissingRewardAsset(String),
 }

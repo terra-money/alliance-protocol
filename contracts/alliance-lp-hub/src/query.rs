@@ -1,6 +1,6 @@
 use crate::models::{
-    AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery,
-    PendingRewardsRes, QueryMsg, StakedBalanceRes, WhitelistedAssetsResponse,
+    AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
+    StakedBalanceRes, WhitelistedAssetsResponse,
 };
 use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
 use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
@@ -84,26 +84,26 @@ fn get_staked_balance(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary> 
 }
 
 fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary> {
-    let config = CONFIG.load(deps.storage)?;
     let addr = deps.api.addr_validate(&asset_query.address)?;
     let reward_asset = AssetInfoKey::from(asset_query.reward_asset.clone());
     let deposit_asset = AssetInfoKey::from(asset_query.deposit_asset.clone());
 
-    let key = (addr, deposit_asset, reward_asset);
+    let key = (addr.clone(), deposit_asset.clone(), reward_asset.clone());
     let user_reward_rate = USER_ASSET_REWARD_RATE.load(deps.storage, key)?;
 
-    let asset_reward_rate = ASSET_REWARD_RATE.load(deps.storage, (deposit_asset, reward_asset))?;
-    let user_balance = BALANCES.load(deps.storage, (addr, deposit_asset).clone())?;
+    let asset_reward_rate =
+        ASSET_REWARD_RATE.load(deps.storage, (deposit_asset.clone(), reward_asset.clone()))?;
+    let user_balance = BALANCES.load(deps.storage, (addr.clone(), deposit_asset).clone())?;
     let unclaimed_rewards = UNCLAIMED_REWARDS
         .load(deps.storage, (addr, reward_asset))
         .unwrap_or_default();
 
-    let alliance_pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
+    let pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
 
     to_json_binary(&PendingRewardsRes {
         deposit_asset: asset_query.deposit_asset,
         reward_asset: asset_query.reward_asset,
-        rewards: alliance_pending_rewards + unclaimed_rewards,
+        rewards: pending_rewards + unclaimed_rewards,
     })
 }
 
@@ -145,8 +145,8 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
             let reward_asset = AssetInfoKey::from(assets.1.check(deps.api, None)?);
 
             let asset_reward_rate =
-                ASSET_REWARD_RATE.load(deps.storage, (deposit_asset, reward_asset))?;
-            let user_balance = BALANCES.load(deps.storage, (addr.clone(), deposit_asset))?;
+                ASSET_REWARD_RATE.load(deps.storage, (deposit_asset.clone(), reward_asset.clone()))?;
+            let user_balance = BALANCES.load(deps.storage, (addr.clone(), deposit_asset.clone()))?;
             let unclaimed_rewards = UNCLAIMED_REWARDS
                 .load(deps.storage, (addr.clone(), deposit_asset))
                 .unwrap_or_default();
@@ -155,7 +155,7 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
             Ok(PendingRewardsRes {
                 rewards: alliance_pending_rewards + unclaimed_rewards,
                 deposit_asset: assets.0.check(deps.api, None)?,
-                reward_asset: AssetInfo::Native(config.reward_denom.to_string()),
+                reward_asset: AssetInfo::Native(config.alliance_reward_denom.to_string()),
             })
         })
         .collect::<StdResult<Vec<PendingRewardsRes>>>();
