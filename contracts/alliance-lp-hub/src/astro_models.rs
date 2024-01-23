@@ -1,9 +1,7 @@
-use cosmwasm_schema::{QueryResponses, cw_serde};
-use cosmwasm_std::{Decimal, Addr, Uint128};
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::AssetInfo;
-
-
 
 #[cw_serde]
 pub enum ExecuteAstroMsg {
@@ -28,7 +26,6 @@ pub enum Cw20Msg {
     /// Besides this enum variant is redundant we keep this for backward compatibility with old pair contracts
     DepositFor(String),
 }
-
 
 #[cw_serde]
 #[derive(QueryResponses)]

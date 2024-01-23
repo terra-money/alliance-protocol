@@ -1,7 +1,7 @@
 use crate::contract::{execute, instantiate};
 use crate::models::{
-    AllPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, PendingRewardsRes,
-    QueryMsg, StakedBalanceRes, ModifyAssetPair,
+    AllPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair,
+    PendingRewardsRes, QueryMsg, StakedBalanceRes,
 };
 use crate::query::query;
 use crate::state::CONFIG;
@@ -11,7 +11,7 @@ use alliance_protocol::alliance_protocol::{
 };
 use alliance_protocol::token_factory::CustomExecuteMsg;
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{coin, from_json, Deps, DepsMut, Response, StdResult, Uint128, Binary, Addr};
+use cosmwasm_std::{coin, from_json, Addr, Binary, Deps, DepsMut, Response, StdResult, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
 
@@ -24,7 +24,7 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
     let init_msg = InstantiateMsg {
         governance: "gov".to_string(),
         fee_collector_address: "collector_address".to_string(),
-        astro_incentives_address : "astro_incentives".to_string(),
+        astro_incentives_address: "astro_incentives".to_string(),
         controller: "controller".to_string(),
         reward_denom: "uluna".to_string(),
     };
@@ -51,7 +51,6 @@ pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAssetPair>) -> Response {
     execute(deps, env, info, msg).unwrap()
 }
 
-
 pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
     let info = mock_info(user, &[coin(amount, denom)]);
     let env = mock_env();
@@ -59,11 +58,10 @@ pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
     execute(deps, env, info, msg).unwrap()
 }
 
-
 pub fn stake_cw20(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
     let mut info = mock_info(user, &[]);
     let env = mock_env();
-    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg{
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: String::from(user),
         amount: Uint128::new(amount),
         msg: Binary::default(),
@@ -133,7 +131,12 @@ pub fn claim_rewards(deps: DepsMut, user: &str, denom: &str) -> Response {
     execute(deps, env, info, msg).unwrap()
 }
 
-pub fn query_rewards(deps: Deps, user: &str, deposit_asset: &str, reward_asset: &str ) -> PendingRewardsRes {
+pub fn query_rewards(
+    deps: Deps,
+    user: &str,
+    deposit_asset: &str,
+    reward_asset: &str,
+) -> PendingRewardsRes {
     from_json(
         query(
             deps,

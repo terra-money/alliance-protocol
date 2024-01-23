@@ -193,7 +193,7 @@ fn stake(
         deps.storage,
         sender.clone(),
         received_asset.info.clone(),
-        reward_token,
+        reward_token.clone(),
     )?;
     if !rewards.is_zero() {
         UNCLAIMED_REWARDS.update(
@@ -285,6 +285,15 @@ fn stake(
             Ok(balance.unwrap_or(Uint128::zero()) + received_asset.amount)
         },
     )?;
+
+    let asset_reward_rate = ASSET_REWARD_RATE
+        .load(deps.storage, (asset_key.clone(), reward_token.clone()))
+        .unwrap_or(Decimal::zero());
+    USER_ASSET_REWARD_RATE.save(
+        deps.storage,
+        (sender, asset_key, reward_token),
+        &asset_reward_rate,
+    )?;
     Ok(res)
 }
 
@@ -360,7 +369,7 @@ fn claim_rewards(
 ) -> Result<Response, ContractError> {
     let user = info.sender;
     let config = CONFIG.load(deps.storage)?;
-    let reward_token = AssetInfoKey::from(AssetInfo::Native(config.alliance_token_denom));
+    let reward_token = AssetInfoKey::from(AssetInfo::Native(config.alliance_reward_denom.clone()));
     let rewards = _claim_alliance_rewards(deps.storage, user.clone(), asset.clone(), reward_token)?;
     let unclaimed_rewards = UNCLAIMED_REWARDS
         .load(
@@ -411,14 +420,14 @@ fn _claim_alliance_rewards(
         let rewards = ((asset_reward_rate - user_reward_rate) * user_staked).to_uint_floor();
 
         if rewards.is_zero() {
-            return Ok(Uint128::zero());
+            Ok(Uint128::zero())
         } else {
             USER_ASSET_REWARD_RATE.save(storage, state_key, &asset_reward_rate)?;
-            return Ok(rewards);
+            Ok(rewards)
         }
     } else {
         USER_ASSET_REWARD_RATE.save(storage, state_key, &asset_reward_rate)?;
-        return Ok(Uint128::zero());
+        Ok(Uint128::zero())
     }
 }
 
@@ -711,7 +720,7 @@ fn update_alliance_reward_callback(
                 (asset_key.clone(), reward_asset_info_key.clone()),
                 |rate| -> StdResult<_> {
                     let mut reward_rate = rate.unwrap_or_default();
-                    reward_rate = reward_rate + rate_to_update;
+                    reward_rate += rate_to_update;
                     Ok(reward_rate)
                 },
             )?;
@@ -878,5 +887,6 @@ fn reply_claim_astro_rewards(
             )?;
         }
     }
-    return Ok(res.add_attribute("action", "claim_astro_rewards_success"));
+
+    Ok(res.add_attribute("action", "claim_astro_rewards_success"))
 }

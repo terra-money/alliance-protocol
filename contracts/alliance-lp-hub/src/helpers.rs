@@ -3,7 +3,6 @@ use cosmwasm_std::MessageInfo;
 
 use crate::models::Config;
 
-
 // Controller is used to perform administrative operations that deals with delegating the virtual
 // tokens to the expected validators
 pub fn is_controller(info: &MessageInfo, config: &Config) -> Result<(), ContractError> {

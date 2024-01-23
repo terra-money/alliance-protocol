@@ -1,4 +1,4 @@
-use crate::astro_models::{ExecuteAstroMsg, Cw20Msg};
+use crate::astro_models::{Cw20Msg, ExecuteAstroMsg};
 use crate::contract::execute;
 use crate::models::{ExecuteMsg, ModifyAssetPair, StakedBalanceRes};
 use crate::state::{BALANCES, TOTAL_BALANCES};
@@ -11,7 +11,7 @@ use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 use cosmwasm_std::{
     coin, to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Response, Uint128, WasmMsg,
 };
-use cw20::{Cw20ReceiveMsg, Cw20ExecuteMsg};
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 
 #[test]
@@ -133,7 +133,6 @@ fn test_stake_astro_token() {
         )
         .unwrap();
     assert_eq!(balance, Uint128::new(100));
-
 }
 
 #[test]
@@ -227,30 +226,30 @@ fn test_stake_astro_token_cw20() {
     let res = stake_cw20(deps.as_mut(), "user1", 100, "astro_existent_cw20");
     assert_eq!(
         res,
-        Response::default().add_attributes(vec![
-            ("action", "stake"),
-            ("user", "user1"),
-            ("asset", "cw20:astro_existent_cw20"),
-            ("amount", "100"),
-        ])
-        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: "astro_existent_cw20".to_string(),
-            msg: to_json_binary(&Cw20ExecuteMsg::Send {
-                contract: "astro_incentives".to_string(),
-                amount: Uint128::new(100),
-                msg: to_json_binary(&Cw20ReceiveMsg {
-                    sender: "cosmos2contract".to_string(),
+        Response::default()
+            .add_attributes(vec![
+                ("action", "stake"),
+                ("user", "user1"),
+                ("asset", "cw20:astro_existent_cw20"),
+                ("amount", "100"),
+            ])
+            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: "astro_existent_cw20".to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Send {
+                    contract: "astro_incentives".to_string(),
                     amount: Uint128::new(100),
-                    msg: to_json_binary(&Cw20Msg::Deposit {
-                        recipient: None,
-                    }).unwrap(),
-                }).unwrap(),
-            }).unwrap(),
-            funds: vec![],
-        }))
+                    msg: to_json_binary(&Cw20ReceiveMsg {
+                        sender: "cosmos2contract".to_string(),
+                        amount: Uint128::new(100),
+                        msg: to_json_binary(&Cw20Msg::Deposit { recipient: None }).unwrap(),
+                    })
+                    .unwrap(),
+                })
+                .unwrap(),
+                funds: vec![],
+            }))
     );
 }
-
 
 #[test]
 fn test_unstake() {
@@ -266,9 +265,9 @@ fn test_unstake() {
         }],
     );
     stake(deps.as_mut(), "user1", 100, "native_asset");
-    
+
     let asset_info = Asset::native(Addr::unchecked("native_asset"), 50u128);
-    let res = unstake(deps.as_mut(), "user1",asset_info);
+    let res = unstake(deps.as_mut(), "user1", asset_info);
     assert_eq!(
         res,
         Response::default()

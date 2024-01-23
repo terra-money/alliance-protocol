@@ -636,26 +636,35 @@ fn claim_rewards_after_staking_and_unstaking() {
     stake(deps.as_mut(), "user1", 1000000, "aWHALE");
 
     // User 1 should not have any rewards
-    let res = query_rewards(deps.as_ref(), "user1", "aWHALE","uluna");
-    assert_eq!(res, PendingRewardsRes {
-        rewards: Uint128::zero(),
-        deposit_asset: AssetInfo::Native("aWHALE".to_string()),
-        reward_asset: AssetInfo::Native("uluna".to_string()),
-    });
+    let res = query_rewards(deps.as_ref(), "user1", "aWHALE", "uluna");
+    assert_eq!(
+        res,
+        PendingRewardsRes {
+            rewards: Uint128::zero(),
+            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+        }
+    );
 
     // User 2 should receive all the rewards in the contract
-    let res = query_rewards(deps.as_ref(), "user2", "aWHALE","uluna");
-    assert_eq!(res, PendingRewardsRes {
-        rewards: Uint128::new(900000),
-        deposit_asset: AssetInfo::Native("aWHALE".to_string()),
-        reward_asset: AssetInfo::Native("uluna".to_string()),
-    });
-    let res = query_rewards(deps.as_ref(), "user2", "bWHALE","uluna");
-    assert_eq!(res, PendingRewardsRes {
-        rewards: Uint128::new(1000000),
-        deposit_asset: AssetInfo::Native("aWHALE".to_string()),
-        reward_asset: AssetInfo::Native("uluna".to_string()),
-    });
+    let res = query_rewards(deps.as_ref(), "user2", "aWHALE", "uluna");
+    assert_eq!(
+        res,
+        PendingRewardsRes {
+            rewards: Uint128::new(900000),
+            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+        }
+    );
+    let res = query_rewards(deps.as_ref(), "user2", "bWHALE", "uluna");
+    assert_eq!(
+        res,
+        PendingRewardsRes {
+            rewards: Uint128::new(1000000),
+            deposit_asset: AssetInfo::Native("bWHALE".to_string()),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+        }
+    );
 }
 
 #[test]
@@ -741,9 +750,9 @@ fn claim_rewards_after_rebalancing_emissions() {
     )
     .unwrap();
 
-    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE","uluna");
+    let rewards = query_rewards(deps.as_ref(), "user1", "aWHALE", "uluna");
     assert_eq!(rewards.rewards, Uint128::new(1500000));
     // User 2 should receive all the rewards in the contract
-    let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE","uluna");
+    let rewards = query_rewards(deps.as_ref(), "user2", "bWHALE", "uluna");
     assert_eq!(rewards.rewards, Uint128::new(500000));
 }

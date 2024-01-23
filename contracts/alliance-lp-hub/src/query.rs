@@ -144,9 +144,10 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
             let deposit_asset = AssetInfoKey::from(assets.0.check(deps.api, None)?);
             let reward_asset = AssetInfoKey::from(assets.1.check(deps.api, None)?);
 
-            let asset_reward_rate =
-                ASSET_REWARD_RATE.load(deps.storage, (deposit_asset.clone(), reward_asset.clone()))?;
-            let user_balance = BALANCES.load(deps.storage, (addr.clone(), deposit_asset.clone()))?;
+            let asset_reward_rate = ASSET_REWARD_RATE
+                .load(deps.storage, (deposit_asset.clone(), reward_asset.clone()))?;
+            let user_balance =
+                BALANCES.load(deps.storage, (addr.clone(), deposit_asset.clone()))?;
             let unclaimed_rewards = UNCLAIMED_REWARDS
                 .load(deps.storage, (addr.clone(), deposit_asset))
                 .unwrap_or_default();
