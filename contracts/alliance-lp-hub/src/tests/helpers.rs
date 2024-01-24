@@ -9,6 +9,7 @@ use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg, AllianceRedelegation,
     AllianceUndelegateMsg,
 };
+use alliance_protocol::error::ContractError;
 use alliance_protocol::token_factory::CustomExecuteMsg;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, from_json, Addr, Binary, Deps, DepsMut, Response, StdResult, Uint128};
@@ -43,22 +44,22 @@ pub fn set_alliance_asset(deps: DepsMut) {
         .unwrap();
 }
 
-pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAssetPair>) -> Response {
+pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAssetPair>) -> Result<Response, ContractError> {
     let info = mock_info("gov", &[]);
     let env = mock_env();
 
     let msg = ExecuteMsg::ModifyAssetPairs(assets);
-    execute(deps, env, info, msg).unwrap()
+    execute(deps, env, info, msg)
 }
 
-pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
+pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Result<Response, ContractError> {
     let info = mock_info(user, &[coin(amount, denom)]);
     let env = mock_env();
     let msg = ExecuteMsg::Stake {};
-    execute(deps, env, info, msg).unwrap()
+    execute(deps, env, info, msg)
 }
 
-pub fn stake_cw20(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
+pub fn stake_cw20(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Result<Response, ContractError> {
     let mut info = mock_info(user, &[]);
     let env = mock_env();
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
@@ -67,16 +68,14 @@ pub fn stake_cw20(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Respo
         msg: Binary::default(),
     });
     info.sender = Addr::unchecked(denom.to_owned());
-    execute(deps, env, info, msg).unwrap()
+    execute(deps, env, info, msg)
 }
 
-pub fn unstake(deps: DepsMut, user: &str, asset: Asset) -> Response {
+pub fn unstake(deps: DepsMut, user: &str, asset: Asset) -> Result<Response, ContractError> {
     let info = mock_info(user, &[]);
     let env = mock_env();
     let msg = ExecuteMsg::Unstake(asset);
-    let res = execute(deps, env, info, msg);
-
-    res.unwrap()
+    execute(deps, env, info, msg)
 }
 
 pub fn alliance_delegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Response {

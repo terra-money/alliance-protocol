@@ -15,6 +15,36 @@ use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 
 #[test]
+fn test_stake_multiple_tokens() {
+    let mut deps = mock_dependencies();
+    setup_contract(deps.as_mut());
+    modify_asset(
+        deps.as_mut(),
+        vec![ModifyAssetPair {
+            asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
+            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
+            delete: false,
+        }],
+    )
+    .unwrap();
+
+    let info = mock_info(
+        "user1",
+        &[coin(100, "native_asset"), coin(100, "native_asset2")],
+    );
+    let env = mock_env();
+    let msg = ExecuteMsg::Stake {};
+    let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert_eq!(err, ContractError::OnlySingleAssetAllowed {});
+
+    let info = mock_info("user1", &[coin(0, "native_asset")]);
+    let env = mock_env();
+    let msg = ExecuteMsg::Stake {};
+    let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert_eq!(err, ContractError::AmountCannotBeZero {});
+}
+
+#[test]
 fn test_stake() {
     let mut deps = mock_dependencies();
     setup_contract(deps.as_mut());
@@ -25,9 +55,10 @@ fn test_stake() {
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
-    );
+    )
+    .unwrap();
 
-    let res = stake(deps.as_mut(), "user1", 100, "native_asset");
+    let res = stake(deps.as_mut(), "user1", 100, "native_asset").unwrap();
     assert_eq!(
         res,
         Response::default().add_attributes(vec![
@@ -50,7 +81,7 @@ fn test_stake() {
     assert_eq!(balance, Uint128::new(100));
 
     // Stake more
-    let res = stake(deps.as_mut(), "user1", 100, "native_asset");
+    let res = stake(deps.as_mut(), "user1", 100, "native_asset").unwrap();
     assert_eq!(
         res,
         Response::default().add_attributes(vec![
@@ -100,9 +131,10 @@ fn test_stake_astro_token() {
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
-    );
+    )
+    .unwrap();
 
-    let res = stake(deps.as_mut(), "user1", 100, "astro_existent_native_coin");
+    let res = stake(deps.as_mut(), "user1", 100, "astro_existent_native_coin").unwrap();
 
     assert_eq!(
         res,
@@ -146,9 +178,10 @@ fn test_stake_cw20() {
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
-    );
+    )
+    .unwrap();
 
-    let res = stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset");
+    let res = stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset").unwrap();
     assert_eq!(
         res,
         Response::default().add_attributes(vec![
@@ -171,7 +204,7 @@ fn test_stake_cw20() {
     assert_eq!(balance, Uint128::new(100));
 
     // Stake more
-    let res = stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset");
+    let res = stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset").unwrap();
     assert_eq!(
         res,
         Response::default().add_attributes(vec![
@@ -221,9 +254,10 @@ fn test_stake_astro_token_cw20() {
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
-    );
+    )
+    .unwrap();
 
-    let res = stake_cw20(deps.as_mut(), "user1", 100, "astro_existent_cw20");
+    let res = stake_cw20(deps.as_mut(), "user1", 100, "astro_existent_cw20").unwrap();
     assert_eq!(
         res,
         Response::default()
@@ -263,11 +297,12 @@ fn test_unstake() {
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
-    );
-    stake(deps.as_mut(), "user1", 100, "native_asset");
+    )
+    .unwrap();
+    stake(deps.as_mut(), "user1", 100, "native_asset").unwrap();
 
     let asset_info = Asset::native(Addr::unchecked("native_asset"), 50u128);
-    let res = unstake(deps.as_mut(), "user1", asset_info);
+    let res = unstake(deps.as_mut(), "user1", asset_info).unwrap();
     assert_eq!(
         res,
         Response::default()
@@ -295,7 +330,7 @@ fn test_unstake() {
     assert_eq!(balance, Uint128::new(50));
 
     let asset_info = Asset::native(Addr::unchecked("native_asset"), 50u128);
-    let res = unstake(deps.as_mut(), "user1", asset_info);
+    let res = unstake(deps.as_mut(), "user1", asset_info).unwrap();
     assert_eq!(
         res,
         Response::default()
@@ -343,8 +378,9 @@ fn test_unstake_cw20_invalid() {
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
-    );
-    stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset");
+    )
+    .unwrap();
+    stake_cw20(deps.as_mut(), "user1", 100, "cw20_asset").unwrap();
 
     // User does not have any staked asset
     let info = mock_info("user2", &[]);
@@ -377,8 +413,9 @@ fn test_unstake_native_invalid() {
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }],
-    );
-    stake(deps.as_mut(), "user1", 100, "native_asset");
+    )
+    .unwrap();
+    stake(deps.as_mut(), "user1", 100, "native_asset").unwrap();
 
     // User does not have any staked asset
     let info = mock_info("user2", &[]);

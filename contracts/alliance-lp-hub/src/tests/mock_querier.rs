@@ -66,7 +66,7 @@ impl WasmMockQuerier {
                     panic!("The only mocked tokens are 'astro_existent_cw20' and 'astro_existent_native_coin' you send {}",lp_token)
                 }
                 QueryAstroMsg::PendingRewards { lp_token, user: _ } => {
-                    if lp_token == "astro_native_with_existent_rewards" {
+                    if lp_token == "factory/astro_native_with_existent_rewards" {
                         let msg = vec![Asset {
                             info: AssetInfoBase::native(lp_token.to_string()),
                             amount: Uint128::one(),
@@ -79,7 +79,7 @@ impl WasmMockQuerier {
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     }
-                    panic!("The only mocked token with pending rewards is 'astro_native_with_existent_rewards' {}",lp_token)
+                    panic!("The only mocked token with pending rewards is 'factory/astro_native_with_existent_rewards' {}",lp_token)
                 }
             },
             _ => self.base.handle_query(request),

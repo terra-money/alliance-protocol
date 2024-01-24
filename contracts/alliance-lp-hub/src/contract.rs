@@ -94,7 +94,7 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         // Used to whitelist, modify or delete assets from the allowed list
-        ExecuteMsg::ModifyAssetPairs(assets) => modify_assets(deps, info, assets),
+        ExecuteMsg::ModifyAssetPairs(assets) => modify_asset(deps, info, assets),
 
         // User interactions Stake, Unstake and ClaimRewards
         ExecuteMsg::Receive(cw20_msg) => {
@@ -131,16 +131,24 @@ pub fn execute(
 
 // This method iterate through the list of assets to be modified,
 // for each asset it checks if it is being listed or delisted,
-fn modify_assets(
+fn modify_asset(
     deps: DepsMut,
     info: MessageInfo,
     assets: Vec<ModifyAssetPair>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     is_governance(&info, &config)?;
-    let mut attrs = vec![("action".to_string(), "modify_assets".to_string())];
+    let mut attrs = vec![("action".to_string(), "modify_asset".to_string())];
 
     for asset in assets {
+        let reward_asset_info_key = match asset.reward_asset_info {
+            Some(reward_asset_info) => AssetInfoKey::from(reward_asset_info),
+            None => {
+                return Err(ContractError::MissingRewardAsset(
+                    asset.asset_info.to_string(),
+                ))
+            }
+        };
         if asset.delete {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
             WHITELIST.remove(deps.storage, asset_key.clone());
@@ -150,14 +158,6 @@ fn modify_assets(
             ]);
         } else {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
-            let reward_asset_info_key = match asset.reward_asset_info {
-                Some(reward_asset_info) => AssetInfoKey::from(reward_asset_info),
-                None => {
-                    return Err(ContractError::MissingRewardAsset(
-                        asset.asset_info.to_string(),
-                    ))
-                }
-            };
 
             WHITELIST.save(deps.storage, asset_key.clone(), &Decimal::zero())?;
             ASSET_REWARD_RATE.update(
@@ -259,9 +259,7 @@ fn stake(
                 })
             }
             _ => {
-                return Err(ContractError::AssetNotWhitelisted(
-                    received_asset.info.to_string(),
-                ));
+                return Err(ContractError::InvalidDenom(received_asset.info.to_string()));
             }
         };
 
@@ -540,14 +538,20 @@ fn _update_astro_rewards(
     contract_addr: Addr,
     astro_incentives: Addr,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let whitelist = WHITELIST
-        .range_raw(deps.storage, None, None, Order::Ascending)
-        .map(|r| r.map(|(a, d)| (AssetInfoKey(a), d)))
-        .collect::<StdResult<Vec<(AssetInfoKey, Decimal)>>>()?;
+    let mut whitelist: Vec<String> = Vec::new();
+
+    for f in WHITELIST.range(deps.storage, None, None, Order::Ascending) {
+        let (asset_info, _) = f?;
+        let asset_info = asset_info.check(deps.api, None)?;
+        let asset_string = asset_info.to_string();
+        let asset_denom = asset_string.split(":").collect::<Vec<&str>>()[1].to_string();
+        
+        whitelist.push(asset_denom);
+    }
+
     let mut lp_tokens_list: Vec<String> = vec![];
 
-    for (asset_info, _) in whitelist {
-        let lp_token = String::from_utf8(asset_info.0)?;
+    for lp_token in whitelist {
         let pending_rewards: Vec<Asset> = deps
             .querier
             .query_wasm_smart(
@@ -845,23 +849,24 @@ fn reply_claim_astro_rewards(
     // and group all the **claimed_reward** for each claimed position.
     let mut astro_claims: Vec<AstroClaimRewardsPosition> = vec![];
     let mut astro_claim = AstroClaimRewardsPosition::default();
-    let mut add_to_next_claim_position = false;
+    let mut count_claim_position = true;
     for attr in event.attributes.iter() {
-        if attr.key == "claimed_position" {
-            if add_to_next_claim_position {
-                astro_claims.push(astro_claim.clone());
-                astro_claim = AstroClaimRewardsPosition::default();
-                add_to_next_claim_position = false;
-            } else {
-                astro_claim.deposited_asset = attr.value.clone();
-            }
+        if attr.key == "claimed_position" && count_claim_position {
+            astro_claim = AstroClaimRewardsPosition::default();
+            astro_claim.deposited_asset = attr.value.clone();
+            count_claim_position = false;
         }
 
         if attr.key == "claimed_reward" {
             let coin = CwCoin::from_str(&attr.value)?;
             astro_claim.rewards.add(coin)?;
-            add_to_next_claim_position = true
         }
+            
+        if attr.key == "claimed_reward"  && !count_claim_position {
+            astro_claims.push(astro_claim.clone());
+            count_claim_position = true
+        }
+
     }
 
     // Given the claimed rewards account them to the state of the contract
@@ -875,12 +880,13 @@ fn reply_claim_astro_rewards(
         for reward in claim.rewards {
             let reward_asset_key = from_string_to_asset_info(reward.denom)?;
             let reward_ammount = Decimal::from_atomics(reward.amount, 0)?;
+            let mut asset_reward_rate = Decimal::zero();
 
             ASSET_REWARD_RATE.update(
                 deps.storage,
                 (deposit_asset_key.clone(), reward_asset_key),
                 |a| -> StdResult<_> {
-                    let mut asset_reward_rate = a.unwrap_or_default();
+                    asset_reward_rate = a.unwrap_or_default();
                     asset_reward_rate = (reward_ammount / total_lp_staked) + asset_reward_rate;
                     Ok(asset_reward_rate)
                 },

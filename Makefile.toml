@@ -19,6 +19,9 @@ args = ["test", "--locked"]
 [tasks.test-cover]
 script = """docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin"""
 
+[tasks.test-cover-to-file]
+script = "cargo tarpaulin --out Lcov"
+
 [tasks.lint]
 command = "cargo"
 args = ["clippy", "--tests", "--", "-D", "warnings"]
