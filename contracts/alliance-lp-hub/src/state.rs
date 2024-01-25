@@ -30,7 +30,11 @@ pub const USER_ASSET_REWARD_RATE: Map<(Addr, AssetInfoKey, AssetInfoKey), Decima
     Map::new("user_asset_reward_rate");
 
 // The following map is used to keep track of the unclaimed rewards
-pub const UNCLAIMED_REWARDS: Map<(Addr, AssetInfoKey), Uint128> = Map::new("unclaimed_rewards");
+// - Addr: is the address of the user,
+// - AssetInfoKey: is the asset that is being deposited,
+// - AssetInfoKey: is the asset that is being rewarded,
+// - Decimal: is the reward rate,
+pub const UNCLAIMED_REWARDS: Map<(Addr, AssetInfoKey, AssetInfoKey), Uint128> = Map::new("unclaimed_rewards");
 
 pub const TEMP_BALANCE: Map<AssetInfoKey, Uint128> = Map::new("temp_balance");
 

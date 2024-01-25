@@ -24,10 +24,11 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
 
     let init_msg = InstantiateMsg {
         governance: "gov".to_string(),
-        fee_collector_address: "collector_address".to_string(),
-        astro_incentives_address: "astro_incentives".to_string(),
+        fee_collector_addr: "collector_address".to_string(),
+        astro_incentives_addr: "astro_incentives".to_string(),
+        astro_reward_denom: "astro_reward_denom".to_string(),
         controller: "controller".to_string(),
-        reward_denom: "uluna".to_string(),
+        alliance_reward_denom: "uluna".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()
 }

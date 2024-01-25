@@ -386,7 +386,8 @@ fn claim_user_rewards() {
                 ("action", "claim_rewards"),
                 ("user", "user1"),
                 ("asset", "native:aWHALE"),
-                ("reward_amount", "100000"),
+                ("alliance_reward_amount", "100000"),
+                ("astro_reward_amount", "0"),
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".to_string(),
@@ -431,6 +432,10 @@ fn claim_user_rewards() {
         vec![PendingRewardsRes {
             rewards: Uint128::zero(),
             deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+            reward_asset: AssetInfo::Native("astro_reward_denom".to_string()),
+        },PendingRewardsRes {
+            rewards: Uint128::zero(),
+            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
             reward_asset: AssetInfo::Native("uluna".to_string()),
         }]
     );
@@ -442,7 +447,8 @@ fn claim_user_rewards() {
             ("action", "claim_rewards"),
             ("user", "user1"),
             ("asset", "native:aWHALE"),
-            ("reward_amount", "0"),
+            ("alliance_reward_amount", "0"),
+            ("astro_reward_amount", "0"),
         ])
     );
 
@@ -471,7 +477,8 @@ fn claim_user_rewards() {
                 ("action", "claim_rewards"),
                 ("user", "user1"),
                 ("asset", "native:aWHALE"),
-                ("reward_amount", "10000"),
+                ("alliance_reward_amount", "10000"),
+                ("astro_reward_amount", "0"),
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".to_string(),
@@ -537,7 +544,8 @@ fn claim_user_rewards_after_staking() {
                 ("action", "claim_rewards"),
                 ("user", "user1"),
                 ("asset", "native:aWHALE"),
-                ("reward_amount", "100000"),
+                ("alliance_reward_amount", "100000"),
+                ("astro_reward_amount", "0"),
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".to_string(),
@@ -553,7 +561,8 @@ fn claim_user_rewards_after_staking() {
             ("action", "claim_rewards"),
             ("user", "user1"),
             ("asset", "native:aWHALE"),
-            ("reward_amount", "0"),
+            ("alliance_reward_amount", "0"),
+            ("astro_reward_amount", "0"),
         ])
     );
 }

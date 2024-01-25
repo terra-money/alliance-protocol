@@ -17,7 +17,10 @@ pub struct Config {
     pub governance: Addr,
     pub controller: Addr,
     pub fee_collector_addr: Addr,
+
+    pub astro_reward_denom: String,
     pub astro_incentives_addr: Addr,
+
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
     pub alliance_reward_denom: String,
@@ -27,9 +30,12 @@ pub struct Config {
 pub struct InstantiateMsg {
     pub governance: String,
     pub controller: String,
-    pub fee_collector_address: String,
-    pub astro_incentives_address: String,
-    pub reward_denom: String,
+    pub fee_collector_addr: String,
+
+    pub astro_reward_denom: String,
+    pub astro_incentives_addr: String,
+    
+    pub alliance_reward_denom: String,
 }
 
 #[cw_serde]
