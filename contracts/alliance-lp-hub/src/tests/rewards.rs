@@ -800,7 +800,7 @@ fn test_update_rewards_with_astro_rewards() {
         .save(
             deps.as_mut().storage,
             AssetInfoKey::from(AssetInfo::Native(
-                "factory/astro_native_with_existent_rewards".to_string(),
+                "factory/astro_native".to_string(),
             )),
             &Decimal::percent(10),
         )
@@ -815,7 +815,7 @@ fn test_update_rewards_with_astro_rewards() {
         .save(
             deps.as_mut().storage,
             AssetInfoKey::from(AssetInfo::Native(
-                "factory/astro_native_with_existent_rewards".to_string(),
+                "factory/astro_native".to_string(),
             )),
             &Uint128::new(1000000),
         )
@@ -835,7 +835,7 @@ fn test_update_rewards_with_astro_rewards() {
                 CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: "astro_incentives".to_string(),
                     msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards {
-                        lp_tokens: vec!["factory/astro_native_with_existent_rewards".to_string()],
+                        lp_tokens: vec!["factory/astro_native".to_string()],
                     })
                     .unwrap(),
                     funds: vec![],
@@ -879,7 +879,7 @@ fn test_update_rewards_with_astro_rewards() {
                 .add_attribute("action", "claim_rewards")
                 .add_attribute(
                     "claimed_position",
-                    "factory/astro_native_with_existent_rewards",
+                    "factory/astro_native",
                 )
                 .add_attribute("claimed_reward", "1factory/astro")],
             data: None,

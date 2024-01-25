@@ -66,20 +66,37 @@ impl WasmMockQuerier {
                     panic!("The only mocked tokens are 'astro_existent_cw20' and 'astro_existent_native_coin' you send {}",lp_token)
                 }
                 QueryAstroMsg::PendingRewards { lp_token, user: _ } => {
-                    if lp_token == "factory/astro_native_with_existent_rewards" {
+                    if lp_token == "factory/astro_native" {
                         let msg = vec![Asset {
                             info: AssetInfoBase::native(lp_token.to_string()),
                             amount: Uint128::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
-                    } else if lp_token == "astro_cw20_with_existent_rewards" {
+                    } else if lp_token == "cw20:astro_cw20" {
                         let msg = vec![Asset {
                             info: AssetInfoBase::cw20(Addr::unchecked(lp_token.to_string())),
                             amount: Uint128::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     }
-                    panic!("The only mocked token with pending rewards is 'factory/astro_native_with_existent_rewards' {}",lp_token)
+                    panic!("The only mocked token with pending rewards is 'factory/astro_native' {}",lp_token)
+                },
+                QueryAstroMsg::Deposit {lp_token, user:_} => {
+                    if lp_token == "factory/astro_native" {
+                        let msg = vec![Asset {
+                            info: AssetInfoBase::native(lp_token.to_string()),
+                            amount: Uint128::one(),
+                        }];
+                        return SystemResult::Ok(to_json_binary(&msg).into());
+                    } else if lp_token == "cw20:astro_cw20" {
+                        let msg = vec![Asset {
+                            info: AssetInfoBase::cw20(Addr::unchecked(lp_token.to_string())),
+                            amount: Uint128::one(),
+                        }];
+                        return SystemResult::Ok(to_json_binary(&msg).into());
+                    }
+                    panic!("The only mocked token with pending rewards is 'factory/astro_native' {}",lp_token)
+
                 }
             },
             _ => self.base.handle_query(request),

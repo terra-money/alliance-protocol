@@ -114,7 +114,8 @@ pub fn execute(
             }
             stake(deps, env, info.sender, coin.into())
         }
-        ExecuteMsg::Unstake(asset) => unstake(deps, info, asset),
+        ExecuteMsg::Unstake(asset) => unstake(deps, env, info, asset),
+        ExecuteMsg::UnstakeCallback(asset, addr) => unstake_callback(deps, env, info, asset, addr),
         ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, info, asset),
 
         // Alliance interactions Delegate, undelegate and redelegate
@@ -303,7 +304,12 @@ fn stake(
     Ok(res)
 }
 
-fn unstake(deps: DepsMut, info: MessageInfo, asset: Asset) -> Result<Response, ContractError> {
+fn unstake(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    asset: Asset,
+) -> Result<Response, ContractError> {
     let deposit_asset_key = AssetInfoKey::from(asset.info.clone());
     let sender = info.sender.clone();
     if asset.amount.is_zero() {
@@ -360,16 +366,90 @@ fn unstake(deps: DepsMut, info: MessageInfo, asset: Asset) -> Result<Response, C
         },
     )?;
 
-    let msg = asset.transfer_msg(&info.sender)?;
-
-    Ok(Response::new()
+    let mut res = Response::new()
         .add_attributes(vec![
             ("action", "unstake"),
             ("user", info.sender.as_ref()),
             ("asset", &asset.info.to_string()),
             ("amount", &asset.amount.to_string()),
         ])
-        .add_message(msg))
+        .add_message(asset.transfer_msg(&info.sender)?);
+
+    // Query astro incentives to check how much stake do we have in there
+    // from the asset info e.g. cw20:asset1 -> asset1 or native:uluna -> uluna
+    let lp_token: String = asset.info.to_string();
+    let lp_token = lp_token.split(':').collect::<Vec<&str>>()[1].to_string();
+    let astro_incentives_staked: Uint128 = deps
+        .querier
+        .query_wasm_smart(
+            config.astro_incentives_addr.to_string(),
+            &QueryAstroMsg::Deposit {
+                lp_token: lp_token.to_string(),
+                user: env.contract.address.to_string(),
+            },
+        )
+        .unwrap_or_default();
+
+    // If there are enough tokens staked in astro incentives,
+    // withdraw the tokens and send them to the user on a callback.
+    if astro_incentives_staked >= asset.amount {
+        let withdraw_msg: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.astro_incentives_addr.to_string(),
+            msg: to_json_binary(&ExecuteAstroMsg::Withdraw {
+                lp_token: lp_token,
+                amount: asset.amount,
+            })?,
+            funds: vec![],
+        });
+        res = res.add_message(withdraw_msg);
+
+        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: env.contract.address.to_string(),
+            msg: to_json_binary(&ExecuteMsg::UnstakeCallback(asset, info.sender))?,
+            funds: vec![],
+        });
+        res = res.add_message(msg)
+    }
+
+    Ok(res)
+}
+
+fn unstake_callback(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    asset: Asset,
+    addr: Addr,
+) -> Result<Response, ContractError> {
+    if info.sender != env.contract.address {
+        return Err(ContractError::Unauthorized {});
+    }
+    let config = CONFIG.load(deps.storage)?;
+
+    let astro_reward_token =
+        AssetInfoKey::from(AssetInfo::Native(config.astro_reward_denom.clone()));
+    let astro_rewards = _claim_astro_rewards(
+        deps.storage,
+        addr.clone(),
+        AssetInfoKey::from(asset.info.clone()),
+        astro_reward_token.clone(),
+    )?;
+    let key = (
+        addr.clone(),
+        AssetInfoKey::from(asset.info.clone()),
+        astro_reward_token.clone(),
+    );
+    let unclaimed_rewards = UNCLAIMED_REWARDS
+        .update(deps.storage, key, |balance| -> Result<_, ContractError> {
+            let mut unclaimed_rewards = balance.unwrap_or_default();
+            unclaimed_rewards += astro_rewards;
+            Ok(unclaimed_rewards)
+        })
+        .unwrap_or_default();
+
+    Ok(Response::new()
+        .add_attribute("action", "unstake_callback")
+        .add_message(asset.transfer_msg(addr)?))
 }
 
 fn claim_rewards(
@@ -752,7 +832,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         .collect();
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_json_binary(&ExecuteMsg::UpdateAllianceRewardsCallback {}).unwrap(),
+        msg: to_json_binary(&ExecuteMsg::UpdateAllianceRewardsCallback {})?,
         funds: vec![],
     });
 

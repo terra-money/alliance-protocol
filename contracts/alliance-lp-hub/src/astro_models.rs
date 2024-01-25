@@ -15,6 +15,12 @@ pub enum ExecuteAstroMsg {
         /// The LP token cw20 address or token factory denom
         lp_tokens: Vec<String>,
     },
+    Withdraw {
+        /// The LP token cw20 address or token factory denom
+        lp_token: String,
+        /// The amount to withdraw. Must not exceed total staked amount.
+        amount: Uint128,
+    },
 }
 
 #[cw_serde]
@@ -36,6 +42,9 @@ pub enum QueryAstroMsg {
     /// PendingToken returns the amount of rewards that can be claimed by an account that deposited a specific LP token in a generator
     #[returns(Vec<Asset>)]
     PendingRewards { lp_token: String, user: String },
+    /// Deposit returns the LP token amount deposited in a specific generator
+    #[returns(Uint128)]
+    Deposit { lp_token: String, user: String },
 }
 
 #[cw_serde]

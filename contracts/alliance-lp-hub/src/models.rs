@@ -51,6 +51,7 @@ pub enum ExecuteMsg {
     Stake {},
     // Used to do the other operations for staked assets
     Unstake(Asset),
+    UnstakeCallback(Asset, Addr),
     ClaimRewards(AssetInfo),
 
     // Alliance interactions used to delegate, undelegate and redelegate
