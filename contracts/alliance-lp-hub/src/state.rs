@@ -7,6 +7,10 @@ use std::collections::HashSet;
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const WHITELIST: Map<AssetInfoKey, Decimal> = Map::new("whitelist");
 
+// Used to keep track of all staked tokens
+// by total balances and by user balances
+// when staking and unstaking this two maps
+// must be addedup or subtracted
 pub const TOTAL_BALANCES: Map<AssetInfoKey, Uint128> = Map::new("total_balances");
 pub const BALANCES: Map<(Addr, AssetInfoKey), Uint128> = Map::new("balances");
 

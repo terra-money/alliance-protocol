@@ -312,9 +312,13 @@ fn test_unstake() {
                 ("asset", "native:native_asset"),
                 ("amount", "50"),
             ])
-            .add_message(CosmosMsg::Bank(BankMsg::Send {
-                to_address: "user1".into(),
-                amount: vec![coin(50, "native_asset")],
+            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: "cosmos2contract".to_string(),
+                msg: to_json_binary(&ExecuteMsg::UnstakeCallback(
+                    Asset::native("native_asset", Uint128::new(50)),
+                    Addr::unchecked("user1"),
+                )).unwrap(),
+                funds: vec![],
             }))
     );
 
@@ -340,9 +344,13 @@ fn test_unstake() {
                 ("asset", "native:native_asset"),
                 ("amount", "50"),
             ])
-            .add_message(CosmosMsg::Bank(BankMsg::Send {
-                to_address: "user1".into(),
-                amount: vec![coin(50, "native_asset")],
+            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: "cosmos2contract".to_string(),
+                msg: to_json_binary(&ExecuteMsg::UnstakeCallback(
+                    Asset::native("native_asset", Uint128::new(50)),
+                    Addr::unchecked("user1"),
+                )).unwrap(),
+                funds: vec![],
             }))
     );
 

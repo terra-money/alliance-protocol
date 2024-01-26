@@ -115,7 +115,7 @@ pub fn execute(
             stake(deps, env, info.sender, coin.into())
         }
         ExecuteMsg::Unstake(asset) => unstake(deps, env, info, asset),
-        ExecuteMsg::UnstakeCallback(asset, addr) => unstake_callback(deps, env, info, asset, addr),
+        ExecuteMsg::UnstakeCallback(asset, addr) => unstake_callback(env, info, asset, addr),
         ExecuteMsg::ClaimRewards(asset) => claim_rewards(deps, info, asset),
 
         // Alliance interactions Delegate, undelegate and redelegate
@@ -304,18 +304,23 @@ fn stake(
     Ok(res)
 }
 
+// This function unstake the alliance and astro deposits,
+// if there are any astro deposits it will withdraw them
+// from the astro incentives contract. This function also
+// has a callback function that will send the tokens to the
+// user after the astro incentives contract has withdrawn
 fn unstake(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     asset: Asset,
 ) -> Result<Response, ContractError> {
-    let deposit_asset_key = AssetInfoKey::from(asset.info.clone());
-    let sender = info.sender.clone();
     if asset.amount.is_zero() {
         return Err(ContractError::AmountCannotBeZero {});
     }
     let config = CONFIG.load(deps.storage)?;
+    let sender = info.sender.clone();
+    let deposit_asset = AssetInfoKey::from(asset.info.clone());
     let reward_asset_token = AssetInfoKey::from(AssetInfo::Native(config.alliance_token_denom));
     let rewards = _claim_alliance_rewards(
         deps.storage,
@@ -324,59 +329,24 @@ fn unstake(
         reward_asset_token.clone(),
     )?;
     if !rewards.is_zero() {
-        UNCLAIMED_REWARDS.update(
-            deps.storage,
-            (
-                sender.clone(),
-                deposit_asset_key.clone(),
-                reward_asset_token,
-            ),
-            |balance| -> Result<_, ContractError> {
-                let mut unclaimed_rewards = balance.unwrap_or_default();
-                unclaimed_rewards += rewards;
-                Ok(unclaimed_rewards)
-            },
-        )?;
+        let key = (sender.clone(), deposit_asset.clone(), reward_asset_token);
+        UNCLAIMED_REWARDS.update(deps.storage, key, |balance| -> Result<_, ContractError> {
+            let mut unclaimed_rewards = balance.unwrap_or_default();
+            unclaimed_rewards += rewards;
+            Ok(unclaimed_rewards)
+        })?;
     }
 
-    BALANCES.update(
-        deps.storage,
-        (sender, deposit_asset_key.clone()),
-        |balance| -> Result<_, ContractError> {
-            match balance {
-                Some(balance) => {
-                    if balance < asset.amount {
-                        return Err(ContractError::InsufficientBalance {});
-                    }
-                    Ok(balance - asset.amount)
-                }
-                None => Err(ContractError::InsufficientBalance {}),
-            }
-        },
-    )?;
-    TOTAL_BALANCES.update(
-        deps.storage,
-        deposit_asset_key,
-        |balance| -> Result<_, ContractError> {
-            let balance = balance.unwrap_or(Uint128::zero());
-            if balance < asset.amount {
-                return Err(ContractError::InsufficientBalance {});
-            }
-            Ok(balance - asset.amount)
-        },
-    )?;
+    let mut res = Response::new().add_attributes(vec![
+        ("action", "unstake"),
+        ("user", sender.clone().as_ref()),
+        ("asset", &asset.info.to_string()),
+        ("amount", &asset.amount.to_string()),
+    ]);
 
-    let mut res = Response::new()
-        .add_attributes(vec![
-            ("action", "unstake"),
-            ("user", info.sender.as_ref()),
-            ("asset", &asset.info.to_string()),
-            ("amount", &asset.amount.to_string()),
-        ])
-        .add_message(asset.transfer_msg(&info.sender)?);
-
-    // Query astro incentives to check how much stake do we have in there
-    // from the asset info e.g. cw20:asset1 -> asset1 or native:uluna -> uluna
+    // Query astro incentives to check if there are enough staked tokens
+    // transforming the lp_token to the following formats cw20:asset1 -> asset1,
+    // or native:uluna -> uluna
     let lp_token: String = asset.info.to_string();
     let lp_token = lp_token.split(':').collect::<Vec<&str>>()[1].to_string();
     let astro_incentives_staked: Uint128 = deps
@@ -391,8 +361,28 @@ fn unstake(
         .unwrap_or_default();
 
     // If there are enough tokens staked in astro incentives,
-    // withdraw the tokens and send them to the user on a callback.
+    // it means that we should withdraw tokens from astro
+    // incentives otherwise the contract will endup having
+    // less balance than the user is trying to unstake.
     if astro_incentives_staked >= asset.amount {
+        let astro_reward_token =
+            AssetInfoKey::from(AssetInfo::Native(config.astro_reward_denom.clone()));
+        let astro_rewards = _claim_astro_rewards(
+            deps.storage,
+            sender.clone(),
+            AssetInfoKey::from(deposit_asset.clone()),
+            astro_reward_token.clone(),
+        )?;
+
+        if !astro_rewards.is_zero() {
+            let key = (sender.clone(), deposit_asset.clone(), astro_reward_token);
+            UNCLAIMED_REWARDS.update(deps.storage, key, |balance| -> Result<_, ContractError> {
+                let mut unclaimed_rewards = balance.unwrap_or_default();
+                unclaimed_rewards += rewards;
+                Ok(unclaimed_rewards)
+            })?;
+        }
+
         let withdraw_msg: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.astro_incentives_addr.to_string(),
             msg: to_json_binary(&ExecuteAstroMsg::Withdraw {
@@ -402,54 +392,67 @@ fn unstake(
             funds: vec![],
         });
         res = res.add_message(withdraw_msg);
-
-        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: env.contract.address.to_string(),
-            msg: to_json_binary(&ExecuteMsg::UnstakeCallback(asset, info.sender))?,
-            funds: vec![],
-        });
-        res = res.add_message(msg)
     }
 
-    Ok(res)
+    // Subtract the amount from the user balance and the total balance
+    // since these tokens will be send to the user on the callback function
+    let balance_key = (sender.clone(), deposit_asset.clone());
+    BALANCES.update(deps.storage, balance_key, |b| -> Result<_, ContractError> {
+        match b {
+            Some(b) => {
+                if b < asset.amount {
+                    Err(ContractError::InsufficientBalance {})
+                } else {
+                    Ok(b - asset.amount)
+                }
+            }
+            None => Err(ContractError::InsufficientBalance {}),
+        }
+    })?;
+    TOTAL_BALANCES.update(
+        deps.storage,
+        deposit_asset.clone(),
+        |b| -> Result<_, ContractError> {
+            let b = b.unwrap_or(Uint128::zero());
+            if b < asset.amount {
+                Err(ContractError::InsufficientBalance {})
+            } else {
+                Ok(b - asset.amount)
+            }
+        },
+    )?;
+
+    // Use a callback function to send staked tokens back
+    // to the user after the possible executio of astro incentives
+    // withdraw function execution is done. That way we can be sure
+    // that the tokens are available to be sent back to the user.
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.contract.address.to_string(),
+        msg: to_json_binary(&ExecuteMsg::UnstakeCallback(asset, info.sender))?,
+        funds: vec![],
+    });
+
+    Ok(res.add_message(msg))
 }
 
+// Callback that can be used by the contract itself to send
+// tokens back to the user when unstaking. This function 
+// needs to be a callback because we need to be sure that
+// the tokens are available to be sent back to the user
+// after unstaking from astro incentives
 fn unstake_callback(
-    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     asset: Asset,
-    addr: Addr,
+    usr: Addr,
 ) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
-    let config = CONFIG.load(deps.storage)?;
-
-    let astro_reward_token =
-        AssetInfoKey::from(AssetInfo::Native(config.astro_reward_denom.clone()));
-    let astro_rewards = _claim_astro_rewards(
-        deps.storage,
-        addr.clone(),
-        AssetInfoKey::from(asset.info.clone()),
-        astro_reward_token.clone(),
-    )?;
-    let key = (
-        addr.clone(),
-        AssetInfoKey::from(asset.info.clone()),
-        astro_reward_token.clone(),
-    );
-    let unclaimed_rewards = UNCLAIMED_REWARDS
-        .update(deps.storage, key, |balance| -> Result<_, ContractError> {
-            let mut unclaimed_rewards = balance.unwrap_or_default();
-            unclaimed_rewards += astro_rewards;
-            Ok(unclaimed_rewards)
-        })
-        .unwrap_or_default();
 
     Ok(Response::new()
         .add_attribute("action", "unstake_callback")
-        .add_message(asset.transfer_msg(addr)?))
+        .add_message(asset.transfer_msg(usr)?))
 }
 
 fn claim_rewards(
