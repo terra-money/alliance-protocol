@@ -10,7 +10,7 @@ use crate::tests::helpers::{
 };
 use crate::tests::mock_querier::mock_dependencies;
 use alliance_protocol::error::ContractError;
-use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
+use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
     coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Event, Reply, Response,
     SubMsg, SubMsgResponse, SubMsgResult, Uint128, WasmMsg,
@@ -22,7 +22,7 @@ use terra_proto_rs::traits::Message;
 
 #[test]
 fn test_update_rewards() {
-    let mut deps = mock_dependencies_with_balance(&[coin(1000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(1000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
 
@@ -75,7 +75,7 @@ fn test_update_rewards() {
 
 #[test]
 fn test_update_rewards_with_funds_sent() {
-    let mut deps = mock_dependencies_with_balance(&[coin(1000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(1000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
 
@@ -87,6 +87,7 @@ fn test_update_rewards_with_funds_sent() {
         .unwrap();
 
     deps.querier
+        .base
         .update_balance("cosmos2contract", vec![coin(2000000, "uluna")]);
     let res = execute(
         deps.as_mut(),
@@ -107,7 +108,7 @@ fn test_update_rewards_with_funds_sent() {
 
 #[test]
 fn update_alliance_reward_callback() {
-    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(2000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
 
@@ -207,7 +208,7 @@ fn update_alliance_reward_callback() {
 
 #[test]
 fn update_alliance_reward_unauthorized_callback() {
-    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(2000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
 
@@ -224,7 +225,7 @@ fn update_alliance_reward_unauthorized_callback() {
 
 #[test]
 fn update_alliance_rewards_callback_with_unallocated() {
-    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(2000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
 
@@ -313,7 +314,7 @@ fn update_alliance_rewards_callback_with_unallocated() {
 
 #[test]
 fn claim_user_rewards() {
-    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(2000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
     modify_asset(
@@ -383,7 +384,7 @@ fn claim_user_rewards() {
         res,
         Response::new()
             .add_attributes(vec![
-                ("action", "claim_rewards"),
+                ("action", "claim_alliance_lp_rewards"),
                 ("user", "user1"),
                 ("asset", "native:aWHALE"),
                 ("alliance_reward_amount", "100000"),
@@ -429,22 +430,25 @@ fn claim_user_rewards() {
     let all_rewards = query_all_rewards(deps.as_ref(), "user1");
     assert_eq!(
         all_rewards,
-        vec![PendingRewardsRes {
-            rewards: Uint128::zero(),
-            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
-            reward_asset: AssetInfo::Native("astro_reward_denom".to_string()),
-        },PendingRewardsRes {
-            rewards: Uint128::zero(),
-            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
-            reward_asset: AssetInfo::Native("uluna".to_string()),
-        }]
+        vec![
+            PendingRewardsRes {
+                rewards: Uint128::zero(),
+                deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+                reward_asset: AssetInfo::Native("astro_reward_denom".to_string()),
+            },
+            PendingRewardsRes {
+                rewards: Uint128::zero(),
+                deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+                reward_asset: AssetInfo::Native("uluna".to_string()),
+            }
+        ]
     );
 
     let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
     assert_eq!(
         res,
         Response::new().add_attributes(vec![
-            ("action", "claim_rewards"),
+            ("action", "claim_alliance_lp_rewards"),
             ("user", "user1"),
             ("asset", "native:aWHALE"),
             ("alliance_reward_amount", "0"),
@@ -454,6 +458,7 @@ fn claim_user_rewards() {
 
     // Update more rewards
     deps.querier
+        .base
         .update_balance("cosmos2contract", vec![coin(1900000 + 100000, "uluna")]);
     TEMP_BALANCE
         .save(
@@ -474,7 +479,7 @@ fn claim_user_rewards() {
         res,
         Response::new()
             .add_attributes(vec![
-                ("action", "claim_rewards"),
+                ("action", "claim_alliance_lp_rewards"),
                 ("user", "user1"),
                 ("asset", "native:aWHALE"),
                 ("alliance_reward_amount", "10000"),
@@ -489,7 +494,7 @@ fn claim_user_rewards() {
 
 #[test]
 fn claim_user_rewards_after_staking() {
-    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(2000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
     modify_asset(
@@ -541,7 +546,7 @@ fn claim_user_rewards_after_staking() {
         res,
         Response::new()
             .add_attributes(vec![
-                ("action", "claim_rewards"),
+                ("action", "claim_alliance_lp_rewards"),
                 ("user", "user1"),
                 ("asset", "native:aWHALE"),
                 ("alliance_reward_amount", "100000"),
@@ -558,7 +563,7 @@ fn claim_user_rewards_after_staking() {
     assert_eq!(
         res,
         Response::new().add_attributes(vec![
-            ("action", "claim_rewards"),
+            ("action", "claim_alliance_lp_rewards"),
             ("user", "user1"),
             ("asset", "native:aWHALE"),
             ("alliance_reward_amount", "0"),
@@ -569,7 +574,7 @@ fn claim_user_rewards_after_staking() {
 
 #[test]
 fn claim_rewards_after_staking_and_unstaking() {
-    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(2000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
     modify_asset(
@@ -701,7 +706,7 @@ fn claim_rewards_after_staking_and_unstaking() {
 
 #[test]
 fn claim_rewards_after_rebalancing_emissions() {
-    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(2000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
     modify_asset(
@@ -792,16 +797,14 @@ fn claim_rewards_after_rebalancing_emissions() {
 
 #[test]
 fn test_update_rewards_with_astro_rewards() {
-    let mut deps = mock_dependencies(&[coin(1000000, "uluna")]);
+    let mut deps = mock_dependencies(Some(&[coin(1000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
 
     WHITELIST
         .save(
             deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native(
-                "factory/astro_native".to_string(),
-            )),
+            AssetInfoKey::from(AssetInfo::Native("factory/astro_native".to_string())),
             &Decimal::percent(10),
         )
         .unwrap();
@@ -814,9 +817,7 @@ fn test_update_rewards_with_astro_rewards() {
     TOTAL_BALANCES
         .save(
             deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native(
-                "factory/astro_native".to_string(),
-            )),
+            AssetInfoKey::from(AssetInfo::Native("factory/astro_native".to_string())),
             &Uint128::new(1000000),
         )
         .unwrap();
@@ -876,11 +877,8 @@ fn test_update_rewards_with_astro_rewards() {
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![Event::new("wasm")
                 .add_attribute("_contract_address", "cosmos2contract")
-                .add_attribute("action", "claim_rewards")
-                .add_attribute(
-                    "claimed_position",
-                    "factory/astro_native",
-                )
+                .add_attribute("action", "claim_alliance_lp_rewards")
+                .add_attribute("claimed_position", "factory/astro_native")
                 .add_attribute("claimed_reward", "1factory/astro")],
             data: None,
         }),
@@ -888,6 +886,6 @@ fn test_update_rewards_with_astro_rewards() {
     let res = reply(deps.as_mut(), mock_env(), reply_msg).unwrap();
     assert_eq!(
         res,
-        Response::new().add_attributes(vec![("action", "claim_astro_rewards_success")])
+        Response::new().add_attributes(vec![("action", "claim_alliance_lp_astro_rewards_success")])
     );
 }

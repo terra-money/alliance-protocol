@@ -79,6 +79,13 @@ pub fn unstake(deps: DepsMut, user: &str, asset: Asset) -> Result<Response, Cont
     execute(deps, env, info, msg)
 }
 
+pub fn unstake_callback(deps: DepsMut, sender:&str, user: &str, asset: Asset) -> Result<Response, ContractError> {
+    let info = mock_info(sender, &[]);
+    let env = mock_env();
+    let msg = ExecuteMsg::UnstakeCallback(asset,Addr::unchecked(user));
+    execute(deps, env, info, msg)
+}
+
 pub fn alliance_delegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Response {
     let info = mock_info("controller", &[]);
     let env = mock_env();

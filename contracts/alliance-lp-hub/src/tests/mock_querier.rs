@@ -7,14 +7,25 @@ use cw_asset::{Asset, AssetInfoBase};
 
 use crate::astro_models::{AstroAssetInfo, AstroRewardType, QueryAstroMsg, RewardInfo};
 
+const ASTRO_MOCK_CONTRACT_ADDR: &str = "astro_incentives";
+
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies.
 /// This uses the Astroport CustomQuerier.
 pub fn mock_dependencies(
-    contract_balance: &[Coin],
+    balance: Option<&[Coin]>,
 ) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
-    let custom_querier: WasmMockQuerier =
-        WasmMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
-
+    let custom_querier: WasmMockQuerier = match balance {
+        Some(b) => {
+            let balances = vec![
+                (ASTRO_MOCK_CONTRACT_ADDR, b),
+                (MOCK_CONTRACT_ADDR, b)
+            ];
+            
+            WasmMockQuerier::new(MockQuerier::new(&balances))
+        },
+        None => WasmMockQuerier::new(MockQuerier::new(&[(ASTRO_MOCK_CONTRACT_ADDR, &[])])),
+    };
+    // MockQuerier::default()
     OwnedDeps {
         storage: MockStorage::default(),
         api: MockApi::default(),
@@ -24,7 +35,7 @@ pub fn mock_dependencies(
 }
 
 pub struct WasmMockQuerier {
-    base: MockQuerier<Empty>,
+    pub base: MockQuerier<Empty>,
 }
 
 impl Querier for WasmMockQuerier {
@@ -51,19 +62,19 @@ impl WasmMockQuerier {
                 msg,
             }) => match from_json(msg).unwrap() {
                 QueryAstroMsg::RewardInfo { lp_token } => {
-                    if lp_token == "astro_existent_cw20" || lp_token == "astro_existent_native_coin"
-                    {
+                    if lp_token == "terra_astro_cw20" || lp_token == "factory/astro_native" {
                         let msg = vec![RewardInfo {
                             reward: AstroRewardType::Int(AstroAssetInfo::Token {
                                 contract_addr: Addr::unchecked(lp_token),
                             }),
-                            rps: Decimal::zero(),
-                            index: Decimal::zero(),
-                            orphaned: Decimal::zero(),
+                            rps: Decimal::one(),
+                            index: Decimal::one(),
+                            orphaned: Decimal::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     }
-                    panic!("The only mocked tokens are 'astro_existent_cw20' and 'astro_existent_native_coin' you send {}",lp_token)
+                    let msg: Vec<RewardInfo> = vec![];
+                    return SystemResult::Ok(to_json_binary(&msg).into());
                 }
                 QueryAstroMsg::PendingRewards { lp_token, user: _ } => {
                     if lp_token == "factory/astro_native" {
@@ -72,31 +83,27 @@ impl WasmMockQuerier {
                             amount: Uint128::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
-                    } else if lp_token == "cw20:astro_cw20" {
+                    } else if lp_token == "terra_astro_cw20" {
                         let msg = vec![Asset {
                             info: AssetInfoBase::cw20(Addr::unchecked(lp_token.to_string())),
                             amount: Uint128::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     }
-                    panic!("The only mocked token with pending rewards is 'factory/astro_native' {}",lp_token)
-                },
-                QueryAstroMsg::Deposit {lp_token, user:_} => {
-                    if lp_token == "factory/astro_native" {
-                        let msg = vec![Asset {
-                            info: AssetInfoBase::native(lp_token.to_string()),
-                            amount: Uint128::one(),
-                        }];
-                        return SystemResult::Ok(to_json_binary(&msg).into());
-                    } else if lp_token == "cw20:astro_cw20" {
-                        let msg = vec![Asset {
-                            info: AssetInfoBase::cw20(Addr::unchecked(lp_token.to_string())),
-                            amount: Uint128::one(),
-                        }];
-                        return SystemResult::Ok(to_json_binary(&msg).into());
-                    }
-                    panic!("The only mocked token with pending rewards is 'factory/astro_native' {}",lp_token)
 
+                    let msg = vec![Asset {
+                        info: AssetInfoBase::cw20(Addr::unchecked(lp_token.to_string())),
+                        amount: Uint128::zero(),
+                    }];
+                    return SystemResult::Ok(to_json_binary(&msg).into());
+                }
+                QueryAstroMsg::Deposit { lp_token, user: _ } => {
+                    if lp_token == "factory/astro_native" {
+                        return SystemResult::Ok(to_json_binary(&Uint128::one()).into());
+                    } else if lp_token == "terra_astro_cw20" {
+                        return SystemResult::Ok(to_json_binary(&Uint128::new(50)).into());
+                    }
+                    return SystemResult::Ok(to_json_binary(&Uint128::zero()).into());
                 }
             },
             _ => self.base.handle_query(request),

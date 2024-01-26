@@ -223,8 +223,7 @@ fn stake(
             &QueryAstroMsg::RewardInfo {
                 lp_token: lp_token.split(':').collect::<Vec<&str>>()[1].to_string(),
             },
-        )
-        .unwrap_or_default();
+        )?;
 
     let mut res = Response::new().add_attributes(vec![
         ("action", "stake"),
@@ -338,7 +337,7 @@ fn unstake(
     }
 
     let mut res = Response::new().add_attributes(vec![
-        ("action", "unstake"),
+        ("action", "unstake_alliance_lp"),
         ("user", sender.clone().as_ref()),
         ("asset", &asset.info.to_string()),
         ("amount", &asset.amount.to_string()),
@@ -357,8 +356,7 @@ fn unstake(
                 lp_token: lp_token.to_string(),
                 user: env.contract.address.to_string(),
             },
-        )
-        .unwrap_or_default();
+        )?;
 
     // If there are enough tokens staked in astro incentives,
     // it means that we should withdraw tokens from astro
@@ -451,7 +449,7 @@ fn unstake_callback(
     }
 
     Ok(Response::new()
-        .add_attribute("action", "unstake_callback")
+        .add_attribute("action", "unstake_alliance_lp_callback")
         .add_message(asset.transfer_msg(usr)?))
 }
 
@@ -462,7 +460,7 @@ fn claim_rewards(
 ) -> Result<Response, ContractError> {
     let user = info.sender;
     let config = CONFIG.load(deps.storage)?;
-    let mut res = Response::new().add_attribute("action", "claim_rewards");
+    let mut res = Response::new().add_attribute("action", "claim_alliance_lp_rewards");
 
     // Claim alliance rewards, add the rewards to the response,
     // create the transfer msg and send the tokens to the user.
@@ -647,7 +645,7 @@ fn alliance_delegate(
     }
     VALIDATORS.save(deps.storage, &validators)?;
     Ok(Response::new()
-        .add_attributes(vec![("action", "alliance_delegate")])
+        .add_attributes(vec![("action", "alliance_lp_delegate")])
         .add_messages(msgs))
 }
 
@@ -679,7 +677,7 @@ fn alliance_undelegate(
         msgs.push(msg);
     }
     Ok(Response::new()
-        .add_attributes(vec![("action", "alliance_undelegate")])
+        .add_attributes(vec![("action", "alliance_lp_undelegate")])
         .add_messages(msgs))
 }
 
@@ -717,7 +715,7 @@ fn alliance_redelegate(
     }
     VALIDATORS.save(deps.storage, &validators)?;
     Ok(Response::new()
-        .add_attributes(vec![("action", "alliance_redelegate")])
+        .add_attributes(vec![("action", "alliance_lp_redelegate")])
         .add_messages(msgs))
 }
 
@@ -748,8 +746,7 @@ fn _update_astro_rewards(
                     lp_token: lp_token.clone(),
                     user: contract_addr.to_string(),
                 },
-            )
-            .unwrap_or_default();
+            )?;
 
         for pr in pending_rewards {
             if !pr.amount.is_zero() {
@@ -778,7 +775,7 @@ fn _update_astro_rewards(
 
 fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    let mut res = Response::new().add_attributes(vec![("action", "update_rewards")]);
+    let mut res = Response::new().add_attributes(vec![("action", "update_alliance_lp_rewards")]);
 
     // Iterate over received funds, check the balance of the smart contract
     // and finally update the temp balance with the difference between the
@@ -935,7 +932,7 @@ pub fn reply(
     match reply.id {
         CREATE_REPLY_ID => reply_instantiate(deps, env, reply),
         CLAIM_ALLIANCE_REWARDS_ERROR_REPLY_ID => {
-            Ok(Response::new().add_attributes(vec![("action", "claim_alliance_rewards_error")]))
+            Ok(Response::new().add_attributes(vec![("action", "claim_alliance_lp_rewards_error")]))
         }
         CLAIM_ASTRO_REWARDS_REPLY_ID => reply_claim_astro_rewards(deps, reply),
         _ => Err(ContractError::InvalidReplyId(reply.id)),
@@ -1005,7 +1002,7 @@ fn reply_claim_astro_rewards(
     // attribute and return the response.
     if reply.result.is_err() {
         res = res.add_attributes(vec![
-            ("action", "claim_astro_rewards_error"),
+            ("action", "claim_alliance_lp_astro_rewards_error"),
             ("error", &reply.result.unwrap_err()),
         ]);
 
@@ -1081,5 +1078,5 @@ fn reply_claim_astro_rewards(
         }
     }
 
-    Ok(res.add_attribute("action", "claim_astro_rewards_success"))
+    Ok(res.add_attribute("action", "claim_alliance_lp_astro_rewards_success"))
 }

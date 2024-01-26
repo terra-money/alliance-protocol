@@ -4,11 +4,12 @@ use crate::state::{CONFIG, VALIDATORS};
 use crate::tests::helpers::{
     alliance_delegate, alliance_redelegate, alliance_undelegate, setup_contract,
 };
+use crate::tests::mock_querier::mock_dependencies;
 use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceDelegation, AllianceUndelegateMsg,
 };
 use alliance_protocol::error::ContractError;
-use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{Binary, CosmosMsg, StdResult, SubMsg, Uint128};
 use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::{MsgDelegate, MsgRedelegate};
@@ -17,7 +18,7 @@ use terra_proto_rs::traits::Message;
 
 #[test]
 fn test_alliance_delegate() {
-    let mut deps = mock_dependencies();
+    let mut deps = mock_dependencies(None);
     setup_contract(deps.as_mut());
 
     let denom = "token_factory/token";
@@ -77,7 +78,7 @@ fn test_alliance_delegate() {
 
 #[test]
 fn test_alliance_delegation_invalid() {
-    let mut deps = mock_dependencies();
+    let mut deps = mock_dependencies(None);
     setup_contract(deps.as_mut());
     let denom = "token_factory/token";
     // set alliance token denom
@@ -122,7 +123,7 @@ fn test_alliance_delegation_invalid() {
 
 #[test]
 fn test_alliance_undelegate() {
-    let mut deps = mock_dependencies();
+    let mut deps = mock_dependencies(None);
     setup_contract(deps.as_mut());
     let denom = "token_factory/token";
     // set alliance token denom
@@ -179,7 +180,7 @@ fn test_alliance_undelegate() {
 
 #[test]
 fn test_alliance_undelegation_invalid() {
-    let mut deps = mock_dependencies();
+    let mut deps = mock_dependencies(None);
     setup_contract(deps.as_mut());
     let denom = "token_factory/token";
     // set alliance token denom
@@ -224,7 +225,7 @@ fn test_alliance_undelegation_invalid() {
 
 #[test]
 fn test_alliance_redelegate() {
-    let mut deps = mock_dependencies();
+    let mut deps = mock_dependencies(None);
     setup_contract(deps.as_mut());
     let denom = "token_factory/token";
     // set alliance token denom
