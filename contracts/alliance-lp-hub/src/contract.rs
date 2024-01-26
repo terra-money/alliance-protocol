@@ -216,14 +216,12 @@ fn stake(
     // Query astro incentives, to do so we must first remove the prefix
     // from the asset info e.g. cw20:asset1 -> asset1 or native:uluna -> uluna
     let lp_token = received_asset.info.to_string();
-    let astro_incentives: Vec<RewardInfo> = deps
-        .querier
-        .query_wasm_smart(
-            config.astro_incentives_addr.to_string(),
-            &QueryAstroMsg::RewardInfo {
-                lp_token: lp_token.split(':').collect::<Vec<&str>>()[1].to_string(),
-            },
-        )?;
+    let astro_incentives: Vec<RewardInfo> = deps.querier.query_wasm_smart(
+        config.astro_incentives_addr.to_string(),
+        &QueryAstroMsg::RewardInfo {
+            lp_token: lp_token.split(':').collect::<Vec<&str>>()[1].to_string(),
+        },
+    )?;
 
     let mut res = Response::new().add_attributes(vec![
         ("action", "stake"),
@@ -232,43 +230,35 @@ fn stake(
         ("amount", &received_asset.amount.to_string()),
     ]);
 
+    // When Astro incentives is not empty it means that the asset
+    // is whitelisted in astro incentives, so we need to send the
+    // tokens to the astro incentives contract and then stake them.
+    // Besides that we also claim rewards from astro incentives if any
     if !astro_incentives.is_empty() {
-        let msg = match received_asset.info.clone() {
-            AssetInfo::Native(native_asset) => {
-                // If the asset is native, we need to send it to the astro incentives contract
-                // using the ExecuteAstroMsg::Deposit message
-                CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: config.astro_incentives_addr.to_string(),
-                    msg: to_json_binary(&ExecuteAstroMsg::Deposit { recipient: None })?,
-                    funds: vec![CwCoin {
-                        denom: native_asset,
-                        amount: received_asset.amount,
-                    }],
-                })
-            }
-            AssetInfo::Cw20(cw20_contract_addr) => {
-                // If the asset is a cw20 token, we need to send it to the astro incentives contract
-                // using the ExecuteAstroMsg::Receive message
-                CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: cw20_contract_addr.to_string(),
-                    msg: to_json_binary(&Cw20ExecuteMsg::Send {
-                        contract: config.astro_incentives_addr.to_string(),
-                        amount: received_asset.amount,
-                        msg: to_json_binary(&Cw20ReceiveMsg {
-                            sender: env.contract.address.to_string(),
-                            amount: received_asset.amount,
-                            msg: to_json_binary(&Cw20Msg::Deposit { recipient: None })?,
-                        })?,
-                    })?,
-                    funds: vec![],
-                })
-            }
-            _ => {
-                return Err(ContractError::InvalidDenom(received_asset.info.to_string()));
-            }
-        };
-
+        let msg = _create_astro_deposit_msg(
+            received_asset.clone(),
+            config.astro_incentives_addr.to_string(),
+            env,
+        )?;
         res = res.add_message(msg);
+        let astro_reward_token =
+            AssetInfoKey::from(AssetInfo::Native(config.astro_reward_denom.clone()));
+        let received_asset_key = AssetInfoKey::from(received_asset.info.clone());
+        let astro_rewards = _claim_astro_rewards(
+            deps.storage,
+            sender.clone(),
+            received_asset_key.clone(),
+            astro_reward_token.clone(),
+        )?;
+
+        if !astro_rewards.is_zero() {
+            let key = (sender.clone(), received_asset_key, astro_reward_token);
+            UNCLAIMED_REWARDS.update(deps.storage, key, |balance| -> Result<_, ContractError> {
+                let mut unclaimed_rewards = balance.unwrap_or_default();
+                unclaimed_rewards += rewards;
+                Ok(unclaimed_rewards)
+            })?;
+        }
     }
 
     BALANCES.update(
@@ -301,6 +291,48 @@ fn stake(
         &asset_reward_rate,
     )?;
     Ok(res)
+}
+
+fn _create_astro_deposit_msg(
+    received_asset: Asset,
+    astro_incentives_addr: String,
+    env: Env,
+) -> Result<CosmosMsg, ContractError> {
+    let msg = match received_asset.info.clone() {
+        AssetInfo::Native(native_asset) => {
+            // If the asset is native, we need to send it to the astro incentives contract
+            // using the ExecuteAstroMsg::Deposit message
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: astro_incentives_addr.to_string(),
+                msg: to_json_binary(&ExecuteAstroMsg::Deposit { recipient: None })?,
+                funds: vec![CwCoin {
+                    denom: native_asset,
+                    amount: received_asset.amount,
+                }],
+            })
+        }
+        AssetInfo::Cw20(cw20_contract_addr) => {
+            // If the asset is a cw20 token, we need to send it to the astro incentives contract
+            // using the ExecuteAstroMsg::Receive message
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: cw20_contract_addr.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Send {
+                    contract: astro_incentives_addr,
+                    amount: received_asset.amount,
+                    msg: to_json_binary(&Cw20ReceiveMsg {
+                        sender: env.contract.address.to_string(),
+                        amount: received_asset.amount,
+                        msg: to_json_binary(&Cw20Msg::Deposit { recipient: None })?,
+                    })?,
+                })?,
+                funds: vec![],
+            })
+        }
+        _ => {
+            return Err(ContractError::InvalidDenom(received_asset.info.to_string()));
+        }
+    };
+    Ok(msg)
 }
 
 // This function unstake the alliance and astro deposits,
@@ -348,15 +380,13 @@ fn unstake(
     // or native:uluna -> uluna
     let lp_token: String = asset.info.to_string();
     let lp_token = lp_token.split(':').collect::<Vec<&str>>()[1].to_string();
-    let astro_incentives_staked: Uint128 = deps
-        .querier
-        .query_wasm_smart(
-            config.astro_incentives_addr.to_string(),
-            &QueryAstroMsg::Deposit {
-                lp_token: lp_token.to_string(),
-                user: env.contract.address.to_string(),
-            },
-        )?;
+    let astro_incentives_staked: Uint128 = deps.querier.query_wasm_smart(
+        config.astro_incentives_addr.to_string(),
+        &QueryAstroMsg::Deposit {
+            lp_token: lp_token.to_string(),
+            user: env.contract.address.to_string(),
+        },
+    )?;
 
     // If there are enough tokens staked in astro incentives,
     // it means that we should withdraw tokens from astro
@@ -434,7 +464,7 @@ fn unstake(
 }
 
 // Callback that can be used by the contract itself to send
-// tokens back to the user when unstaking. This function 
+// tokens back to the user when unstaking. This function
 // needs to be a callback because we need to be sure that
 // the tokens are available to be sent back to the user
 // after unstaking from astro incentives
@@ -738,15 +768,13 @@ fn _update_astro_rewards(
     let mut lp_tokens_list: Vec<String> = vec![];
 
     for lp_token in whitelist {
-        let pending_rewards: Vec<Asset> = deps
-            .querier
-            .query_wasm_smart(
-                astro_incentives.to_string(),
-                &QueryAstroMsg::PendingRewards {
-                    lp_token: lp_token.clone(),
-                    user: contract_addr.to_string(),
-                },
-            )?;
+        let pending_rewards: Vec<Asset> = deps.querier.query_wasm_smart(
+            astro_incentives.to_string(),
+            &QueryAstroMsg::PendingRewards {
+                lp_token: lp_token.clone(),
+                user: contract_addr.to_string(),
+            },
+        )?;
 
         for pr in pending_rewards {
             if !pr.amount.is_zero() {
