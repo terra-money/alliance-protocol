@@ -16,13 +16,10 @@ pub fn mock_dependencies(
 ) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     let custom_querier: WasmMockQuerier = match balance {
         Some(b) => {
-            let balances = vec![
-                (ASTRO_MOCK_CONTRACT_ADDR, b),
-                (MOCK_CONTRACT_ADDR, b)
-            ];
-            
+            let balances = vec![(ASTRO_MOCK_CONTRACT_ADDR, b), (MOCK_CONTRACT_ADDR, b)];
+
             WasmMockQuerier::new(MockQuerier::new(&balances))
-        },
+        }
         None => WasmMockQuerier::new(MockQuerier::new(&[(ASTRO_MOCK_CONTRACT_ADDR, &[])])),
     };
     // MockQuerier::default()
@@ -74,28 +71,28 @@ impl WasmMockQuerier {
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     }
                     let msg: Vec<RewardInfo> = vec![];
-                    return SystemResult::Ok(to_json_binary(&msg).into());
+                    SystemResult::Ok(to_json_binary(&msg).into())
                 }
                 QueryAstroMsg::PendingRewards { lp_token, user: _ } => {
                     if lp_token == "factory/astro_native" {
                         let msg = vec![Asset {
-                            info: AssetInfoBase::native(lp_token.to_string()),
+                            info: AssetInfoBase::native(lp_token),
                             amount: Uint128::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     } else if lp_token == "terra_astro_cw20" {
                         let msg = vec![Asset {
-                            info: AssetInfoBase::cw20(Addr::unchecked(lp_token.to_string())),
+                            info: AssetInfoBase::cw20(Addr::unchecked(lp_token)),
                             amount: Uint128::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     }
 
                     let msg = vec![Asset {
-                        info: AssetInfoBase::cw20(Addr::unchecked(lp_token.to_string())),
+                        info: AssetInfoBase::cw20(Addr::unchecked(lp_token)),
                         amount: Uint128::zero(),
                     }];
-                    return SystemResult::Ok(to_json_binary(&msg).into());
+                    SystemResult::Ok(to_json_binary(&msg).into())
                 }
                 QueryAstroMsg::Deposit { lp_token, user: _ } => {
                     if lp_token == "factory/astro_native" {
@@ -103,7 +100,7 @@ impl WasmMockQuerier {
                     } else if lp_token == "terra_astro_cw20" {
                         return SystemResult::Ok(to_json_binary(&Uint128::new(50)).into());
                     }
-                    return SystemResult::Ok(to_json_binary(&Uint128::zero()).into());
+                    SystemResult::Ok(to_json_binary(&Uint128::zero()).into())
                 }
             },
             _ => self.base.handle_query(request),

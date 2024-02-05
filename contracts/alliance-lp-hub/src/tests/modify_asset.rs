@@ -1,7 +1,7 @@
 use crate::models::ModifyAssetPair;
 use crate::tests::helpers::{modify_asset, setup_contract, stake};
 use alliance_protocol::error::ContractError;
-use cosmwasm_std::{Response, testing::mock_dependencies};
+use cosmwasm_std::{testing::mock_dependencies, Response};
 use cw_asset::AssetInfo;
 
 #[test]

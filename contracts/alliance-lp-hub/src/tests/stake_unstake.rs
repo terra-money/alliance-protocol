@@ -9,7 +9,9 @@ use crate::tests::helpers::{
 use crate::tests::mock_querier::mock_dependencies;
 use alliance_protocol::error::ContractError;
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{coin, to_json_binary, Addr, Coin, CosmosMsg, Response, Uint128, WasmMsg};
+use cosmwasm_std::{
+    coin, coins, to_json_binary, Addr, Coin, CosmosMsg, Response, Uint128, WasmMsg,
+};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 
@@ -377,7 +379,7 @@ fn test_unstake() {
 
 #[test]
 fn test_unstake_cw20_from_astro() {
-    let mut deps = mock_dependencies(Some(&vec![coin(100, "terra_astro_cw20")]));
+    let mut deps = mock_dependencies(Some(&coins(100, "terra_astro_cw20")));
     setup_contract(deps.as_mut());
 
     modify_asset(
@@ -474,9 +476,7 @@ fn test_unstake_cw20_from_astro() {
         res.unwrap(),
         Response::new()
             .add_message(asset_info.transfer_msg(Addr::unchecked("user1")).unwrap())
-            .add_attributes(vec![
-                ("action", "unstake_alliance_lp_callback"),
-            ])
+            .add_attributes(vec![("action", "unstake_alliance_lp_callback"),])
     );
 
     let balance = BALANCES

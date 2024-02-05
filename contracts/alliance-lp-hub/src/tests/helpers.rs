@@ -45,7 +45,10 @@ pub fn set_alliance_asset(deps: DepsMut) {
         .unwrap();
 }
 
-pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAssetPair>) -> Result<Response, ContractError> {
+pub fn modify_asset(
+    deps: DepsMut,
+    assets: Vec<ModifyAssetPair>,
+) -> Result<Response, ContractError> {
     let info = mock_info("gov", &[]);
     let env = mock_env();
 
@@ -53,14 +56,24 @@ pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAssetPair>) -> Result<Respo
     execute(deps, env, info, msg)
 }
 
-pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Result<Response, ContractError> {
+pub fn stake(
+    deps: DepsMut,
+    user: &str,
+    amount: u128,
+    denom: &str,
+) -> Result<Response, ContractError> {
     let info = mock_info(user, &[coin(amount, denom)]);
     let env = mock_env();
     let msg = ExecuteMsg::Stake {};
     execute(deps, env, info, msg)
 }
 
-pub fn stake_cw20(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Result<Response, ContractError> {
+pub fn stake_cw20(
+    deps: DepsMut,
+    user: &str,
+    amount: u128,
+    denom: &str,
+) -> Result<Response, ContractError> {
     let mut info = mock_info(user, &[]);
     let env = mock_env();
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
@@ -79,10 +92,15 @@ pub fn unstake(deps: DepsMut, user: &str, asset: Asset) -> Result<Response, Cont
     execute(deps, env, info, msg)
 }
 
-pub fn unstake_callback(deps: DepsMut, sender:&str, user: &str, asset: Asset) -> Result<Response, ContractError> {
+pub fn unstake_callback(
+    deps: DepsMut,
+    sender: &str,
+    user: &str,
+    asset: Asset,
+) -> Result<Response, ContractError> {
     let info = mock_info(sender, &[]);
     let env = mock_env();
-    let msg = ExecuteMsg::UnstakeCallback(asset,Addr::unchecked(user));
+    let msg = ExecuteMsg::UnstakeCallback(asset, Addr::unchecked(user));
     execute(deps, env, info, msg)
 }
 

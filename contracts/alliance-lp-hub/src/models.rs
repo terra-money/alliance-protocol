@@ -34,7 +34,7 @@ pub struct InstantiateMsg {
 
     pub astro_reward_denom: String,
     pub astro_incentives_addr: String,
-    
+
     pub alliance_reward_denom: String,
 }
 

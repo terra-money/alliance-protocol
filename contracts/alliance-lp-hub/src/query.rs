@@ -158,7 +158,7 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
 
             if AssetInfo::Native(config.alliance_reward_denom.to_string()).eq(&reward_asset_info) {
                 let user_balance = BALANCES
-                    .load(deps.storage, (addr.clone(), deposit_asset.clone()))
+                    .load(deps.storage, (addr.clone(), deposit_asset))
                     .unwrap_or_default();
 
                 let alliance_pending_rewards =
@@ -171,7 +171,7 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
                 })
             } else {
                 let total_balances = TOTAL_BALANCES
-                    .load(deps.storage, deposit_asset.clone())
+                    .load(deps.storage, deposit_asset)
                     .unwrap_or_default();
 
                 let alliance_pending_rewards =
