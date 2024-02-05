@@ -47,7 +47,7 @@ pub enum ExecuteMsg {
     // - Receive is used for CW20 tokens
     Receive(Cw20ReceiveMsg),
     Stake {},
-    
+
     // Used to do the other operations for staked assets
     Unstake(Asset),
     UnstakeCallback(Asset, Addr),

@@ -273,12 +273,7 @@ fn test_stake_astro_token_cw20() {
                 msg: to_json_binary(&Cw20ExecuteMsg::Send {
                     contract: "astro_incentives".to_string(),
                     amount: Uint128::new(100),
-                    msg: to_json_binary(&Cw20ReceiveMsg {
-                        sender: "cosmos2contract".to_string(),
-                        amount: Uint128::new(100),
-                        msg: to_json_binary(&Cw20Msg::Deposit { recipient: None }).unwrap(),
-                    })
-                    .unwrap(),
+                    msg: to_json_binary(&Cw20Msg::Deposit { recipient: None }).unwrap(),
                 })
                 .unwrap(),
                 funds: vec![],

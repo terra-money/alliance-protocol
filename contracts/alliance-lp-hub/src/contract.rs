@@ -24,7 +24,7 @@ use cosmwasm_std::{
     MessageInfo, Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use cw20::Cw20ExecuteMsg;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
 use std::{collections::HashSet, env, str::FromStr};
@@ -100,7 +100,7 @@ pub fn execute(
             let sender = deps.api.addr_validate(&cw20_msg.sender)?;
             let received_asset = Asset::cw20(info.sender, cw20_msg.amount);
 
-            stake(deps, env, sender, received_asset)
+            stake(deps, sender, received_asset)
         }
         ExecuteMsg::Stake {} => {
             if info.funds.len() != 1 {
@@ -110,7 +110,7 @@ pub fn execute(
             if coin.amount.is_zero() {
                 return Err(ContractError::AmountCannotBeZero {});
             }
-            stake(deps, env, info.sender, coin.into())
+            stake(deps, info.sender, coin.into())
         }
         ExecuteMsg::Unstake(asset) => unstake(deps, env, info, asset),
         ExecuteMsg::UnstakeCallback(asset, addr) => unstake_callback(env, info, asset, addr),
@@ -177,12 +177,7 @@ fn modify_asset(
 // This method is used to stake both native and CW20 tokens,
 // it checks if the asset is whitelisted and then proceeds to
 // update the user balance and the total balance for the asset.
-fn stake(
-    deps: DepsMut,
-    env: Env,
-    sender: Addr,
-    received_asset: Asset,
-) -> Result<Response, ContractError> {
+fn stake(deps: DepsMut, sender: Addr, received_asset: Asset) -> Result<Response, ContractError> {
     let deposit_asset_key = AssetInfoKey::from(&received_asset.info);
     WHITELIST
         .load(deps.storage, deposit_asset_key.clone())
@@ -214,12 +209,15 @@ fn stake(
     // Query astro incentives, to do so we must first remove the prefix
     // from the asset info e.g. cw20:asset1 -> asset1 or native:uluna -> uluna
     let lp_token = received_asset.info.to_string();
-    let astro_incentives: Vec<RewardInfo> = deps.querier.query_wasm_smart(
-        config.astro_incentives_addr.to_string(),
-        &QueryAstroMsg::RewardInfo {
-            lp_token: lp_token.split(':').collect::<Vec<&str>>()[1].to_string(),
-        },
-    ).unwrap_or_default();
+    let astro_incentives: Vec<RewardInfo> = deps
+        .querier
+        .query_wasm_smart(
+            config.astro_incentives_addr.to_string(),
+            &QueryAstroMsg::RewardInfo {
+                lp_token: lp_token.split(':').collect::<Vec<&str>>()[1].to_string(),
+            },
+        )
+        .unwrap_or_default();
 
     let mut res = Response::new().add_attributes(vec![
         ("action", "stake"),
@@ -236,7 +234,6 @@ fn stake(
         let msg = _create_astro_deposit_msg(
             received_asset.clone(),
             config.astro_incentives_addr.to_string(),
-            env,
         )?;
         res = res.add_message(msg);
         let astro_reward_token = AssetInfoKey::from(AssetInfo::Native(config.astro_reward_denom));
@@ -293,7 +290,6 @@ fn stake(
 fn _create_astro_deposit_msg(
     received_asset: Asset,
     astro_incentives_addr: String,
-    env: Env,
 ) -> Result<CosmosMsg, ContractError> {
     let msg = match received_asset.info.clone() {
         AssetInfo::Native(native_asset) => {
@@ -316,11 +312,7 @@ fn _create_astro_deposit_msg(
                 msg: to_json_binary(&Cw20ExecuteMsg::Send {
                     contract: astro_incentives_addr,
                     amount: received_asset.amount,
-                    msg: to_json_binary(&Cw20ReceiveMsg {
-                        sender: env.contract.address.to_string(),
-                        amount: received_asset.amount,
-                        msg: to_json_binary(&Cw20Msg::Deposit { recipient: None })?,
-                    })?,
+                    msg: to_json_binary(&Cw20Msg::Deposit { recipient: None })?,
                 })?,
                 funds: vec![],
             })
@@ -377,13 +369,16 @@ fn unstake(
     // or native:uluna -> uluna
     let lp_token: String = asset.info.to_string();
     let lp_token = lp_token.split(':').collect::<Vec<&str>>()[1].to_string();
-    let astro_incentives_staked: Uint128 = deps.querier.query_wasm_smart(
-        config.astro_incentives_addr.to_string(),
-        &QueryAstroMsg::Deposit {
-            lp_token: lp_token.to_string(),
-            user: env.contract.address.to_string(),
-        },
-    ).unwrap_or_default();
+    let astro_incentives_staked: Uint128 = deps
+        .querier
+        .query_wasm_smart(
+            config.astro_incentives_addr.to_string(),
+            &QueryAstroMsg::Deposit {
+                lp_token: lp_token.to_string(),
+                user: env.contract.address.to_string(),
+            },
+        )
+        .unwrap_or_default();
 
     // If there are enough tokens staked in astro incentives,
     // it means that we should withdraw tokens from astro
@@ -766,13 +761,16 @@ fn _update_astro_rewards(
     let mut lp_tokens_list: Vec<String> = vec![];
 
     for lp_token in whitelist {
-        let pending_rewards: Vec<Asset> = deps.querier.query_wasm_smart(
-            astro_incentives.to_string(),
-            &QueryAstroMsg::PendingRewards {
-                lp_token: lp_token.clone(),
-                user: contract_addr.to_string(),
-            },
-        ).unwrap_or_default();
+        let pending_rewards: Vec<Asset> = deps
+            .querier
+            .query_wasm_smart(
+                astro_incentives.to_string(),
+                &QueryAstroMsg::PendingRewards {
+                    lp_token: lp_token.clone(),
+                    user: contract_addr.to_string(),
+                },
+            )
+            .unwrap_or_default();
 
         for pr in pending_rewards {
             if !pr.amount.is_zero() {
