@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv'
-import { MnemonicKey, LCDClient, MsgRegisterFeeShare, MsgUpdateFeeShare } from '@terra-money/feather.js';
+import { MnemonicKey, LCDClient, MsgUpdateFeeShare } from '@terra-money/feather.js';
 import * as fs from 'fs';
 
 dotenv.config()

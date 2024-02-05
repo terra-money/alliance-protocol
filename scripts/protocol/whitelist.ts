@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv'
-import { MnemonicKey, LCDClient, ExecuteContractProposal, MsgSubmitProposal, Coins } from '@terra-money/feather.js';
+import { MnemonicKey, LCDClient, MsgSubmitProposal, Coins, ExecuteContractProposal } from '@terra-money/feather.js';
 import * as fs from 'fs';
 
 dotenv.config()
@@ -55,9 +55,12 @@ const init = async () => {
         )
 
         const msgSubmitProposal = new MsgSubmitProposal(
-            govProposal,
+            [govProposal],
             Coins.fromString("512000000uluna"),
-            accAddress
+            accAddress,
+            "",
+            "",
+            "",
         );
 
         const tx = await wallet.createAndSignTx({
