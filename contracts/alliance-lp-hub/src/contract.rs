@@ -57,7 +57,6 @@ pub fn instantiate(
     let governance_address = deps.api.addr_validate(msg.governance.as_str())?;
     let controller_address = deps.api.addr_validate(msg.controller.as_str())?;
     let astro_incentives_addr = deps.api.addr_validate(msg.astro_incentives_addr.as_str())?;
-    let fee_collector_addr = deps.api.addr_validate(msg.fee_collector_addr.as_str())?;
     let create_msg = TokenExecuteMsg::CreateDenom {
         subdenom: "ualliancelp".to_string(),
     };
@@ -68,7 +67,6 @@ pub fn instantiate(
     let config = Config {
         governance: governance_address,
         controller: controller_address,
-        fee_collector_addr,
 
         astro_incentives_addr,
         astro_reward_denom: msg.astro_reward_denom,
@@ -221,7 +219,7 @@ fn stake(
         &QueryAstroMsg::RewardInfo {
             lp_token: lp_token.split(':').collect::<Vec<&str>>()[1].to_string(),
         },
-    )?;
+    ).unwrap_or_default();
 
     let mut res = Response::new().add_attributes(vec![
         ("action", "stake"),
@@ -385,7 +383,7 @@ fn unstake(
             lp_token: lp_token.to_string(),
             user: env.contract.address.to_string(),
         },
-    )?;
+    ).unwrap_or_default();
 
     // If there are enough tokens staked in astro incentives,
     // it means that we should withdraw tokens from astro
@@ -774,7 +772,7 @@ fn _update_astro_rewards(
                 lp_token: lp_token.clone(),
                 user: contract_addr.to_string(),
             },
-        )?;
+        ).unwrap_or_default();
 
         for pr in pending_rewards {
             if !pr.amount.is_zero() {
@@ -905,7 +903,7 @@ fn update_alliance_reward_callback(
             .to_uint_floor();
         if !unallocated_rewards.is_zero() {
             res = res.add_message(BankMsg::Send {
-                to_address: config.fee_collector_addr.to_string(),
+                to_address: config.controller.to_string(),
                 amount: vec![CwCoin::new(
                     unallocated_rewards.u128(),
                     config.alliance_reward_denom.clone(),

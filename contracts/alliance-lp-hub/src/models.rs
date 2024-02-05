@@ -16,7 +16,6 @@ pub type AssetDenom = String;
 pub struct Config {
     pub governance: Addr,
     pub controller: Addr,
-    pub fee_collector_addr: Addr,
 
     pub astro_reward_denom: String,
     pub astro_incentives_addr: Addr,
@@ -30,7 +29,6 @@ pub struct Config {
 pub struct InstantiateMsg {
     pub governance: String,
     pub controller: String,
-    pub fee_collector_addr: String,
 
     pub astro_reward_denom: String,
     pub astro_incentives_addr: String,
@@ -49,6 +47,7 @@ pub enum ExecuteMsg {
     // - Receive is used for CW20 tokens
     Receive(Cw20ReceiveMsg),
     Stake {},
+    
     // Used to do the other operations for staked assets
     Unstake(Asset),
     UnstakeCallback(Asset, Addr),

@@ -42,8 +42,3 @@ pub const UNCLAIMED_REWARDS: Map<(Addr, AssetInfoKey, AssetInfoKey), Uint128> =
     Map::new("unclaimed_rewards");
 
 pub const TEMP_BALANCE: Map<AssetInfoKey, Uint128> = Map::new("temp_balance");
-
-// Temporary variable used to store the user address
-// so we can access it on reply_claim_astro_rewards
-// callback function and account for the rewards
-pub const TEMP_USR_ADDR: Item<Addr> = Item::new("temp_addr_stake");

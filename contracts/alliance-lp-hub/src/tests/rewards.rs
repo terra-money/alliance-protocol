@@ -306,7 +306,7 @@ fn update_alliance_rewards_callback_with_unallocated() {
         Response::new()
             .add_attributes(vec![("action", "update_alliance_rewards_callback")])
             .add_message(BankMsg::Send {
-                to_address: "collector_address".to_string(),
+                to_address: "controller".to_string(),
                 amount: vec![coin(300000, "uluna")]
             })
     );
