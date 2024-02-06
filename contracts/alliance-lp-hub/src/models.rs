@@ -5,10 +5,10 @@ use alliance_protocol::{
     error::ContractError,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coins, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 pub type AssetDenom = String;
 
@@ -65,19 +65,10 @@ pub enum ExecuteMsg {
 
 #[cw_serde]
 pub struct ModifyAssetPair {
+    pub asset_distribution: Uint128,
     pub asset_info: AssetInfo,
     pub reward_asset_info: Option<AssetInfo>,
     pub delete: bool,
-}
-
-impl ModifyAssetPair {
-    pub fn new(asset_info: AssetInfo, reward_asset_info: Option<AssetInfo>, delete: bool) -> Self {
-        ModifyAssetPair {
-            asset_info,
-            reward_asset_info,
-            delete,
-        }
-    }
 }
 
 #[cw_serde]
@@ -110,7 +101,7 @@ pub enum QueryMsg {
     #[returns(Vec<StakedBalanceRes>)]
     TotalStakedBalances {},
 }
-pub type WhitelistedAssetsResponse = HashMap<AssetDenom, Vec<AssetInfo>>;
+pub type WhitelistedAssetsResponse = Vec<AssetInfo>;
 
 #[cw_serde]
 pub struct AllPendingRewardsQuery {
@@ -140,12 +131,6 @@ pub struct AssetQuery {
 pub struct StakedBalanceRes {
     pub deposit_asset: AssetInfo,
     pub balance: Uint128,
-}
-
-#[derive(Clone, Default)]
-pub struct AstroClaimRewardsPosition {
-    pub deposited_asset: String,
-    pub rewards: Coins,
 }
 
 pub fn from_string_to_asset_info(denom: String) -> Result<AssetInfoKey, ContractError> {

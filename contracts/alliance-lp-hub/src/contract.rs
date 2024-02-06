@@ -1,10 +1,7 @@
 use crate::{
-    astro_models::{Cw20Msg, ExecuteAstroMsg, QueryAstroMsg, RewardInfo},
+    astro_models::{Cw20Msg, ExecuteAstroMsg, PendingAssetRewards, QueryAstroMsg, RewardInfo},
     helpers::{is_controller, is_governance},
-    models::{
-        from_string_to_asset_info, AstroClaimRewardsPosition, Config, ExecuteMsg, InstantiateMsg,
-        ModifyAssetPair,
-    },
+    models::{from_string_to_asset_info, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair},
     state::{
         ASSET_REWARD_RATE, BALANCES, CONFIG, TEMP_BALANCE, TOTAL_BALANCES, UNCLAIMED_REWARDS,
         USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
@@ -20,14 +17,18 @@ use alliance_protocol::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Binary, Coin as CwCoin, CosmosMsg, Decimal, DepsMut, Empty, Env,
-    MessageInfo, Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
+    to_json_binary, Addr, BankMsg, Binary, Coin as CwCoin, Coins, CosmosMsg, Decimal, DepsMut,
+    Empty, Env, MessageInfo, Order, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128,
+    WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 use cw_utils::parse_instantiate_response_data;
-use std::{collections::HashSet, env, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 use terra_proto_rs::{
     alliance::alliance::{MsgClaimDelegationRewards, MsgDelegate, MsgRedelegate, MsgUndelegate},
     cosmos::base::v1beta1::Coin,
@@ -141,14 +142,6 @@ fn modify_asset(
     let mut attrs = vec![("action".to_string(), "modify_asset".to_string())];
 
     for asset in assets {
-        let reward_asset_info_key = match asset.reward_asset_info {
-            Some(reward_asset_info) => AssetInfoKey::from(reward_asset_info),
-            None => {
-                return Err(ContractError::MissingRewardAsset(
-                    asset.asset_info.to_string(),
-                ))
-            }
-        };
         if asset.delete {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
             WHITELIST.remove(deps.storage, asset_key.clone());
@@ -158,15 +151,7 @@ fn modify_asset(
             ]);
         } else {
             let asset_key = AssetInfoKey::from(asset.asset_info.clone());
-
-            WHITELIST.save(deps.storage, asset_key.clone(), &Decimal::zero())?;
-            ASSET_REWARD_RATE.update(
-                deps.storage,
-                (asset_key, reward_asset_info_key),
-                |asset_reward_rate| -> StdResult<_> {
-                    Ok(asset_reward_rate.unwrap_or(Decimal::zero()))
-                },
-            )?;
+            WHITELIST.save(deps.storage, asset_key.clone(), &Decimal::new(asset.asset_distribution))?;
             attrs.extend_from_slice(&[("asset".to_string(), asset.asset_info.to_string())]);
         }
     }
@@ -378,7 +363,7 @@ fn unstake(
                 user: env.contract.address.to_string(),
             },
         )
-        .unwrap_or_default();
+        .unwrap();
 
     // If there are enough tokens staked in astro incentives,
     // it means that we should withdraw tokens from astro
@@ -761,7 +746,7 @@ fn _update_astro_rewards(
     let mut lp_tokens_list: Vec<String> = vec![];
 
     for lp_token in whitelist {
-        let pending_rewards: Vec<Asset> = deps
+        let pending_rewards: Vec<PendingAssetRewards> = deps
             .querier
             .query_wasm_smart(
                 astro_incentives.to_string(),
@@ -1055,51 +1040,48 @@ fn reply_claim_astro_rewards(
         ));
     }
 
-    // In the list of attributes we need to find the **claimed_positions**,
-    // and group all the **claimed_reward** for each claimed position.
-    let mut astro_claims: Vec<AstroClaimRewardsPosition> = vec![];
-    let mut astro_claim = AstroClaimRewardsPosition::default();
-    let mut count_claim_position = true;
+    // Map the event attributes to a hashmap to make it easier
+    // to group the rewards by the claimed position and then
+    // account for the rewards.
+    let mut astro_claims: HashMap<String, Coins> = HashMap::new();
+    let mut current_position: Option<String> = None;
     for attr in event.attributes.iter() {
-        if attr.key == "claimed_position" && count_claim_position {
-            astro_claim = AstroClaimRewardsPosition::default();
-            astro_claim.deposited_asset = attr.value.clone();
-            count_claim_position = false;
-        }
-
-        if attr.key == "claimed_reward" {
-            let coin = CwCoin::from_str(&attr.value)?;
-            astro_claim.rewards.add(coin)?;
-        }
-
-        if attr.key == "claimed_reward" && !count_claim_position {
-            astro_claims.push(astro_claim.clone());
-            count_claim_position = true
+        match attr.key.as_str() {
+            "claimed_position" => {
+                current_position = Some(attr.value.clone());
+                astro_claims.entry(attr.value.clone()).or_default();
+            }
+            "claimed_reward" => {
+                if let Some(position) = &current_position {
+                    if let Some(astro_claim) = astro_claims.get_mut(position) {
+                        let coin = CwCoin::from_str(&attr.value)?;
+                        astro_claim.add(coin)?;
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
     // Given the claimed rewards account them to the state of the contract
     // dividing the reward_amount per total_lp_staked summing the already
     // accounted asset_reward_rate.
-    for claim in astro_claims {
-        let deposit_asset_key = from_string_to_asset_info(claim.deposited_asset)?;
+    for (deposited_asset, claim) in astro_claims {
+        let deposit_asset_key = from_string_to_asset_info(deposited_asset)?;
         let total_lp_staked = TOTAL_BALANCES.load(deps.storage, deposit_asset_key.clone())?;
         let total_lp_staked = Decimal::from_atomics(total_lp_staked, 0)?;
 
-        for reward in claim.rewards {
+        for reward in claim {
             let reward_asset_key = from_string_to_asset_info(reward.denom)?;
             let reward_ammount = Decimal::from_atomics(reward.amount, 0)?;
-            let mut asset_reward_rate = Decimal::zero();
+            let asset_reward_rate_key = (deposit_asset_key.clone(), reward_asset_key);
+            let mut asset_reward_rate = ASSET_REWARD_RATE
+                .load(deps.storage, asset_reward_rate_key.clone())
+                .unwrap_or_default();
 
-            ASSET_REWARD_RATE.update(
-                deps.storage,
-                (deposit_asset_key.clone(), reward_asset_key),
-                |a| -> StdResult<_> {
-                    asset_reward_rate = a.unwrap_or_default();
-                    asset_reward_rate = (reward_ammount / total_lp_staked) + asset_reward_rate;
-                    Ok(asset_reward_rate)
-                },
-            )?;
+            asset_reward_rate = (reward_ammount / total_lp_staked) + asset_reward_rate;
+
+            ASSET_REWARD_RATE.save(deps.storage, asset_reward_rate_key, &asset_reward_rate)?;
         }
     }
 

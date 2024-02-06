@@ -29,7 +29,7 @@ const init = async () => {
                     alliance_reward_denom: "uluna",
                 },
                 Coins.fromString("10000000uluna"),
-                "Instantiate Alliance LP Hub Contract",
+                "Alliance LP Hub Contract",
             )],
             memo: "Alliance LP Hub",
             chainID: "pisco-1",

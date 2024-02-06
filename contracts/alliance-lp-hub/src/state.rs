@@ -29,7 +29,6 @@ pub const ASSET_REWARD_RATE: Map<(AssetInfoKey, AssetInfoKey), Decimal> =
 // - Addr: is the address of the user,
 // - AssetInfoKey: is the asset that is being deposited,
 // - AssetInfoKey: is the asset that is being rewarded,
-// - Decimal: is the reward rate,
 pub const USER_ASSET_REWARD_RATE: Map<(Addr, AssetInfoKey, AssetInfoKey), Decimal> =
     Map::new("user_asset_reward_rate");
 

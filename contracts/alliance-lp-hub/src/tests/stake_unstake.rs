@@ -12,7 +12,7 @@ use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
     coin, coins, to_json_binary, Addr, Coin, CosmosMsg, Response, Uint128, WasmMsg,
 };
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use cw20::Cw20ExecuteMsg;
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
 
 #[test]

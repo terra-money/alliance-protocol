@@ -1,21 +1,25 @@
 use crate::astro_models::ExecuteAstroMsg;
 use crate::contract::{execute, reply};
-use crate::models::{ExecuteMsg, ModifyAssetPair, PendingRewardsRes};
+use crate::models::{
+    from_string_to_asset_info, AssetQuery, ExecuteMsg, ModifyAssetPair, PendingRewardsRes, QueryMsg,
+};
+use crate::query::query;
 use crate::state::{
     ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
 use crate::tests::helpers::{
     claim_rewards, modify_asset, query_all_rewards, query_rewards, set_alliance_asset,
-    setup_contract, stake, unstake, DENOM,
+    setup_contract, stake, stake_cw20, unstake, DENOM,
 };
 use crate::tests::mock_querier::mock_dependencies;
 use alliance_protocol::error::ContractError;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
-    coin, coins, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Event, Reply, Response,
-    SubMsg, SubMsgResponse, SubMsgResult, Uint128, WasmMsg,
+    coin, coins, from_json, to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Decimal, Event,
+    Reply, Response, SubMsg, SubMsgResponse, SubMsgResult, Uint128, WasmMsg,
 };
 use cw_asset::{Asset, AssetInfo, AssetInfoKey};
+use std::borrow::BorrowMut;
 use std::collections::HashSet;
 use terra_proto_rs::alliance::alliance::MsgClaimDelegationRewards;
 use terra_proto_rs::traits::Message;
@@ -804,7 +808,9 @@ fn test_update_rewards_with_astro_rewards() {
     WHITELIST
         .save(
             deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("factory/astro_native".to_string())),
+            AssetInfoKey::from(AssetInfo::cw20(Addr::unchecked(
+                "terra_astro_cw20".to_string(),
+            ))),
             &Decimal::percent(10),
         )
         .unwrap();
@@ -817,10 +823,13 @@ fn test_update_rewards_with_astro_rewards() {
     TOTAL_BALANCES
         .save(
             deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("factory/astro_native".to_string())),
+            AssetInfoKey::from(AssetInfo::cw20(Addr::unchecked(
+                "terra_astro_cw20".to_string(),
+            ))),
             &Uint128::new(1000000),
         )
         .unwrap();
+    stake_cw20(deps.as_mut(), "user", 1000000, "terra_astro_cw20").unwrap();
 
     let res = execute(
         deps.as_mut(),
@@ -836,7 +845,7 @@ fn test_update_rewards_with_astro_rewards() {
                 CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: "astro_incentives".to_string(),
                     msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards {
-                        lp_tokens: vec!["factory/astro_native".to_string()],
+                        lp_tokens: vec!["terra_astro_cw20".to_string()],
                     })
                     .unwrap(),
                     funds: vec![],
@@ -878,7 +887,8 @@ fn test_update_rewards_with_astro_rewards() {
             events: vec![Event::new("wasm")
                 .add_attribute("_contract_address", "cosmos2contract")
                 .add_attribute("action", "claim_alliance_lp_rewards")
-                .add_attribute("claimed_position", "factory/astro_native")
+                .add_attribute("claimed_position", "terra_astro_cw20")
+                .add_attribute("claimed_reward", "1factory/astro")
                 .add_attribute("claimed_reward", "1factory/astro")],
             data: None,
         }),
@@ -888,4 +898,35 @@ fn test_update_rewards_with_astro_rewards() {
         res,
         Response::new().add_attributes(vec![("action", "claim_alliance_lp_astro_rewards_success")])
     );
+
+    let rewatd_rate_key = (
+        from_string_to_asset_info("terra_astro_cw20".to_string()).unwrap(),
+        from_string_to_asset_info("factory/astro".to_string()).unwrap(),
+    );
+    let balances = ASSET_REWARD_RATE
+        .load(deps.storage.borrow_mut(), rewatd_rate_key)
+        .unwrap();
+    assert_eq!(balances, Decimal::new(Uint128::new(1000000000000)));
+
+    let res: PendingRewardsRes = from_json(
+        query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::PendingRewards(AssetQuery {
+                address: "user".to_string(),
+                deposit_asset: AssetInfo::Cw20(Addr::unchecked("terra_astro_cw20")),
+                reward_asset: AssetInfo::Native("factory/astro".to_string()),
+            }),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let expected = PendingRewardsRes {
+        rewards: Uint128::one(),
+        deposit_asset: AssetInfo::Cw20(Addr::unchecked("terra_astro_cw20")),
+        reward_asset: AssetInfo::Native("factory/astro".to_string()),
+    };
+
+    assert_eq!(res, expected);
 }

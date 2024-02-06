@@ -1,11 +1,11 @@
+use crate::astro_models::{
+    AstroAssetInfo, AstroRewardType, PendingAssetRewards, QueryAstroMsg, RewardInfo,
+};
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_json, to_json_binary, Addr, Coin, Decimal, Empty, OwnedDeps, Querier, QuerierResult,
     QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
 };
-use cw_asset::{Asset, AssetInfoBase};
-
-use crate::astro_models::{AstroAssetInfo, AstroRewardType, QueryAstroMsg, RewardInfo};
 
 const ASTRO_MOCK_CONTRACT_ADDR: &str = "astro_incentives";
 
@@ -75,21 +75,25 @@ impl WasmMockQuerier {
                 }
                 QueryAstroMsg::PendingRewards { lp_token, user: _ } => {
                     if lp_token == "factory/astro_native" {
-                        let msg = vec![Asset {
-                            info: AssetInfoBase::native(lp_token),
+                        let msg = vec![PendingAssetRewards {
+                            info: AstroAssetInfo::NativeToken { denom: lp_token },
                             amount: Uint128::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     } else if lp_token == "terra_astro_cw20" {
-                        let msg = vec![Asset {
-                            info: AssetInfoBase::cw20(Addr::unchecked(lp_token)),
+                        let msg = vec![PendingAssetRewards {
+                            info: AstroAssetInfo::Token {
+                                contract_addr: Addr::unchecked(lp_token),
+                            },
                             amount: Uint128::one(),
                         }];
                         return SystemResult::Ok(to_json_binary(&msg).into());
                     }
 
-                    let msg = vec![Asset {
-                        info: AssetInfoBase::cw20(Addr::unchecked(lp_token)),
+                    let msg = vec![PendingAssetRewards {
+                        info: AstroAssetInfo::Token {
+                            contract_addr: Addr::unchecked(lp_token),
+                        },
                         amount: Uint128::zero(),
                     }];
                     SystemResult::Ok(to_json_binary(&msg).into())

@@ -1,6 +1,6 @@
 use crate::models::{
     AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
-    StakedBalanceRes, WhitelistedAssetsResponse,
+    StakedBalanceRes
 };
 use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
 use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
@@ -8,7 +8,6 @@ use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Binary, Decimal, Deps, Env, Order, StdResult, Uint128};
 use cw_asset::{AssetInfo, AssetInfoKey, AssetInfoUnchecked};
-use std::collections::HashMap;
 
 use crate::state::{
     ASSET_REWARD_RATE, BALANCES, CONFIG, TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE,
@@ -44,13 +43,13 @@ fn get_validators(deps: Deps) -> StdResult<Binary> {
 
 fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
     let whitelist = WHITELIST.range(deps.storage, None, None, Order::Ascending);
-    let mut res: WhitelistedAssetsResponse = HashMap::new();
+    let mut res: Vec<AssetInfo> = vec![];
 
     for item in whitelist {
         let (key, _) = item?;
         let asset = key.check(deps.api, None)?;
 
-        res.entry(asset.to_string()).or_default().push(asset)
+        res.push(asset)
     }
 
     to_json_binary(&res)
@@ -89,11 +88,15 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
     let deposit_asset = AssetInfoKey::from(asset_query.deposit_asset.clone());
 
     let key = (addr.clone(), deposit_asset.clone(), reward_asset.clone());
-    let user_reward_rate = USER_ASSET_REWARD_RATE.load(deps.storage, key)?;
-
-    let asset_reward_rate =
-        ASSET_REWARD_RATE.load(deps.storage, (deposit_asset.clone(), reward_asset.clone()))?;
-    let user_balance = BALANCES.load(deps.storage, (addr.clone(), deposit_asset.clone()))?;
+    let user_reward_rate = USER_ASSET_REWARD_RATE
+        .load(deps.storage, key)
+        .unwrap_or_default();
+    let asset_reward_rate = ASSET_REWARD_RATE
+        .load(deps.storage, (deposit_asset.clone(), reward_asset.clone()))
+        .unwrap_or_default();
+    let user_balance = BALANCES
+        .load(deps.storage, (addr.clone(), deposit_asset.clone()))
+        .unwrap_or_default();
     let unclaimed_rewards = UNCLAIMED_REWARDS
         .load(deps.storage, (addr, deposit_asset, reward_asset))
         .unwrap_or_default();

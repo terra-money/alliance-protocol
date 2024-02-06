@@ -26,7 +26,7 @@ const init = async () => {
             chainID: "pisco-1",
         });
         let result = await lcd.tx.broadcastSync(tx, "pisco-1")
-        await new Promise(resolve => setTimeout(resolve, 7000))
+        await new Promise(resolve => setTimeout(resolve, 10000))
         const txResult : any = await lcd.tx.txInfo(result.txhash, "pisco-1");
         const codeId = txResult.logs[0].events[1].attributes[1].value;
         console.log("Contract stored on chain with CodeId", codeId)
