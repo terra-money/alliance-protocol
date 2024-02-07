@@ -33,13 +33,13 @@ const init = async () => {
         const govProposal = new MsgCreateAlliance(
             govAccountAddr,
             "factory/" + hubAddress + "/ualliancelp",
-            "100000000000000",
+            "10000000000000000",
             "0",
-            "1",
+            "10000000000000000",
             undefined,
             {
-                max: "100000000000000",
-                min: "100000000000000",
+                max: "10000000000000000",
+                min: "10000000000000000",
             }
         )
 

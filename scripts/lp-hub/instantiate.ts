@@ -20,13 +20,17 @@ const init = async () => {
             msgs: [new MsgInstantiateContract(
                 accAddress,
                 accAddress,
-                12893,
+                Number(fs.readFileSync(".lp-hub-code-id.log")),
                 {
                     governance: "terra10d07y265gmmuvt4z0w9aw880jnsr700juxf95n",
                     controller: accAddress,
-                    astro_reward_denom: "terra167dsqkh2alurx997wmycw9ydkyu54gyswe3ygmrs4lwume3vmwks8ruqnv",
+                    astro_reward_denom: {
+                        cw20: "terra167dsqkh2alurx997wmycw9ydkyu54gyswe3ygmrs4lwume3vmwks8ruqnv"
+                    },
                     astro_incentives_addr: "terra1ujqta8jx4w7z224q0heunfx4rz57e92kkeyrgmry3yz2qf5z3xlsnrk0eq",
-                    alliance_reward_denom: "uluna",
+                    alliance_reward_denom: {
+                        native: "uluna"
+                    },
                 },
                 Coins.fromString("10000000uluna"),
                 "Alliance LP Hub Contract",
@@ -37,7 +41,7 @@ const init = async () => {
         const result = await lcd.tx.broadcastSync(tx, "pisco-1")
         console.log(`Instantiate tx hash ${result.txhash}`);
         await new Promise(resolve => setTimeout(resolve, 7000))
-        const txResult : any = await lcd.tx.txInfo(result.txhash, "pisco-1");
+        const txResult: any = await lcd.tx.txInfo(result.txhash, "pisco-1");
         const contractAddr = txResult.logs[0].eventsByType?.instantiate._contract_address[0];
         console.log("Contract stored on chain with contractAddr", contractAddr)
         fs.writeFileSync(".lp-hub-addr.log", contractAddr);

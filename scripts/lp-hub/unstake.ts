@@ -24,39 +24,46 @@ const init = async () => {
     try {
         const hubAddress = fs.readFileSync('.lp-hub-addr.log').toString('utf-8');
 
-        const stakeCoins = new MsgExecuteContract(
+        const unstakeCoins = new MsgExecuteContract(
             accAddress,
             hubAddress,
-            { "stake": {} },
-            Coins.fromString("1500factory/terra1zdpgj8am5nqqvht927k3etljyl6a52kwqup0je/stDeck")
+            {
+                "unstake": {
+                    "info": {
+                        "cw20": "terra16xkl47splqj964cxzm5q5g0aju09n53stauu22x4hfsgekam7z5qd26q70"
+                    },
+                    "amount": "1000"
+                }
+            },
+        );
+        const unstakeTokens = new MsgExecuteContract(
+            accAddress,
+            hubAddress,
+            {
+                "unstake": {
+                    "info": {
+                        "cw20": "terra1k2gv5ae4pk7ecc04qs9c5yqkw28cl09mqn85447amt5t2slm7uastaxagl"
+                    },
+                    "amount": "1000"
+                }
+            },
+        );
+        const unstakeTokens2 = new MsgExecuteContract(
+            accAddress,
+            hubAddress,
+            {
+                "unstake": {
+                    "info": {
+                        "native": "factory/terra1zdpgj8am5nqqvht927k3etljyl6a52kwqup0je/stDeck"
+                    },
+                    "amount": "1000"
+                }
+            },
         );
 
-        const stakeTokens = new MsgExecuteContract(
-            accAddress,
-            "terra16xkl47splqj964cxzm5q5g0aju09n53stauu22x4hfsgekam7z5qd26q70",
-            {
-                "send": {
-                    "contract": hubAddress,
-                    "amount": "1500",
-                    "msg": ""
-                }
-            }
-        );
-
-        const stakeTokens2 = new MsgExecuteContract(
-            accAddress,
-            "terra1k2gv5ae4pk7ecc04qs9c5yqkw28cl09mqn85447amt5t2slm7uastaxagl",
-            {
-                "send": {
-                    "contract": hubAddress,
-                    "amount": "1500",
-                    "msg": ""
-                }
-            }
-        );
         const tx = await wallet.createAndSignTx({
-            msgs: [stakeCoins, stakeTokens, stakeTokens2],
-            memo: "Just Staking some tokens",
+            msgs: [unstakeCoins, unstakeTokens, unstakeTokens2],
+            memo: "Just unstaking some tokens",
             chainID: "pisco-1",
         });
         const result = await lcd.tx.broadcastSync(tx, "pisco-1");

@@ -1,12 +1,12 @@
 use crate::models::{
-    AllPendingRewardsQuery, AllStakedBalancesQuery, AssetQuery, PendingRewardsRes, QueryMsg,
-    StakedBalanceRes
+    AddressPendingRewardsQuery, AddressStakedBalancesQuery, AssetQuery, PendingRewardsRes,
+    QueryMsg, StakedAssetQuery, StakedBalanceRes,
 };
 use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
 use alliance_protocol::signed_decimal::{Sign, SignedDecimal};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Decimal, Deps, Env, Order, StdResult, Uint128};
+use cosmwasm_std::{to_json_binary, Binary, Decimal, Deps, Env, Order, StdResult};
 use cw_asset::{AssetInfo, AssetInfoKey, AssetInfoUnchecked};
 
 use crate::state::{
@@ -20,12 +20,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Config {} => get_config(deps)?,
         QueryMsg::Validators {} => get_validators(deps)?,
         QueryMsg::WhitelistedAssets {} => get_whitelisted_assets(deps)?,
-        QueryMsg::RewardDistribution {} => get_rewards_distribution(deps)?,
-        QueryMsg::StakedBalance(asset_query) => get_staked_balance(deps, asset_query)?,
+        QueryMsg::AllianceRewardsDistribution {} => get_alliance_rewards_distribution(deps)?,
+        QueryMsg::ContractBalances {} => get_total_contract_staked_balances(deps)?,
+
+        QueryMsg::AddressStakedBalances(query) => get_address_staked_balances(deps, query)?,
+        QueryMsg::AddressPendingRewards(query) => get_address_pending_rewards(deps, query)?,
+
+        QueryMsg::StakedBalance(asset_query) => get_staked_balances(deps, asset_query)?,
         QueryMsg::PendingRewards(asset_query) => get_pending_rewards(deps, asset_query)?,
-        QueryMsg::AllStakedBalances(query) => get_all_staked_balances(deps, query)?,
-        QueryMsg::AllPendingRewards(query) => get_all_pending_rewards(deps, query)?,
-        QueryMsg::TotalStakedBalances {} => get_total_staked_balances(deps)?,
     })
 }
 
@@ -55,7 +57,7 @@ fn get_whitelisted_assets(deps: Deps) -> StdResult<Binary> {
     to_json_binary(&res)
 }
 
-fn get_rewards_distribution(deps: Deps) -> StdResult<Binary> {
+fn get_alliance_rewards_distribution(deps: Deps) -> StdResult<Binary> {
     let whitelist: StdResult<Vec<(AssetInfoUnchecked, Decimal)>> = WHITELIST
         .range(deps.storage, None, None, Order::Ascending)
         .collect();
@@ -71,10 +73,10 @@ fn get_rewards_distribution(deps: Deps) -> StdResult<Binary> {
     to_json_binary(&reward_distribution)
 }
 
-fn get_staked_balance(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary> {
+fn get_staked_balances(deps: Deps, asset_query: StakedAssetQuery) -> StdResult<Binary> {
     let addr = deps.api.addr_validate(&asset_query.address)?;
-    let key = (addr, asset_query.deposit_asset.clone().into());
-    let balance = BALANCES.load(deps.storage, key)?;
+    let key = (addr, AssetInfoKey::from(asset_query.deposit_asset.clone()));
+    let balance = BALANCES.load(deps.storage, key).unwrap_or_default();
 
     to_json_binary(&StakedBalanceRes {
         deposit_asset: asset_query.deposit_asset,
@@ -110,7 +112,10 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
     })
 }
 
-fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalancesQuery) -> StdResult<Binary> {
+fn get_address_staked_balances(
+    deps: Deps,
+    asset_query: AddressStakedBalancesQuery,
+) -> StdResult<Binary> {
     let addr = deps.api.addr_validate(&asset_query.address)?;
     let whitelist = WHITELIST.range(deps.storage, None, None, Order::Ascending);
     let mut res: Vec<StakedBalanceRes> = Vec::new();
@@ -121,9 +126,8 @@ fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalancesQuery) -> S
         let checked_asset_info = asset_key.check(deps.api, None)?;
         let asset_info_key = AssetInfoKey::from(checked_asset_info.clone());
         let stake_key = (addr.clone(), asset_info_key);
-        let balance = BALANCES
-            .load(deps.storage, stake_key)
-            .unwrap_or(Uint128::zero());
+
+        let balance = BALANCES.load(deps.storage, stake_key).unwrap_or_default();
 
         // Append the request
         res.push(StakedBalanceRes {
@@ -135,9 +139,10 @@ fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalancesQuery) -> S
     to_json_binary(&res)
 }
 
-fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResult<Binary> {
+fn get_address_pending_rewards(deps: Deps, query: AddressPendingRewardsQuery) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
     let addr = deps.api.addr_validate(&query.address)?;
+
     let all_pending_rewards: StdResult<Vec<PendingRewardsRes>> = USER_ASSET_REWARD_RATE
         .sub_prefix(addr.clone())
         .range(deps.storage, None, None, Order::Ascending)
@@ -159,7 +164,7 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
                 )
                 .unwrap_or_default();
 
-            if AssetInfo::Native(config.alliance_reward_denom.to_string()).eq(&reward_asset_info) {
+            if config.alliance_reward_denom.eq(&reward_asset_info) {
                 let user_balance = BALANCES
                     .load(deps.storage, (addr.clone(), deposit_asset))
                     .unwrap_or_default();
@@ -192,7 +197,7 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
     to_json_binary(&all_pending_rewards?)
 }
 
-fn get_total_staked_balances(deps: Deps) -> StdResult<Binary> {
+fn get_total_contract_staked_balances(deps: Deps) -> StdResult<Binary> {
     let total_staked_balances: StdResult<Vec<StakedBalanceRes>> = TOTAL_BALANCES
         .range(deps.storage, None, None, Order::Ascending)
         .map(|total_balance| -> StdResult<StakedBalanceRes> {

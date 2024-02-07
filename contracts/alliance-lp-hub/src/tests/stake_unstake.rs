@@ -3,7 +3,7 @@ use crate::contract::execute;
 use crate::models::{ExecuteMsg, ModifyAssetPair, StakedBalanceRes};
 use crate::state::{BALANCES, TOTAL_BALANCES};
 use crate::tests::helpers::{
-    modify_asset, query_all_staked_balances, setup_contract, stake, stake_cw20, unstake,
+    modify_asset, query_contract_balances, setup_contract, stake, stake_cw20, unstake,
     unstake_callback,
 };
 use crate::tests::mock_querier::mock_dependencies;
@@ -22,6 +22,7 @@ fn test_stake_multiple_tokens() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -52,6 +53,7 @@ fn test_stake() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -111,7 +113,7 @@ fn test_stake() {
         .unwrap();
     assert_eq!(total_balance, Uint128::new(200));
 
-    let total_balances_res = query_all_staked_balances(deps.as_ref());
+    let total_balances_res = query_contract_balances(deps.as_ref());
     assert_eq!(
         total_balances_res,
         vec![StakedBalanceRes {
@@ -128,6 +130,7 @@ fn test_stake_astro_token() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::native(Addr::unchecked("factory/astro_native")),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -175,6 +178,7 @@ fn test_stake_cw20() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -234,7 +238,7 @@ fn test_stake_cw20() {
         .unwrap();
     assert_eq!(total_balance, Uint128::new(200));
 
-    let total_balances_res = query_all_staked_balances(deps.as_ref());
+    let total_balances_res = query_contract_balances(deps.as_ref());
     assert_eq!(
         total_balances_res,
         vec![StakedBalanceRes {
@@ -251,6 +255,7 @@ fn test_stake_astro_token_cw20() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::Cw20(Addr::unchecked("terra_astro_cw20")),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -289,6 +294,7 @@ fn test_unstake() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::native("native_asset"),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -380,6 +386,7 @@ fn test_unstake_cw20_from_astro() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::cw20(Addr::unchecked("terra_astro_cw20")),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -502,6 +509,7 @@ fn test_unstake_cw20_invalid() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::Cw20(Addr::unchecked("cw20_asset")),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -537,6 +545,7 @@ fn test_unstake_native_invalid() {
     modify_asset(
         deps.as_mut(),
         vec![ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::native(Addr::unchecked("native_asset")),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,

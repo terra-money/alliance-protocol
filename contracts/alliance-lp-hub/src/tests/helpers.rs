@@ -1,6 +1,6 @@
 use crate::contract::{execute, instantiate};
 use crate::models::{
-    AllPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair,
+    AddressPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair,
     PendingRewardsRes, QueryMsg, StakedBalanceRes,
 };
 use crate::query::query;
@@ -14,7 +14,7 @@ use alliance_protocol::token_factory::CustomExecuteMsg;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coin, from_json, Addr, Binary, Deps, DepsMut, Response, StdResult, Uint128};
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{Asset, AssetInfo};
+use cw_asset::{Asset, AssetInfo, AssetInfoBase};
 
 pub const DENOM: &str = "token_factory/token";
 
@@ -25,9 +25,9 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
     let init_msg = InstantiateMsg {
         governance: "gov".to_string(),
         astro_incentives_addr: "astro_incentives".to_string(),
-        astro_reward_denom: "astro_reward_denom".to_string(),
+        astro_reward_denom: AssetInfoBase::Cw20(Addr::unchecked("astro_reward_denom".to_string())),
+        alliance_reward_denom: AssetInfoBase::Native("uluna".to_string()),
         controller: "controller".to_string(),
-        alliance_reward_denom: "uluna".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()
 }
@@ -181,7 +181,7 @@ pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
         query(
             deps,
             mock_env(),
-            QueryMsg::AllPendingRewards(AllPendingRewardsQuery {
+            QueryMsg::AddressPendingRewards(AddressPendingRewardsQuery {
                 address: user.to_string(),
             }),
         )
@@ -190,6 +190,6 @@ pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
     .unwrap()
 }
 
-pub fn query_all_staked_balances(deps: Deps) -> Vec<StakedBalanceRes> {
-    from_json(query(deps, mock_env(), QueryMsg::TotalStakedBalances {}).unwrap()).unwrap()
+pub fn query_contract_balances(deps: Deps) -> Vec<StakedBalanceRes> {
+    from_json(query(deps, mock_env(), QueryMsg::ContractBalances {}).unwrap()).unwrap()
 }

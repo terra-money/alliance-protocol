@@ -1,6 +1,7 @@
 use crate::models::ModifyAssetPair;
 use crate::tests::helpers::{modify_asset, setup_contract, stake};
 use alliance_protocol::error::ContractError;
+use cosmwasm_std::Uint128;
 use cosmwasm_std::{testing::mock_dependencies, Response};
 use cw_asset::AssetInfo;
 
@@ -26,6 +27,7 @@ fn test_remove_asset() {
     let res = modify_asset(
         deps.as_mut(),
         Vec::from([ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::Native("aWHALE".to_string()),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
@@ -43,6 +45,7 @@ fn test_remove_asset() {
     let err = modify_asset(
         deps.as_mut(),
         Vec::from([ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::Native("aWHALE".to_string()),
             reward_asset_info: None,
             delete: true,
@@ -59,6 +62,7 @@ fn test_remove_asset() {
     let res = modify_asset(
         deps.as_mut(),
         Vec::from([ModifyAssetPair {
+            asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::Native("aWHALE".to_string()),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: true,

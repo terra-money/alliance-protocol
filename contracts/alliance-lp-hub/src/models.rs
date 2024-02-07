@@ -1,13 +1,10 @@
-use alliance_protocol::{
-    alliance_protocol::{
-        AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
-    },
-    error::ContractError,
+use alliance_protocol::alliance_protocol::{
+    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{Asset, AssetInfo, AssetInfoKey};
+use cw_asset::{Asset, AssetInfo};
 use std::collections::HashSet;
 
 pub type AssetDenom = String;
@@ -17,12 +14,12 @@ pub struct Config {
     pub governance: Addr,
     pub controller: Addr,
 
-    pub astro_reward_denom: String,
+    pub astro_reward_denom: AssetInfo,
     pub astro_incentives_addr: Addr,
 
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
-    pub alliance_reward_denom: String,
+    pub alliance_reward_denom: AssetInfo,
 }
 
 #[cw_serde]
@@ -30,10 +27,10 @@ pub struct InstantiateMsg {
     pub governance: String,
     pub controller: String,
 
-    pub astro_reward_denom: String,
+    pub astro_reward_denom: AssetInfo,
     pub astro_incentives_addr: String,
 
-    pub alliance_reward_denom: String,
+    pub alliance_reward_denom: AssetInfo,
 }
 
 #[cw_serde]
@@ -84,32 +81,32 @@ pub enum QueryMsg {
     WhitelistedAssets {},
 
     #[returns(Vec<AssetDistribution>)]
-    RewardDistribution {},
+    AllianceRewardsDistribution {},
+
+    #[returns(Vec<StakedBalanceRes>)]
+    ContractBalances {},
 
     #[returns(StakedBalanceRes)]
-    StakedBalance(AssetQuery),
+    StakedBalance(StakedAssetQuery),
 
     #[returns(PendingRewardsRes)]
     PendingRewards(AssetQuery),
 
     #[returns(Vec<StakedBalanceRes>)]
-    AllStakedBalances(AllStakedBalancesQuery),
+    AddressStakedBalances(AddressStakedBalancesQuery),
 
     #[returns(Vec<PendingRewardsRes>)]
-    AllPendingRewards(AllPendingRewardsQuery),
-
-    #[returns(Vec<StakedBalanceRes>)]
-    TotalStakedBalances {},
+    AddressPendingRewards(AddressPendingRewardsQuery),
 }
 pub type WhitelistedAssetsResponse = Vec<AssetInfo>;
 
 #[cw_serde]
-pub struct AllPendingRewardsQuery {
+pub struct AddressPendingRewardsQuery {
     pub address: String,
 }
 
 #[cw_serde]
-pub struct AllStakedBalancesQuery {
+pub struct AddressStakedBalancesQuery {
     pub address: String,
 }
 
@@ -128,20 +125,13 @@ pub struct AssetQuery {
 }
 
 #[cw_serde]
+pub struct StakedAssetQuery {
+    pub address: String,
+    pub deposit_asset: AssetInfo,
+}
+
+#[cw_serde]
 pub struct StakedBalanceRes {
     pub deposit_asset: AssetInfo,
     pub balance: Uint128,
-}
-
-pub fn from_string_to_asset_info(denom: String) -> Result<AssetInfoKey, ContractError> {
-    if denom.starts_with("ibc/") || denom.starts_with("factory/") {
-        let asset_info = AssetInfoKey::from(AssetInfo::Native(denom));
-        return Ok(asset_info);
-    } else if denom.starts_with("terra") {
-        let from = Addr::unchecked(denom);
-        let asset_info = AssetInfoKey::from(AssetInfo::Cw20(from));
-        return Ok(asset_info);
-    }
-
-    Err(ContractError::InvalidDenom(denom))
 }

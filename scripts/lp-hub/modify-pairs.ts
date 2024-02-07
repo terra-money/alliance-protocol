@@ -38,23 +38,28 @@ const init = async () => {
                     {
                         asset_info: { native: "factory/terra1zdpgj8am5nqqvht927k3etljyl6a52kwqup0je/stDeck" },
                         reward_asset_info: { native: "uluna" },
-                        delete: false
+                        delete: false,
+                        asset_distribution: "2"
                     }, {
-                        asset_info: { cw20: "terra15npavsvzqsnphnda67v5jpr2md4fp7gyexeffnv08wp8tlxn88xsjvxkgx" }, // VKR-ULUN-LP
+                        asset_info: { cw20: "terra16xkl47splqj964cxzm5q5g0aju09n53stauu22x4hfsgekam7z5qd26q70" }, // ASTRO-ULUNA-LP 
                         reward_asset_info: { native: "uluna" },
-                        delete: false
+                        delete: false,
+                        asset_distribution: "2"
                     }, {
-                        asset_info: { cw20: "terra15npavsvzqsnphnda67v5jpr2md4fp7gyexeffnv08wp8tlxn88xsjvxkgx" }, // VKR-ULUN-LP
+                        asset_info: { cw20: "terra16xkl47splqj964cxzm5q5g0aju09n53stauu22x4hfsgekam7z5qd26q70" }, // ASTRO-ULUNA-LP 
                         reward_asset_info: { cw20: "terra167dsqkh2alurx997wmycw9ydkyu54gyswe3ygmrs4lwume3vmwks8ruqnv" },
-                        delete: false
+                        delete: false,
+                        asset_distribution: "2"
                     }, {
                         asset_info: { cw20: "terra1k2gv5ae4pk7ecc04qs9c5yqkw28cl09mqn85447amt5t2slm7uastaxagl" }, // WETH-ULUN-LP 
                         reward_asset_info: { native: "uluna" },
-                        delete: false
+                        delete: false,
+                        asset_distribution: "2"
                     }, {
                         asset_info: { cw20: "terra1k2gv5ae4pk7ecc04qs9c5yqkw28cl09mqn85447amt5t2slm7uastaxagl" }, // WETH-ULUN-LP 
                         reward_asset_info: { cw20: "terra167dsqkh2alurx997wmycw9ydkyu54gyswe3ygmrs4lwume3vmwks8ruqnv" },
-                        delete: false
+                        delete: false,
+                        asset_distribution: "2"
                     }
                 ]
             }

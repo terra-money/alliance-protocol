@@ -1,8 +1,7 @@
 use crate::astro_models::ExecuteAstroMsg;
 use crate::contract::{execute, reply};
-use crate::models::{
-    from_string_to_asset_info, AssetQuery, ExecuteMsg, ModifyAssetPair, PendingRewardsRes, QueryMsg,
-};
+use crate::helpers::from_string_to_asset_info;
+use crate::models::{AssetQuery, ExecuteMsg, ModifyAssetPair, PendingRewardsRes, QueryMsg};
 use crate::query::query;
 use crate::state::{
     ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
@@ -325,6 +324,7 @@ fn claim_user_rewards() {
         deps.as_mut(),
         Vec::from([ModifyAssetPair {
             asset_info: AssetInfo::Native("aWHALE".to_string()),
+            asset_distribution: Uint128::new(1),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }]),
@@ -438,7 +438,7 @@ fn claim_user_rewards() {
             PendingRewardsRes {
                 rewards: Uint128::zero(),
                 deposit_asset: AssetInfo::Native("aWHALE".to_string()),
-                reward_asset: AssetInfo::Native("astro_reward_denom".to_string()),
+                reward_asset: AssetInfo::Cw20(Addr::unchecked("astro_reward_denom".to_string())),
             },
             PendingRewardsRes {
                 rewards: Uint128::zero(),
@@ -505,6 +505,7 @@ fn claim_user_rewards_after_staking() {
         deps.as_mut(),
         Vec::from([ModifyAssetPair {
             asset_info: AssetInfo::Native("aWHALE".to_string()),
+            asset_distribution: Uint128::new(1),
             reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
             delete: false,
         }]),
@@ -586,11 +587,13 @@ fn claim_rewards_after_staking_and_unstaking() {
         Vec::from([
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
+                asset_distribution: Uint128::new(1),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
+                asset_distribution: Uint128::new(1),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
@@ -718,11 +721,13 @@ fn claim_rewards_after_rebalancing_emissions() {
         Vec::from([
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
+                asset_distribution: Uint128::new(1),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
+                asset_distribution: Uint128::new(1),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },

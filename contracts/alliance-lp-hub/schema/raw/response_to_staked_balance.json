@@ -3,15 +3,15 @@
   "title": "StakedBalanceRes",
   "type": "object",
   "required": [
-    "asset",
-    "balance"
+    "balance",
+    "deposit_asset"
   ],
   "properties": {
-    "asset": {
-      "$ref": "#/definitions/AssetInfoBase_for_Addr"
-    },
     "balance": {
       "$ref": "#/definitions/Uint128"
+    },
+    "deposit_asset": {
+      "$ref": "#/definitions/AssetInfoBase_for_Addr"
     }
   },
   "additionalProperties": false,

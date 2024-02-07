@@ -12,6 +12,7 @@
     "lp-hub:instantiate" : "ts-node lp-hub/instantiate.ts",
     "lp-hub:modify-pairs" : "ts-node lp-hub/modify-pairs.ts",
     "lp-hub:create-alliance": "ts-node lp-hub/create-alliance.ts",
+    "lp-hub:unstake": "ts-node lp-hub/unstake.ts",
     "lp-hub:stake": "ts-node lp-hub/stake.ts",
     "lp-hub:migrate": "ts-node lp-hub/migrate.ts",
     "lp-hub:delegate-alliance": "ts-node lp-hub/delegate-alliance.ts",

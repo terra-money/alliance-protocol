@@ -1,4 +1,4 @@
-use crate::models::{AllPendingRewardsQuery, AssetQuery, PendingRewardsRes, QueryMsg};
+use crate::models::{AddressPendingRewardsQuery, AssetQuery, PendingRewardsRes, QueryMsg};
 
 use crate::query::query;
 use crate::state::{ASSET_REWARD_RATE, BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE};
@@ -25,7 +25,7 @@ fn test_query_pending_rewards() {
         .save(
             deps.storage.borrow_mut(),
             key,
-            &Decimal::new(Uint128::new(1)),
+            &Decimal::new(Uint128::new(0)),
         )
         .unwrap();
 
@@ -114,7 +114,7 @@ fn test_query_all_pending_rewards() {
         query(
             deps.as_ref(),
             mock_env(),
-            QueryMsg::AllPendingRewards(AllPendingRewardsQuery {
+            QueryMsg::AddressPendingRewards(AddressPendingRewardsQuery {
                 address: "usr_addr".to_string(),
             }),
         )
