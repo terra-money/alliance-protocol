@@ -56,4 +56,7 @@ pub enum ContractError {
 
     #[error("Missing reward asset info for asset {0}")]
     MissingRewardAsset(String),
+    
+    #[error("Asset not staked")]
+    AssetNotStaked {},
 }

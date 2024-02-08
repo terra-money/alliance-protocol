@@ -335,6 +335,86 @@ fn claim_user_rewards() {
 }
 
 #[test]
+fn claim_user_rewards_without_stake() {
+    let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
+    setup_contract(deps.as_mut());
+    set_alliance_asset(deps.as_mut());
+    whitelist_assets(
+        deps.as_mut(),
+        HashMap::from([(
+            "chain-1".to_string(),
+            vec![AssetInfo::Native("aWHALE".to_string())],
+        )]),
+    );
+    stake(deps.as_mut(), "user1", 1000000, "aWHALE");
+
+    ASSET_REWARD_DISTRIBUTION
+        .save(
+            deps.as_mut().storage,
+            &vec![
+                AssetDistribution {
+                    asset: AssetInfo::Native("aWHALE".to_string()),
+                    distribution: Decimal::percent(50),
+                },
+                AssetDistribution {
+                    asset: AssetInfo::Native("bWHALE".to_string()),
+                    distribution: Decimal::percent(50),
+                },
+            ],
+        )
+        .unwrap();
+    TEMP_BALANCE
+        .save(deps.as_mut().storage, &Uint128::new(1000000))
+        .unwrap();
+    execute(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("cosmos2contract", &[]),
+        ExecuteMsg::UpdateRewardsCallback {},
+    )
+        .unwrap();
+
+    let res = claim_rewards(deps.as_mut(), "user2", "aWHALE");
+    assert_eq!(
+        res,
+        Response::new()
+            .add_attributes(vec![
+                ("action", "claim_rewards"),
+                ("user", "user2"),
+                ("asset", "native:aWHALE"),
+                ("reward_amount", "0"),
+            ])
+    );
+
+    USER_ASSET_REWARD_RATE
+        .load(
+            deps.as_ref().storage,
+            (
+                Addr::unchecked("user2"),
+                AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
+            ),
+        )
+        .unwrap_err();
+
+    let rewards = query_rewards(deps.as_ref(), "user2", "aWHALE");
+    assert_eq!(
+        rewards,
+        PendingRewardsRes {
+            rewards: Uint128::new(0),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+            staked_asset: AssetInfo::Native("aWHALE".to_string()),
+        }
+    );
+
+    let all_rewards = query_all_rewards(deps.as_ref(), "user2");
+    assert_eq!(
+        all_rewards,
+        vec![]
+    );
+}
+
+
+#[test]
 fn claim_user_rewards_after_staking() {
     let mut deps = mock_dependencies_with_balance(&[coin(2000000, "uluna")]);
     setup_contract(deps.as_mut());
