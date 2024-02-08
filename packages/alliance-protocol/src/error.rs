@@ -39,4 +39,7 @@ pub enum ContractError {
 
     #[error("Invalid total distribution: {0}")]
     InvalidTotalDistribution(Decimal),
+
+    #[error("Asset not staked")]
+    AssetNotStaked {},
 }

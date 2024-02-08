@@ -39,7 +39,7 @@ const CREATE_REPLY_ID: u64 = 1;
 const CLAIM_REWARD_ERROR_REPLY_ID: u64 = 2;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     Ok(Response::default())
 }
 
@@ -238,7 +238,7 @@ fn unstake(deps: DepsMut, info: MessageInfo, asset: Asset) -> Result<Response, C
                     }
                     Ok(balance - asset.amount)
                 }
-                None => Err(ContractError::InsufficientBalance {}),
+                None => Err(ContractError::AssetNotStaked {}),
             }
         },
     )?;
@@ -308,6 +308,14 @@ fn _claim_reward(
     asset: AssetInfo,
 ) -> Result<Uint128, ContractError> {
     let asset_key = AssetInfoKey::from(&asset);
+    // If the user did not stake the asset, do nothing and return 0
+    if BALANCES
+        .load(storage, (user.clone(), asset_key.clone()))
+        .is_err()
+    {
+        return Ok(Uint128::zero());
+    }
+
     let user_reward_rate = USER_ASSET_REWARD_RATE.load(storage, (user.clone(), asset_key.clone()));
     let asset_reward_rate = ASSET_REWARD_RATE.load(storage, asset_key.clone())?;
 
