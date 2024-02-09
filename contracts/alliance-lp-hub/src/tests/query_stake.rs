@@ -1,7 +1,7 @@
 use crate::models::{AddressStakedBalancesQuery, QueryMsg, StakedAssetQuery, StakedBalanceRes};
 
 use crate::query::query;
-use crate::state::{BALANCES, WHITELIST};
+use crate::state::{USER_BALANCES, WHITELIST};
 use crate::tests::helpers::{set_alliance_asset, setup_contract};
 use crate::tests::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::mock_env;
@@ -34,7 +34,7 @@ fn test_query_address_staked_balance() {
         .unwrap();
 
     let key = (addr_key.clone(), deposit_key.clone());
-    BALANCES
+    USER_BALANCES
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
 
@@ -89,7 +89,7 @@ fn test_query_address_staked_balance_by_token() {
         .unwrap();
 
     let key = (addr_key.clone(), deposit_key.clone());
-    BALANCES
+    USER_BALANCES
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
 

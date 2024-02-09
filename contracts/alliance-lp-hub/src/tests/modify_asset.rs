@@ -40,31 +40,14 @@ fn test_remove_asset() {
             .add_attributes(vec![("action", "modify_asset"), ("asset", "native:aWHALE"),])
     );
 
-    // Try to remove the asset aWHALE, it should error because
-    // the reward_asset_info is not defined
-    let err = modify_asset(
-        deps.as_mut(),
-        Vec::from([ModifyAssetPair {
-            asset_distribution: Uint128::new(1),
-            asset_info: AssetInfo::Native("aWHALE".to_string()),
-            reward_asset_info: None,
-            delete: true,
-        }]),
-    )
-    .unwrap_err();
-    assert_eq!(
-        err,
-        ContractError::MissingRewardAsset("native:aWHALE".to_string())
-    );
-
-    // Remove the asset pair aWHALE-uluna successfully because both
-    // assets are defined
+    // Remove the previously whitelisted token
+    // aWHALE by setting the delete flag to true
     let res = modify_asset(
         deps.as_mut(),
         Vec::from([ModifyAssetPair {
             asset_distribution: Uint128::new(1),
             asset_info: AssetInfo::Native("aWHALE".to_string()),
-            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
+            reward_asset_info: None,
             delete: true,
         }]),
     )

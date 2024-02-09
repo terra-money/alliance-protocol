@@ -218,7 +218,7 @@ fn test_unstake_invalid() {
     let info = mock_info("user2", &[]);
     let msg = ExecuteMsg::Unstake(Asset::native("asset1", 100u128));
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(err, ContractError::InsufficientBalance {});
+    assert_eq!(err, ContractError::AssetNotStaked {});
 
     // User unstakes more than they have
     let info = mock_info("user1", &[]);

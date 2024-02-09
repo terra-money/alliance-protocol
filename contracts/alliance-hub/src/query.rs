@@ -79,10 +79,10 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
     let asset_reward_rate =
         ASSET_REWARD_RATE.load(deps.storage, AssetInfoKey::from(asset_query.asset.clone()))?;
     let user_reward_rate = USER_ASSET_REWARD_RATE.load(deps.storage, key.clone()).unwrap_or(asset_reward_rate);
-    let user_balance = BALANCES.load(deps.storage, key.clone()).unwrap_or(Uint128::zero());
+    let user_balance = BALANCES.load(deps.storage, key.clone()).unwrap_or_default();
     let unclaimed_rewards = UNCLAIMED_REWARDS
         .load(deps.storage, key)
-        .unwrap_or(Uint128::zero());
+        .unwrap_or_default();
     let pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
 
     to_json_binary(&PendingRewardsRes {
@@ -105,7 +105,7 @@ fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalancesQuery) -> S
         let stake_key = (addr.clone(), asset_info_key);
         let balance = BALANCES
             .load(deps.storage, stake_key)
-            .unwrap_or(Uint128::zero());
+            .unwrap_or_default();
 
         // Append the request
         res.push(StakedBalanceRes {
@@ -131,13 +131,13 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
             let user_balance = BALANCES.load(
                 deps.storage,
                 (addr.clone(), AssetInfoKey::from(asset.clone())),
-            ).unwrap_or(Uint128::zero());
+            ).unwrap_or_default();
             let unclaimed_rewards = UNCLAIMED_REWARDS
                 .load(
                     deps.storage,
                     (addr.clone(), AssetInfoKey::from(asset.clone())),
                 )
-                .unwrap_or(Uint128::zero());
+                .unwrap_or_default();
             let pending_rewards = (asset_reward_rate - user_reward_rate) * user_balance;
             Ok(PendingRewardsRes {
                 rewards: pending_rewards + unclaimed_rewards,

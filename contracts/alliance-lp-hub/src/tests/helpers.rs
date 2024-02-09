@@ -1,7 +1,6 @@
 use crate::contract::{execute, instantiate};
 use crate::models::{
-    AddressPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair,
-    PendingRewardsRes, QueryMsg, StakedBalanceRes,
+    AddressPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair, PendingRewardsRes, QueryMsg, StakedBalanceRes
 };
 use crate::query::query;
 use crate::state::CONFIG;
@@ -23,11 +22,12 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
     let env = mock_env();
 
     let init_msg = InstantiateMsg {
-        governance: "gov".to_string(),
+        governance_addr: "gov".to_string(),
+        controller_addr: "controller".to_string(),
+
         astro_incentives_addr: "astro_incentives".to_string(),
-        astro_reward_denom: AssetInfoBase::Cw20(Addr::unchecked("astro_reward_denom".to_string())),
         alliance_reward_denom: AssetInfoBase::Native("uluna".to_string()),
-        controller: "controller".to_string(),
+        alliance_token_subdenom: "ualliancelp".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()
 }

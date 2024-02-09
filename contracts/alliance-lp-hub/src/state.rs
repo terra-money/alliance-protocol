@@ -12,8 +12,11 @@ pub const WHITELIST: Map<AssetInfoKey, Decimal> = Map::new("whitelist");
 // when staking and unstaking this two maps
 // must be addedup or subtracted
 pub const TOTAL_BALANCES: Map<AssetInfoKey, Uint128> = Map::new("total_balances");
-pub const BALANCES: Map<(Addr, AssetInfoKey), Uint128> = Map::new("balances");
+pub const USER_BALANCES: Map<(Addr, AssetInfoKey), Uint128> = Map::new("user_balances");
 
+// Keeps track of the alliance validators where the 
+// alliance virtual token is being staked that way 
+// it can easily operate the operations like unstake.
 pub const VALIDATORS: Item<HashSet<String>> = Item::new("validators");
 
 // The following map is used to store the rewards
@@ -21,8 +24,8 @@ pub const VALIDATORS: Item<HashSet<String>> = Item::new("validators");
 // - AssetInfoKey: is the asset that is being deposited,
 // - AssetInfoKey: is the asset that is being rewarded,
 // - Decimal: is the reward rate,
-pub const ASSET_REWARD_RATE: Map<(AssetInfoKey, AssetInfoKey), Decimal> =
-    Map::new("asset_reward_rate");
+pub const TOTAL_ASSET_REWARD_RATE: Map<(AssetInfoKey, AssetInfoKey), Decimal> =
+    Map::new("total_asset_reward_rate");
 
 // The following map is used to store the user rewards
 // with the following structure:

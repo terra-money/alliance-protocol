@@ -11,26 +11,25 @@ pub type AssetDenom = String;
 
 #[cw_serde]
 pub struct Config {
-    pub governance: Addr,
-    pub controller: Addr,
+    pub governance_addr: Addr,
+    pub controller_addr: Addr,
 
-    pub astro_reward_denom: AssetInfo,
     pub astro_incentives_addr: Addr,
+    pub alliance_reward_denom: AssetInfo,
 
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
-    pub alliance_reward_denom: AssetInfo,
 }
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub governance: String,
-    pub controller: String,
+    pub governance_addr: String,
+    pub controller_addr: String,
 
-    pub astro_reward_denom: AssetInfo,
     pub astro_incentives_addr: String,
-
     pub alliance_reward_denom: AssetInfo,
+    
+    pub alliance_token_subdenom: String,
 }
 
 #[cw_serde]
@@ -89,7 +88,7 @@ pub enum QueryMsg {
     #[returns(StakedBalanceRes)]
     StakedBalance(StakedAssetQuery),
 
-    #[returns(PendingRewardsRes)]
+    #[returns(PendingRewards)]
     PendingRewards(AssetQuery),
 
     #[returns(Vec<StakedBalanceRes>)]
@@ -115,6 +114,31 @@ pub struct PendingRewardsRes {
     pub deposit_asset: AssetInfo,
     pub reward_asset: AssetInfo,
     pub rewards: Uint128,
+}
+
+#[cw_serde]
+pub struct PendingRewards {
+    pub deposit_asset: Option<AssetInfo>,
+    pub reward_asset: Option<AssetInfo>,
+    pub rewards: Uint128,
+}
+
+impl PendingRewards {
+    pub fn default() -> Self {
+        PendingRewards {
+            deposit_asset : None,
+            reward_asset: None,
+            rewards: Uint128::zero(),
+        }
+    }
+
+    pub fn new(deposit_asset: AssetInfo, reward_asset: AssetInfo, rewards: Uint128) -> Self {
+        PendingRewards {
+            deposit_asset : Some(deposit_asset),
+            reward_asset: Some(reward_asset),
+            rewards: rewards,
+        }
+    }
 }
 
 #[cw_serde]

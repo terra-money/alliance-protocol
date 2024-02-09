@@ -1,7 +1,7 @@
 use crate::models::{AddressPendingRewardsQuery, AssetQuery, PendingRewardsRes, QueryMsg};
 
 use crate::query::query;
-use crate::state::{ASSET_REWARD_RATE, BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE};
+use crate::state::{TOTAL_ASSET_REWARD_RATE, USER_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE};
 use crate::tests::helpers::{set_alliance_asset, setup_contract};
 use crate::tests::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::mock_env;
@@ -30,7 +30,7 @@ fn test_query_pending_rewards() {
         .unwrap();
 
     let key = (deposit_key.clone(), reward_key.clone());
-    ASSET_REWARD_RATE
+    TOTAL_ASSET_REWARD_RATE
         .save(
             deps.storage.borrow_mut(),
             key,
@@ -39,7 +39,7 @@ fn test_query_pending_rewards() {
         .unwrap();
 
     let key = (addr_key.clone(), reward_key.clone());
-    BALANCES
+    USER_BALANCES
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
 
@@ -92,7 +92,7 @@ fn test_query_all_pending_rewards() {
         .unwrap();
 
     let key = (deposit_key.clone(), reward_key.clone());
-    ASSET_REWARD_RATE
+    TOTAL_ASSET_REWARD_RATE
         .save(
             deps.storage.borrow_mut(),
             key,
@@ -100,8 +100,8 @@ fn test_query_all_pending_rewards() {
         )
         .unwrap();
 
-    let key = (addr_key.clone(), reward_key.clone());
-    BALANCES
+    let key = (addr_key.clone(), deposit_key.clone());
+    USER_BALANCES
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
 

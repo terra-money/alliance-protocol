@@ -4,7 +4,7 @@ use crate::helpers::from_string_to_asset_info;
 use crate::models::{AssetQuery, ExecuteMsg, ModifyAssetPair, PendingRewardsRes, QueryMsg};
 use crate::query::query;
 use crate::state::{
-    ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+    TOTAL_ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
 };
 use crate::tests::helpers::{
     claim_rewards, modify_asset, query_all_rewards, query_rewards, set_alliance_asset,
@@ -167,7 +167,7 @@ fn update_alliance_reward_callback() {
     )
     .unwrap();
 
-    let a_whale_rate = ASSET_REWARD_RATE
+    let a_whale_rate = TOTAL_ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
             (
@@ -180,7 +180,7 @@ fn update_alliance_reward_callback() {
         a_whale_rate,
         Decimal::from_atomics(Uint128::one(), 1).unwrap()
     );
-    let b_whale_rate = ASSET_REWARD_RATE
+    let b_whale_rate = TOTAL_ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
             (
@@ -193,7 +193,7 @@ fn update_alliance_reward_callback() {
         b_whale_rate,
         Decimal::from_atomics(Uint128::new(6), 0).unwrap()
     );
-    ASSET_REWARD_RATE
+    TOTAL_ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
             (
@@ -277,7 +277,7 @@ fn update_alliance_rewards_callback_with_unallocated() {
     )
     .unwrap();
 
-    let a_whale_rate = ASSET_REWARD_RATE
+    let a_whale_rate = TOTAL_ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
             (
@@ -290,7 +290,7 @@ fn update_alliance_rewards_callback_with_unallocated() {
         a_whale_rate,
         Decimal::from_atomics(Uint128::one(), 1).unwrap()
     );
-    let b_whale_rate = ASSET_REWARD_RATE
+    let b_whale_rate = TOTAL_ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
             (
@@ -322,29 +322,22 @@ fn claim_user_rewards() {
     set_alliance_asset(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        Vec::from([ModifyAssetPair {
-            asset_info: AssetInfo::Native("aWHALE".to_string()),
-            asset_distribution: Uint128::new(1),
-            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
-            delete: false,
-        }]),
+        Vec::from([
+            ModifyAssetPair {
+                asset_info: AssetInfo::Native("aWHALE".to_string()),
+                asset_distribution: Decimal::percent(50).to_uint_floor(),
+                reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
+                delete: false,
+            },
+            ModifyAssetPair {
+                asset_info: AssetInfo::Native("bWHALE".to_string()),
+                asset_distribution: Decimal::percent(50).to_uint_floor(),
+                reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
+                delete: false,
+            },
+        ]),
     )
     .unwrap();
-    WHITELIST
-        .save(
-            deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
-            &Decimal::percent(50),
-        )
-        .unwrap();
-    WHITELIST
-        .save(
-            deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
-            &Decimal::percent(50),
-        )
-        .unwrap();
-
     stake(deps.as_mut(), "user1", 1000000, "aWHALE").unwrap();
     stake(deps.as_mut(), "user2", 4000000, "aWHALE").unwrap();
 
@@ -389,10 +382,10 @@ fn claim_user_rewards() {
         Response::new()
             .add_attributes(vec![
                 ("action", "claim_alliance_lp_rewards"),
-                ("user", "user1"),
-                ("asset", "native:aWHALE"),
-                ("alliance_reward_amount", "100000"),
-                ("astro_reward_amount", "0"),
+                ("sender", "user1"),
+                ("deposit_asset", "native:aWHALE"),
+                ("reward_asset", "native:uluna"),
+                ("rewards_amount", "100000")
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".to_string(),
@@ -410,7 +403,7 @@ fn claim_user_rewards() {
             ),
         )
         .unwrap();
-    let asset_reward_rate = ASSET_REWARD_RATE
+    let asset_reward_rate = TOTAL_ASSET_REWARD_RATE
         .load(
             deps.as_ref().storage,
             (
@@ -503,31 +496,24 @@ fn claim_user_rewards_after_staking() {
     set_alliance_asset(deps.as_mut());
     modify_asset(
         deps.as_mut(),
-        Vec::from([ModifyAssetPair {
-            asset_info: AssetInfo::Native("aWHALE".to_string()),
-            asset_distribution: Uint128::new(1),
-            reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
-            delete: false,
-        }]),
+        Vec::from([
+            ModifyAssetPair {
+                asset_info: AssetInfo::Native("aWHALE".to_string()),
+                asset_distribution: Decimal::percent(50).to_uint_floor(),
+                reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
+                delete: false,
+            },
+            ModifyAssetPair {
+                asset_info: AssetInfo::Native("bWHALE".to_string()),
+                asset_distribution: Decimal::percent(50).to_uint_floor(),
+                reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
+                delete: false,
+            },
+        ]),
     )
     .unwrap();
     stake(deps.as_mut(), "user1", 1000000, "aWHALE").unwrap();
     stake(deps.as_mut(), "user2", 4000000, "aWHALE").unwrap();
-
-    WHITELIST
-        .save(
-            deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
-            &Decimal::percent(50),
-        )
-        .unwrap();
-    WHITELIST
-        .save(
-            deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
-            &Decimal::percent(50),
-        )
-        .unwrap();
 
     TEMP_BALANCE
         .save(
@@ -593,7 +579,7 @@ fn claim_rewards_after_staking_and_unstaking() {
             },
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
-                asset_distribution: Uint128::new(1),
+                asset_distribution: Uint128::new(4),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
@@ -603,20 +589,6 @@ fn claim_rewards_after_staking_and_unstaking() {
     stake(deps.as_mut(), "user1", 1000000, "aWHALE").unwrap();
     stake(deps.as_mut(), "user2", 4000000, "aWHALE").unwrap();
     stake(deps.as_mut(), "user2", 1000000, "bWHALE").unwrap();
-    WHITELIST
-        .save(
-            deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("aWHALE".to_string())),
-            &Decimal::percent(50),
-        )
-        .unwrap();
-    WHITELIST
-        .save(
-            deps.as_mut().storage,
-            AssetInfoKey::from(AssetInfo::Native("bWHALE".to_string())),
-            &Decimal::percent(50),
-        )
-        .unwrap();
 
     TEMP_BALANCE
         .save(
@@ -635,7 +607,7 @@ fn claim_rewards_after_staking_and_unstaking() {
     claim_rewards(deps.as_mut(), "user1", "aWHALE");
 
     // Get asset reward rate
-    let prev_rate = ASSET_REWARD_RATE
+    let prev_rate = TOTAL_ASSET_REWARD_RATE
         .load(
             deps.as_mut().storage,
             (
@@ -665,7 +637,7 @@ fn claim_rewards_after_staking_and_unstaking() {
     )
     .unwrap();
 
-    let curr_rate = ASSET_REWARD_RATE
+    let curr_rate = TOTAL_ASSET_REWARD_RATE
         .load(
             deps.as_mut().storage,
             (
@@ -908,7 +880,7 @@ fn test_update_rewards_with_astro_rewards() {
         from_string_to_asset_info("terra_astro_cw20".to_string()).unwrap(),
         from_string_to_asset_info("factory/astro".to_string()).unwrap(),
     );
-    let balances = ASSET_REWARD_RATE
+    let balances = TOTAL_ASSET_REWARD_RATE
         .load(deps.storage.borrow_mut(), rewatd_rate_key)
         .unwrap();
     assert_eq!(balances, Decimal::new(Uint128::new(1000000000000)));

@@ -1,7 +1,7 @@
 use crate::astro_models::{Cw20Msg, ExecuteAstroMsg};
 use crate::contract::execute;
 use crate::models::{ExecuteMsg, ModifyAssetPair, StakedBalanceRes};
-use crate::state::{BALANCES, TOTAL_BALANCES};
+use crate::state::{USER_BALANCES, TOTAL_BALANCES};
 use crate::tests::helpers::{
     modify_asset, query_contract_balances, setup_contract, stake, stake_cw20, unstake,
     unstake_callback,
@@ -72,7 +72,7 @@ fn test_stake() {
         ])
     );
 
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
@@ -94,7 +94,7 @@ fn test_stake() {
             ("amount", "100"),
         ])
     );
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
@@ -159,7 +159,7 @@ fn test_stake_astro_token() {
             }))
     );
 
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
@@ -197,7 +197,7 @@ fn test_stake_cw20() {
         ])
     );
 
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
@@ -219,7 +219,7 @@ fn test_stake_cw20() {
             ("amount", "100"),
         ])
     );
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
@@ -325,7 +325,7 @@ fn test_unstake() {
             }))
     );
 
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
@@ -358,7 +358,7 @@ fn test_unstake() {
             }))
     );
 
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
@@ -426,7 +426,7 @@ fn test_unstake_cw20_from_astro() {
             }))
     );
 
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
@@ -481,7 +481,7 @@ fn test_unstake_cw20_from_astro() {
             .add_attributes(vec![("action", "unstake_alliance_lp_callback"),])
     );
 
-    let balance = BALANCES
+    let balance = USER_BALANCES
         .load(
             deps.as_ref().storage,
             (
