@@ -127,7 +127,7 @@ pub fn execute(
     }
 }
 
-// Method that allows execution only though the governance address.
+// Function that allows execution only though the governance address.
 // It has two types of executions,
 // - first execution type is to remove assets from the whitelist defined by asset.delete,
 // - second execution type is to overwrite the asset in the whitelist with the new asset_distribution,
@@ -173,7 +173,7 @@ fn modify_asset(
     Ok(Response::new().add_attributes(attrs))
 }
 
-// This method is used to stake both native and CW20 tokens,
+// This function is used to stake both native and CW20 tokens,
 // it checks if the asset is whitelisted, if it is it will
 // claim rewards and check if the asset is whitelisted in astro
 // incentives update the balances incrementing both the
@@ -189,25 +189,31 @@ fn stake(deps: DepsMut, sender: Addr, received_asset: Asset) -> Result<Response,
     for f in rewards_list.into_iter() {
         let key = (
             sender.clone(),
-            AssetInfoKey::from(f.deposit_asset.unwrap().clone()),
-            AssetInfoKey::from(f.reward_asset.unwrap().clone()),
+            AssetInfoKey::from(f.deposit_asset.clone().unwrap()),
+            AssetInfoKey::from(f.reward_asset.clone().unwrap()),
         );
 
+        // If the rewards are zero, it means that the asset is
+        // staked for the first time or that there were no rewards
+        // distributed to this asset, so to make it easy on future
+        // operations we assign the total asset reward rate to the
+        // user asset reward rate even if both values are the same.
         if f.rewards.is_zero() {
             let asset_reward_rate =
                 TOTAL_ASSET_REWARD_RATE.load(deps.storage, (key.1.clone(), key.2.clone()))?;
             USER_ASSET_REWARD_RATE.save(deps.storage, key.clone(), &asset_reward_rate)?;
         } else {
-            let unclaimed_rewards = UNCLAIMED_REWARDS
-                .load(deps.storage, key.clone())
-                .unwrap_or_default();
-            let final_rewards = f.rewards + unclaimed_rewards;
-            UNCLAIMED_REWARDS.save(deps.storage, key, &final_rewards)?
+            // When rewards are not zero, it means that the user has unclaimed
+            // rewards, so we keep track of them in the UNCLAIMED_REWARDS map.
+            UNCLAIMED_REWARDS.update(
+                deps.storage,
+                key.clone(),
+                |b| -> Result<_, ContractError> { Ok(b.unwrap_or_default() + f.rewards) },
+            )?;
         }
     }
 
-    // Query astro incentives removing the AssetInfo prefix to transform it from
-    // "cw20:terra11s4" to "terra11s4" or "native:uluna" -> "uluna"
+    // Query astro incentives contract to check if the asset is whitelisted
     let config = CONFIG.load(deps.storage)?;
     let astro_incentives: Vec<RewardInfo> = deps
         .querier
@@ -226,10 +232,9 @@ fn stake(deps: DepsMut, sender: Addr, received_asset: Asset) -> Result<Response,
         ("amount", &received_asset.amount.to_string()),
     ]);
 
-    // When Astro incentives is not empty it means that the asset
+    // When Astro incentives list is not empty it means that the asset
     // is whitelisted in astro incentives, so we need to send the
     // tokens to the astro incentives contract and then stake them.
-    // Besides that we also claim rewards from astro incentives if any
     if !astro_incentives.is_empty() {
         let msg = _create_astro_deposit_msg(
             received_asset.clone(),
@@ -423,48 +428,39 @@ fn unstake_callback(
         .add_message(asset.transfer_msg(usr)?))
 }
 
+// Claiming rewards process iterates over the array of rewards
+// and for each reward it will check if the user has any unclaimed
+// rewards, if it does it will sum the unclaimed rewards with the
+// rewards from the current iteration and send the tokens to the user.
 fn claim_rewards(
     deps: DepsMut,
     info: MessageInfo,
-    asset: AssetInfo,
+    deposit_asset: AssetInfo,
 ) -> Result<Response, ContractError> {
     let sender = info.sender;
     let mut res = Response::new()
         .add_attribute("action", "claim_alliance_lp_rewards")
         .add_attribute("sender", sender.as_ref());
 
-    let rewards_list = _claim_rewards(&deps, sender.clone(), asset.clone())?;
+    let rewards_list = _claim_rewards(&deps, sender.clone(), deposit_asset.clone())?;
     for f in rewards_list.into_iter() {
         let deposit_asset_key = AssetInfoKey::from(f.deposit_asset.clone().unwrap());
         let reward_asset_key = AssetInfoKey::from(f.reward_asset.clone().unwrap());
         let key = (sender.clone(), deposit_asset_key, reward_asset_key);
-
-        if f.rewards.is_zero() {
-            let asset_reward_rate =
-                TOTAL_ASSET_REWARD_RATE.load(deps.storage, (key.1.clone(), key.2.clone()))?;
-            USER_ASSET_REWARD_RATE.save(deps.storage, key.clone(), &asset_reward_rate)?;
-        } else {
-            let unclaimed_rewards = UNCLAIMED_REWARDS
-                .load(deps.storage, key.clone())
-                .unwrap_or_default();
-            let final_rewards = f.rewards + unclaimed_rewards;
-            UNCLAIMED_REWARDS.save(deps.storage, key.clone(), &final_rewards)?;
-        }
 
         let unclaimed_rewards = UNCLAIMED_REWARDS
             .load(deps.storage, key.clone())
             .unwrap_or_default();
         UNCLAIMED_REWARDS.remove(deps.storage, key);
 
-        let final_rewards = f.rewards.clone() + unclaimed_rewards;
-
+        let final_rewards = f.rewards + unclaimed_rewards;
         if !final_rewards.is_zero() {
             let rewards_asset = Asset {
                 info: f.reward_asset.clone().unwrap(),
                 amount: final_rewards,
             };
             res = res
-                .add_attribute("deposit_asset", &asset.to_string())
+                .add_attribute("deposit_asset", &deposit_asset.to_string())
                 .add_attribute("reward_asset", rewards_asset.info.to_string())
                 .add_attribute("rewards_amount", &final_rewards.to_string())
                 .add_message(rewards_asset.transfer_msg(&sender)?)
@@ -485,7 +481,7 @@ fn _claim_rewards(
         .unwrap_or_default();
     let user_balance = Decimal::from_atomics(user_balance, 0)?;
 
-    TOTAL_ASSET_REWARD_RATE
+    let claimed_rewards = TOTAL_ASSET_REWARD_RATE
         .prefix(deposit_asset_key.clone())
         .range(deps.storage, None, None, Order::Ascending)
         .map(|f| {
@@ -527,7 +523,9 @@ fn _claim_rewards(
                 Uint128::zero(),
             ))
         })
-        .collect()
+        .collect();
+
+    claimed_rewards
 }
 
 fn alliance_delegate(
@@ -752,6 +750,10 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
     Ok(res.add_submessages(alliance_sub_msg).add_message(msg))
 }
 
+// This function only deals with alliance rewards. Other rewards (e.g. ASTRO)
+// needs to be dealt with separately This is because the reward distribution
+// only affects alliance rewards. LP rewards are directly distributed to LP
+// holders and not pooled together and shared
 fn update_alliance_reward_callback(
     deps: DepsMut,
     env: Env,
@@ -763,9 +765,6 @@ fn update_alliance_reward_callback(
     let config = CONFIG.load(deps.storage)?;
     let mut res =
         Response::new().add_attributes(vec![("action", "update_alliance_rewards_callback")]);
-    // We only deal with alliance rewards here. Other rewards (e.g. ASTRO) needs to be dealt with separately
-    // This is because the reward distribution only affects alliance rewards. LP rewards are directly distributed to LP holders
-    // and not pooled together and shared
     let reward_asset_info_key = AssetInfoKey::from(config.alliance_reward_denom.clone());
     let current_balance = config
         .alliance_reward_denom

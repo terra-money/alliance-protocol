@@ -494,7 +494,10 @@ fn claim_user_rewards_after_staking() {
     let mut deps = mock_dependencies(Some(&[coin(2000000, "uluna")]));
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
-    modify_asset(
+
+    // Whitelist two assets with 50% of asset distribution 
+    // from the alliance staking to each asset
+    let res = modify_asset(
         deps.as_mut(),
         Vec::from([
             ModifyAssetPair {
@@ -512,8 +515,31 @@ fn claim_user_rewards_after_staking() {
         ]),
     )
     .unwrap();
-    stake(deps.as_mut(), "user1", 1000000, "aWHALE").unwrap();
-    stake(deps.as_mut(), "user2", 4000000, "aWHALE").unwrap();
+    assert_eq!(res, Response::new()
+        .add_attribute("action", "modify_asset")
+        .add_attribute("asset", "native:aWHALE")
+        .add_attribute("asset", "native:bWHALE"));
+
+    let res = stake(deps.as_mut(), "user1", 1000000, "aWHALE").unwrap();
+    assert_eq!(
+        res,
+        Response::new().add_attributes(vec![
+            ("action", "stake"),
+            ("user", "user1"),
+            ("asset", "native:aWHALE"),
+            ("amount", "1000000"),
+        ])
+    );
+    let res = stake(deps.as_mut(), "user2", 4000000, "aWHALE").unwrap();
+    assert_eq!(
+        res,
+        Response::new().add_attributes(vec![
+            ("action", "stake"),
+            ("user", "user2"),
+            ("asset", "native:aWHALE"),
+            ("amount", "4000000"),
+        ])
+    );
 
     TEMP_BALANCE
         .save(
@@ -522,13 +548,23 @@ fn claim_user_rewards_after_staking() {
             &Uint128::new(1000000),
         )
         .unwrap();
-    execute(
+
+    let res = execute(
         deps.as_mut(),
         mock_env(),
         mock_info("cosmos2contract", &[]),
         ExecuteMsg::UpdateAllianceRewardsCallback {},
     )
     .unwrap();
+    assert_eq!(
+        res,
+        Response::new()
+            .add_attribute("action", "update_alliance_rewards_callback")
+            .add_message(CosmosMsg::Bank(BankMsg::Send {
+                to_address: "controller".to_string(),
+                amount: coins(1000000, "uluna"),
+            }))
+    );
 
     stake(deps.as_mut(), "user1", 1000000, "aWHALE").unwrap();
 
@@ -539,9 +575,9 @@ fn claim_user_rewards_after_staking() {
             .add_attributes(vec![
                 ("action", "claim_alliance_lp_rewards"),
                 ("user", "user1"),
-                ("asset", "native:aWHALE"),
-                ("alliance_reward_amount", "100000"),
-                ("astro_reward_amount", "0"),
+                ("deposit_asset", "native:aWHALE"),
+                ("reward_asset", "100000"),
+                ("rewards_amount", "0"),
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".to_string(),
@@ -556,9 +592,9 @@ fn claim_user_rewards_after_staking() {
         Response::new().add_attributes(vec![
             ("action", "claim_alliance_lp_rewards"),
             ("user", "user1"),
-            ("asset", "native:aWHALE"),
-            ("alliance_reward_amount", "0"),
-            ("astro_reward_amount", "0"),
+            ("deposit_asset", "native:aWHALE"),
+            ("reward_asset", "0"),
+            ("rewards_amount", "0"),
         ])
     );
 }
