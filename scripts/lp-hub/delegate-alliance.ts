@@ -12,9 +12,18 @@ const init = async () => {
         console.log(`Pleae deploy the hub contract first or add it's address to the .lp-hub-addr.log file to run this script`);
         return;
     }
-
     // Create the LCD Client to interact with the blockchain
-    const lcd = LCDClient.fromDefaultConfig("testnet");
+    const lcd = new LCDClient({
+        "pisco-1": {
+            chainID : "pisco-1",
+            gasAdjustment : 1.5,
+            gasPrices : {
+                uluna: 0.02
+            },
+            lcd: "http://192.168.2.101:1317/",
+            prefix: "terra"
+        }
+    });
 
     // Get all information from the deployer wallet
     const mk = new MnemonicKey({ mnemonic: process.env.MNEMONIC});
@@ -30,7 +39,7 @@ const init = async () => {
                 "alliance_delegate" : {
                     "delegations": [{
                         "validator": "terravaloper1zdpgj8am5nqqvht927k3etljyl6a52kwqndjz2",
-                        "amount": "10000000"
+                        "amount": "100000000"
                     }]
                 }
             },

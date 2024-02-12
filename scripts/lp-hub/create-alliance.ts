@@ -32,7 +32,7 @@ const init = async () => {
 
         const govProposal = new MsgCreateAlliance(
             govAccountAddr,
-            "factory/" + hubAddress + "/ualliancelp",
+            "factory/" + hubAddress + "/AllianceLP",
             "10000000000000000",
             "0",
             "10000000000000000",

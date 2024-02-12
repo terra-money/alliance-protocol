@@ -21,7 +21,7 @@ const init = async () => {
             gasPrices : {
                 uluna: 0.02
             },
-            lcd: "http://localhost:1317/",
+            lcd: "http://192.168.2.101:1317/",
             prefix: "terra"
         }
     });

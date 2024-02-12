@@ -4,10 +4,18 @@ import * as fs from 'fs';
 
 dotenv.config()
 
-const init = async () => {
-    // Create the LCD Client to interact with the blockchain
-    const lcd = LCDClient.fromDefaultConfig("testnet")
-
+const init = async () => {    // Create the LCD Client to interact with the blockchain
+    const lcd = new LCDClient({
+        "pisco-1": {
+            chainID : "pisco-1",
+            gasAdjustment : 1.5,
+            gasPrices : {
+                uluna: 0.02
+            },
+            lcd: "http://192.168.2.101:1317/",
+            prefix: "terra"
+        }
+    });
     // Get all information from the deployer wallet
     const mk = new MnemonicKey({ mnemonic: process.env.MNEMONIC });
     const wallet = lcd.wallet(mk);
@@ -22,7 +30,7 @@ const init = async () => {
                 accAddress,
                 fs.readFileSync('./artifacts/alliance_lp_hub.wasm').toString('base64')
             )],
-            memo: "Alliance LP Hub Contracts",
+            memo: "Alliance LP Hub Contract",
             chainID: "pisco-1",
         });
         let result = await lcd.tx.broadcastSync(tx, "pisco-1")

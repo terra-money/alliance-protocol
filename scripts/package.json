@@ -16,7 +16,8 @@
     "lp-hub:stake": "ts-node lp-hub/stake.ts",
     "lp-hub:migrate": "ts-node lp-hub/migrate.ts",
     "lp-hub:delegate-alliance": "ts-node lp-hub/delegate-alliance.ts",
-    "lp-hub:update-rewards": "ts-node lp-hub/update-rewards.ts"
+    "lp-hub:update-rewards": "ts-node lp-hub/update-rewards.ts",
+    "lp-hub:claim-rewards": "ts-node lp-hub/claim-rewards.ts"
   },
   "dependencies": {
     "@terra-money/feather.js": "^2.0.2",

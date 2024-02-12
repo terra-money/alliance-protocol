@@ -446,15 +446,22 @@ fn claim_rewards(
     for f in rewards_list.into_iter() {
         let deposit_asset_key = AssetInfoKey::from(f.deposit_asset.clone().unwrap());
         let reward_asset_key = AssetInfoKey::from(f.reward_asset.clone().unwrap());
-        let key = (sender.clone(), deposit_asset_key, reward_asset_key);
+        let key = (
+            sender.clone(),
+            deposit_asset_key.clone(),
+            reward_asset_key.clone(),
+        );
 
         let unclaimed_rewards = UNCLAIMED_REWARDS
             .load(deps.storage, key.clone())
             .unwrap_or_default();
-        UNCLAIMED_REWARDS.remove(deps.storage, key);
+        UNCLAIMED_REWARDS.remove(deps.storage, key.clone());
 
         let final_rewards = f.rewards + unclaimed_rewards;
         if !final_rewards.is_zero() {
+            let asset_reward_rate = TOTAL_ASSET_REWARD_RATE
+                .load(deps.storage, (deposit_asset_key, reward_asset_key))?;
+            USER_ASSET_REWARD_RATE.save(deps.storage, key.clone(), &asset_reward_rate)?;
             let rewards_asset = Asset {
                 info: f.reward_asset.clone().unwrap(),
                 amount: final_rewards,
@@ -632,58 +639,6 @@ fn alliance_redelegate(
         .add_messages(msgs))
 }
 
-fn _update_astro_rewards(
-    deps: &DepsMut,
-    contract_addr: Addr,
-    astro_incentives: Addr,
-) -> Result<Vec<SubMsg>, ContractError> {
-    let mut whitelist: Vec<String> = Vec::new();
-
-    for f in WHITELIST.range(deps.storage, None, None, Order::Ascending) {
-        let (asset_info, _) = f?;
-        let asset_info = asset_info.check(deps.api, None)?;
-        let asset_denom = get_string_without_prefix(asset_info);
-
-        whitelist.push(asset_denom);
-    }
-
-    let mut lp_tokens_list: Vec<String> = vec![];
-
-    for lp_token in whitelist {
-        let pending_rewards: Vec<PendingAssetRewards> = deps
-            .querier
-            .query_wasm_smart(
-                astro_incentives.to_string(),
-                &QueryAstroMsg::PendingRewards {
-                    lp_token: lp_token.clone(),
-                    user: contract_addr.to_string(),
-                },
-            )
-            .unwrap_or_default();
-
-        for pr in pending_rewards {
-            if !pr.amount.is_zero() {
-                lp_tokens_list.push(lp_token.clone())
-            }
-        }
-    }
-
-    let mut sub_msgs: Vec<SubMsg> = vec![];
-    for lp_token in lp_tokens_list.clone() {
-        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: astro_incentives.to_string(),
-            msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards {
-                lp_tokens: vec![lp_token],
-            })?,
-            funds: vec![],
-        });
-
-        sub_msgs.push(SubMsg::reply_always(msg, CLAIM_ASTRO_REWARDS_REPLY_ID));
-    }
-
-    Ok(sub_msgs)
-}
-
 fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let mut res = Response::new().add_attributes(vec![("action", "update_alliance_lp_rewards")]);
@@ -715,32 +670,81 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         )?
     }
 
-    let astr_incentives_rewards = _update_astro_rewards(
-        &deps,
-        env.contract.address.clone(),
-        config.astro_incentives_addr.clone(),
-    )?;
-    if !astr_incentives_rewards.is_empty() {
-        res = res.add_submessages(astr_incentives_rewards)
-    };
+    // Parse whitelisted tokens to a list of strings removing the
+    // prefix from each token so it remaining only the denom or
+    // the terra address.
+    let whitelist: Vec<String> = WHITELIST
+        .range(deps.storage, None, None, Order::Ascending)
+        .filter_map(|f| {
+            f.ok().and_then(|(asset_info, _)| {
+                asset_info
+                    .check(deps.api, None)
+                    .ok()
+                    .map(get_string_without_prefix)
+            })
+        })
+        .collect();
 
-    let validators = VALIDATORS.load(deps.storage)?;
-    let alliance_sub_msg: Vec<SubMsg> = validators
-        .iter()
+    // Iterate the whitelist, query astro incentives
+    // to validate if there are any pending rewards,
+    // if so it will add the token to the lp_tokens_list
+    let lp_tokens_list: Vec<String> = whitelist
+        .into_iter()
+        .filter(|lp_token| {
+            let pending_rewards: Vec<PendingAssetRewards> = deps
+                .querier
+                .query_wasm_smart(
+                    config.astro_incentives_addr.to_string(),
+                    &QueryAstroMsg::PendingRewards {
+                        lp_token: lp_token.clone(),
+                        user: env.contract.address.to_string(),
+                    },
+                )
+                .unwrap_or_default();
+
+            pending_rewards.into_iter().any(|pr| !pr.amount.is_zero())
+        })
+        .collect();
+
+    // Iterate the lp_tokens_list and create the necessary submessages
+    // appending them to the contract response.
+    for lp_token in lp_tokens_list.clone() {
+        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.astro_incentives_addr.to_string(),
+            msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards {
+                lp_tokens: vec![lp_token],
+            })?,
+            funds: vec![],
+        });
+
+        res = res.add_submessage(SubMsg::reply_always(msg, CLAIM_ASTRO_REWARDS_REPLY_ID));
+    }
+
+    // Based on the validators list this method create a list with
+    // MsgClaimDelegationRewards to be executed for each of the
+    // validators to calim the rewards generated by the virtual token
+    let alliance_sub_msg: Vec<SubMsg> = VALIDATORS
+        .load(deps.storage)?
+        .into_iter()
         .map(|v| {
-            let msg = MsgClaimDelegationRewards {
-                delegator_address: env.contract.address.to_string(),
-                validator_address: v.to_string(),
-                denom: config.alliance_token_denom.clone(),
-            };
             let msg = CosmosMsg::Stargate {
                 type_url: "/alliance.alliance.MsgClaimDelegationRewards".to_string(),
-                value: Binary::from(msg.encode_to_vec()),
+                value: Binary::from(
+                    MsgClaimDelegationRewards {
+                        delegator_address: env.contract.address.to_string(),
+                        validator_address: v.to_string(),
+                        denom: config.alliance_token_denom.clone(),
+                    }
+                    .encode_to_vec(),
+                ),
             };
-            // Reply on error here is used to ignore errors from claiming rewards with validators that we did not delegate to
+            // Reply on error here is used to ignore errors from claiming rewards
+            // because the list can contains validators where the protocol does
+            // not have stake anymore due slashing
             SubMsg::reply_on_error(msg, CLAIM_ALLIANCE_REWARDS_ERROR_REPLY_ID)
         })
         .collect();
+
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
         msg: to_json_binary(&ExecuteMsg::UpdateAllianceRewardsCallback {})?,

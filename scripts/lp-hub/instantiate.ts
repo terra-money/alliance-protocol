@@ -22,15 +22,13 @@ const init = async () => {
                 accAddress,
                 Number(fs.readFileSync(".lp-hub-code-id.log")),
                 {
-                    governance: "terra10d07y265gmmuvt4z0w9aw880jnsr700juxf95n",
-                    controller: accAddress,
-                    astro_reward_denom: {
-                        cw20: "terra167dsqkh2alurx997wmycw9ydkyu54gyswe3ygmrs4lwume3vmwks8ruqnv"
-                    },
+                    governance_addr: "terra10d07y265gmmuvt4z0w9aw880jnsr700juxf95n",
+                    controller_addr: accAddress,
                     astro_incentives_addr: "terra1ujqta8jx4w7z224q0heunfx4rz57e92kkeyrgmry3yz2qf5z3xlsnrk0eq",
                     alliance_reward_denom: {
                         native: "uluna"
                     },
+                    alliance_token_subdenom: "AllianceLP"
                 },
                 Coins.fromString("10000000uluna"),
                 "Alliance LP Hub Contract",
