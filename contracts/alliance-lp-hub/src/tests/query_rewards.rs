@@ -1,7 +1,9 @@
 use crate::models::{AddressPendingRewardsQuery, AssetQuery, PendingRewardsRes, QueryMsg};
 
 use crate::query::query;
-use crate::state::{TOTAL_ASSET_REWARD_RATE, USER_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE};
+use crate::state::{
+    TOTAL_ASSET_REWARD_RATE, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE, USER_BALANCES,
+};
 use crate::tests::helpers::{set_alliance_asset, setup_contract};
 use crate::tests::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::mock_env;

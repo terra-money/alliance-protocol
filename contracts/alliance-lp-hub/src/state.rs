@@ -14,8 +14,8 @@ pub const WHITELIST: Map<AssetInfoKey, Decimal> = Map::new("whitelist");
 pub const TOTAL_BALANCES: Map<AssetInfoKey, Uint128> = Map::new("total_balances");
 pub const USER_BALANCES: Map<(Addr, AssetInfoKey), Uint128> = Map::new("user_balances");
 
-// Keeps track of the alliance validators where the 
-// alliance virtual token is being staked that way 
+// Keeps track of the alliance validators where the
+// alliance virtual token is being staked that way
 // it can easily operate the operations like unstake.
 pub const VALIDATORS: Item<HashSet<String>> = Item::new("validators");
 

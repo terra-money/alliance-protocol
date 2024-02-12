@@ -13,8 +13,8 @@ use cosmwasm_std::{to_json_binary, Binary, Decimal, Deps, Env, Order, StdResult,
 use cw_asset::{AssetInfo, AssetInfoKey, AssetInfoUnchecked};
 
 use crate::state::{
-    TOTAL_ASSET_REWARD_RATE, USER_BALANCES, CONFIG, TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE,
-    VALIDATORS, WHITELIST,
+    CONFIG, TOTAL_ASSET_REWARD_RATE, TOTAL_BALANCES, UNCLAIMED_REWARDS, USER_ASSET_REWARD_RATE,
+    USER_BALANCES, VALIDATORS, WHITELIST,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -130,7 +130,9 @@ fn get_address_staked_balances(
         let asset_info_key = AssetInfoKey::from(checked_asset_info.clone());
         let stake_key = (addr.clone(), asset_info_key);
 
-        let balance = USER_BALANCES.load(deps.storage, stake_key).unwrap_or_default();
+        let balance = USER_BALANCES
+            .load(deps.storage, stake_key)
+            .unwrap_or_default();
 
         // Append the request
         res.push(StakedBalanceRes {
@@ -209,7 +211,7 @@ fn get_address_pending_rewards(deps: Deps, query: AddressPendingRewardsQuery) ->
                 .unwrap();
             let reward_asset_key = AssetInfoKey::from(reward_asset_info.clone());
 
-            let user_balance = user_balances.get(&deposit_asset).unwrap().clone();
+            let user_balance = *user_balances.get(&deposit_asset).unwrap();
             let key = (
                 addr.clone(),
                 deposit_asset_key.clone(),

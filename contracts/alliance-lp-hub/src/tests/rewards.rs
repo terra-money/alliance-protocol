@@ -4,7 +4,8 @@ use crate::helpers::from_string_to_asset_info;
 use crate::models::{AssetQuery, ExecuteMsg, ModifyAssetPair, PendingRewardsRes, QueryMsg};
 use crate::query::query;
 use crate::state::{
-    TOTAL_ASSET_REWARD_RATE, TEMP_BALANCE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS, WHITELIST,
+    TEMP_BALANCE, TOTAL_ASSET_REWARD_RATE, TOTAL_BALANCES, USER_ASSET_REWARD_RATE, VALIDATORS,
+    WHITELIST,
 };
 use crate::tests::helpers::{
     claim_rewards, modify_asset, query_all_rewards, query_rewards, set_alliance_asset,
@@ -325,13 +326,13 @@ fn claim_user_rewards() {
         Vec::from([
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
-                asset_distribution: Decimal::percent(50).to_uint_floor(),
+                asset_distribution: Uint128::new(500000000000000000),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
-                asset_distribution: Decimal::percent(50).to_uint_floor(),
+                asset_distribution: Uint128::new(500000000000000000),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
@@ -427,18 +428,11 @@ fn claim_user_rewards() {
     let all_rewards = query_all_rewards(deps.as_ref(), "user1");
     assert_eq!(
         all_rewards,
-        vec![
-            PendingRewardsRes {
-                rewards: Uint128::zero(),
-                deposit_asset: AssetInfo::Native("aWHALE".to_string()),
-                reward_asset: AssetInfo::Cw20(Addr::unchecked("astro_reward_denom".to_string())),
-            },
-            PendingRewardsRes {
-                rewards: Uint128::zero(),
-                deposit_asset: AssetInfo::Native("aWHALE".to_string()),
-                reward_asset: AssetInfo::Native("uluna".to_string()),
-            }
-        ]
+        vec![PendingRewardsRes {
+            rewards: Uint128::zero(),
+            deposit_asset: AssetInfo::Native("aWHALE".to_string()),
+            reward_asset: AssetInfo::Native("uluna".to_string()),
+        }]
     );
 
     let res = claim_rewards(deps.as_mut(), "user1", "aWHALE");
@@ -446,10 +440,7 @@ fn claim_user_rewards() {
         res,
         Response::new().add_attributes(vec![
             ("action", "claim_alliance_lp_rewards"),
-            ("user", "user1"),
-            ("asset", "native:aWHALE"),
-            ("alliance_reward_amount", "0"),
-            ("astro_reward_amount", "0"),
+            ("sender", "user1")
         ])
     );
 
@@ -477,10 +468,10 @@ fn claim_user_rewards() {
         Response::new()
             .add_attributes(vec![
                 ("action", "claim_alliance_lp_rewards"),
-                ("user", "user1"),
-                ("asset", "native:aWHALE"),
-                ("alliance_reward_amount", "10000"),
-                ("astro_reward_amount", "0"),
+                ("sender", "user1"),
+                ("deposit_asset", "native:aWHALE"),
+                ("reward_asset", "native:uluna"),
+                ("rewards_amount", "10000"),
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".to_string(),
@@ -495,30 +486,31 @@ fn claim_user_rewards_after_staking() {
     setup_contract(deps.as_mut());
     set_alliance_asset(deps.as_mut());
 
-    // Whitelist two assets with 50% of asset distribution 
-    // from the alliance staking to each asset
     let res = modify_asset(
         deps.as_mut(),
         Vec::from([
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
-                asset_distribution: Decimal::percent(50).to_uint_floor(),
+                asset_distribution: Uint128::new(100000000000000000),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
-                asset_distribution: Decimal::percent(50).to_uint_floor(),
+                asset_distribution: Uint128::new(100000000000000000),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
         ]),
     )
     .unwrap();
-    assert_eq!(res, Response::new()
-        .add_attribute("action", "modify_asset")
-        .add_attribute("asset", "native:aWHALE")
-        .add_attribute("asset", "native:bWHALE"));
+    assert_eq!(
+        res,
+        Response::new()
+            .add_attribute("action", "modify_asset")
+            .add_attribute("asset", "native:aWHALE")
+            .add_attribute("asset", "native:bWHALE")
+    );
 
     let res = stake(deps.as_mut(), "user1", 1000000, "aWHALE").unwrap();
     assert_eq!(
@@ -562,7 +554,7 @@ fn claim_user_rewards_after_staking() {
             .add_attribute("action", "update_alliance_rewards_callback")
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "controller".to_string(),
-                amount: coins(1000000, "uluna"),
+                amount: coins(800000, "uluna"),
             }))
     );
 
@@ -574,14 +566,14 @@ fn claim_user_rewards_after_staking() {
         Response::new()
             .add_attributes(vec![
                 ("action", "claim_alliance_lp_rewards"),
-                ("user", "user1"),
+                ("sender", "user1"),
                 ("deposit_asset", "native:aWHALE"),
-                ("reward_asset", "100000"),
-                ("rewards_amount", "0"),
+                ("reward_asset", "native:uluna"),
+                ("rewards_amount", "60000"),
             ])
             .add_message(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "user1".to_string(),
-                amount: coins(100000, "uluna"),
+                amount: coins(60000, "uluna"),
             }))
     );
 
@@ -591,10 +583,7 @@ fn claim_user_rewards_after_staking() {
         res,
         Response::new().add_attributes(vec![
             ("action", "claim_alliance_lp_rewards"),
-            ("user", "user1"),
-            ("deposit_asset", "native:aWHALE"),
-            ("reward_asset", "0"),
-            ("rewards_amount", "0"),
+            ("sender", "user1")
         ])
     );
 }
@@ -609,13 +598,13 @@ fn claim_rewards_after_staking_and_unstaking() {
         Vec::from([
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("aWHALE".to_string()),
-                asset_distribution: Uint128::new(1),
+                asset_distribution: Uint128::new(500000000000000000),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
             ModifyAssetPair {
                 asset_info: AssetInfo::Native("bWHALE".to_string()),
-                asset_distribution: Uint128::new(4),
+                asset_distribution: Uint128::new(400000000000000000),
                 reward_asset_info: Some(AssetInfo::Native("uluna".to_string())),
                 delete: false,
             },
@@ -712,7 +701,7 @@ fn claim_rewards_after_staking_and_unstaking() {
     assert_eq!(
         res,
         PendingRewardsRes {
-            rewards: Uint128::new(1000000),
+            rewards: Uint128::new(800000),
             deposit_asset: AssetInfo::Native("bWHALE".to_string()),
             reward_asset: AssetInfo::Native("uluna".to_string()),
         }

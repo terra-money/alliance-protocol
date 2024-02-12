@@ -1,6 +1,7 @@
 use crate::contract::{execute, instantiate};
 use crate::models::{
-    AddressPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair, PendingRewardsRes, QueryMsg, StakedBalanceRes
+    AddressPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair,
+    PendingRewardsRes, QueryMsg, StakedBalanceRes,
 };
 use crate::query::query;
 use crate::state::CONFIG;

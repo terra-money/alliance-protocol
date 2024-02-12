@@ -28,7 +28,7 @@ pub struct InstantiateMsg {
 
     pub astro_incentives_addr: String,
     pub alliance_reward_denom: AssetInfo,
-    
+
     pub alliance_token_subdenom: String,
 }
 
@@ -124,19 +124,11 @@ pub struct PendingRewards {
 }
 
 impl PendingRewards {
-    pub fn default() -> Self {
-        PendingRewards {
-            deposit_asset : None,
-            reward_asset: None,
-            rewards: Uint128::zero(),
-        }
-    }
-
     pub fn new(deposit_asset: AssetInfo, reward_asset: AssetInfo, rewards: Uint128) -> Self {
         PendingRewards {
-            deposit_asset : Some(deposit_asset),
+            deposit_asset: Some(deposit_asset),
             reward_asset: Some(reward_asset),
-            rewards: rewards,
+            rewards,
         }
     }
 }

@@ -372,18 +372,17 @@ fn claim_user_rewards_without_stake() {
         mock_info("cosmos2contract", &[]),
         ExecuteMsg::UpdateRewardsCallback {},
     )
-        .unwrap();
+    .unwrap();
 
     let res = claim_rewards(deps.as_mut(), "user2", "aWHALE");
     assert_eq!(
         res,
-        Response::new()
-            .add_attributes(vec![
-                ("action", "claim_rewards"),
-                ("user", "user2"),
-                ("asset", "native:aWHALE"),
-                ("reward_amount", "0"),
-            ])
+        Response::new().add_attributes(vec![
+            ("action", "claim_rewards"),
+            ("user", "user2"),
+            ("asset", "native:aWHALE"),
+            ("reward_amount", "0"),
+        ])
     );
 
     USER_ASSET_REWARD_RATE
@@ -407,12 +406,8 @@ fn claim_user_rewards_without_stake() {
     );
 
     let all_rewards = query_all_rewards(deps.as_ref(), "user2");
-    assert_eq!(
-        all_rewards,
-        vec![]
-    );
+    assert_eq!(all_rewards, vec![]);
 }
-
 
 #[test]
 fn claim_user_rewards_after_staking() {

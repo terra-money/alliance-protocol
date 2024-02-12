@@ -78,7 +78,9 @@ fn get_pending_rewards(deps: Deps, asset_query: AssetQuery) -> StdResult<Binary>
     let key = (addr, AssetInfoKey::from(asset_query.asset.clone()));
     let asset_reward_rate =
         ASSET_REWARD_RATE.load(deps.storage, AssetInfoKey::from(asset_query.asset.clone()))?;
-    let user_reward_rate = USER_ASSET_REWARD_RATE.load(deps.storage, key.clone()).unwrap_or(asset_reward_rate);
+    let user_reward_rate = USER_ASSET_REWARD_RATE
+        .load(deps.storage, key.clone())
+        .unwrap_or(asset_reward_rate);
     let user_balance = BALANCES.load(deps.storage, key.clone()).unwrap_or_default();
     let unclaimed_rewards = UNCLAIMED_REWARDS
         .load(deps.storage, key)
@@ -103,9 +105,7 @@ fn get_all_staked_balances(deps: Deps, asset_query: AllStakedBalancesQuery) -> S
         let checked_asset_info = asset_key.check(deps.api, None)?;
         let asset_info_key = AssetInfoKey::from(checked_asset_info.clone());
         let stake_key = (addr.clone(), asset_info_key);
-        let balance = BALANCES
-            .load(deps.storage, stake_key)
-            .unwrap_or_default();
+        let balance = BALANCES.load(deps.storage, stake_key).unwrap_or_default();
 
         // Append the request
         res.push(StakedBalanceRes {
@@ -128,10 +128,12 @@ fn get_all_pending_rewards(deps: Deps, query: AllPendingRewardsQuery) -> StdResu
             let asset = asset.check(deps.api, None)?;
             let asset_reward_rate =
                 ASSET_REWARD_RATE.load(deps.storage, AssetInfoKey::from(asset.clone()))?;
-            let user_balance = BALANCES.load(
-                deps.storage,
-                (addr.clone(), AssetInfoKey::from(asset.clone())),
-            ).unwrap_or_default();
+            let user_balance = BALANCES
+                .load(
+                    deps.storage,
+                    (addr.clone(), AssetInfoKey::from(asset.clone())),
+                )
+                .unwrap_or_default();
             let unclaimed_rewards = UNCLAIMED_REWARDS
                 .load(
                     deps.storage,

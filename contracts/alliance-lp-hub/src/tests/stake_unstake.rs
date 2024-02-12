@@ -1,7 +1,7 @@
 use crate::astro_models::{Cw20Msg, ExecuteAstroMsg};
 use crate::contract::execute;
 use crate::models::{ExecuteMsg, ModifyAssetPair, StakedBalanceRes};
-use crate::state::{USER_BALANCES, TOTAL_BALANCES};
+use crate::state::{TOTAL_BALANCES, USER_BALANCES};
 use crate::tests::helpers::{
     modify_asset, query_contract_balances, setup_contract, stake, stake_cw20, unstake,
     unstake_callback,
