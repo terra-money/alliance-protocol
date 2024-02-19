@@ -250,7 +250,7 @@ fn stake(deps: DepsMut, sender: Addr, received_asset: Asset) -> Result<Response,
     )?;
     USER_BALANCES.update(
         deps.storage,
-        (sender.clone(), deposit_asset_key.clone()),
+        (sender, deposit_asset_key),
         |b| -> Result<_, ContractError> { Ok(b.unwrap_or_default() + received_asset.amount) },
     )?;
 
@@ -501,7 +501,7 @@ fn _claim_rewards(
                 (
                     user.clone(),
                     deposit_asset_key.clone(),
-                    reward_asset_info_key.clone(),
+                    reward_asset_info_key,
                 ),
             );
 
@@ -509,7 +509,7 @@ fn _claim_rewards(
                 if user_balance.is_zero() {
                     return Ok(PendingRewards::new(
                         deposit_asset.clone(),
-                        reward_asset.clone(),
+                        reward_asset,
                         Uint128::zero(),
                     ));
                 } else {
@@ -519,14 +519,14 @@ fn _claim_rewards(
 
                     return Ok(PendingRewards::new(
                         deposit_asset.clone(),
-                        reward_asset.clone(),
+                        reward_asset,
                         rewards,
                     ));
                 }
             }
             Ok(PendingRewards::new(
                 deposit_asset.clone(),
-                reward_asset.clone(),
+                reward_asset,
                 Uint128::zero(),
             ))
         })
@@ -708,7 +708,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
 
     // Iterate the lp_tokens_list and create the necessary submessages
     // appending them to the contract response.
-    for lp_token in lp_tokens_list.clone() {
+    for lp_token in lp_tokens_list {
         let msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.astro_incentives_addr.to_string(),
             msg: to_json_binary(&ExecuteAstroMsg::ClaimRewards {
@@ -732,7 +732,7 @@ fn update_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
                 value: Binary::from(
                     MsgClaimDelegationRewards {
                         delegator_address: env.contract.address.to_string(),
-                        validator_address: v.to_string(),
+                        validator_address: v,
                         denom: config.alliance_token_denom.clone(),
                     }
                     .encode_to_vec(),
@@ -772,7 +772,6 @@ fn update_alliance_reward_callback(
     let reward_asset_info_key = AssetInfoKey::from(config.alliance_reward_denom.clone());
     let current_balance = config
         .alliance_reward_denom
-        .clone()
         .query_balance(&deps.querier, env.contract.address)?;
     let previous_balance = TEMP_BALANCE.load(deps.storage, reward_asset_info_key.clone())?;
     let rewards_collected = current_balance - previous_balance;

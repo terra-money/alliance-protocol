@@ -26,14 +26,10 @@ fn test_query_address_staked_balance() {
         )
         .unwrap();
     WHITELIST
-        .save(
-            deps.storage.borrow_mut(),
-            deposit_key2.clone(),
-            &Decimal::one(),
-        )
+        .save(deps.storage.borrow_mut(), deposit_key2, &Decimal::one())
         .unwrap();
 
-    let key = (addr_key.clone(), deposit_key.clone());
+    let key = (addr_key, deposit_key);
     USER_BALANCES
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
@@ -81,14 +77,10 @@ fn test_query_address_staked_balance_by_token() {
         )
         .unwrap();
     WHITELIST
-        .save(
-            deps.storage.borrow_mut(),
-            deposit_key2.clone(),
-            &Decimal::one(),
-        )
+        .save(deps.storage.borrow_mut(), deposit_key2, &Decimal::one())
         .unwrap();
 
-    let key = (addr_key.clone(), deposit_key.clone());
+    let key = (addr_key, deposit_key);
     USER_BALANCES
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();

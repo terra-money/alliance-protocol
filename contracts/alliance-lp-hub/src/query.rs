@@ -212,11 +212,7 @@ fn get_address_pending_rewards(deps: Deps, query: AddressPendingRewardsQuery) ->
             let reward_asset_key = AssetInfoKey::from(reward_asset_info.clone());
 
             let user_balance = *user_balances.get(&deposit_asset).unwrap();
-            let key = (
-                addr.clone(),
-                deposit_asset_key.clone(),
-                reward_asset_key.clone(),
-            );
+            let key = (addr.clone(), deposit_asset_key, reward_asset_key);
             let user_reward_rate = USER_ASSET_REWARD_RATE
                 .load(deps.storage, key.clone())
                 .unwrap_or_default();

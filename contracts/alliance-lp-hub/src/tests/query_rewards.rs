@@ -45,7 +45,7 @@ fn test_query_pending_rewards() {
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
 
-    let key = (addr_key.clone(), deposit_key.clone(), reward_key.clone());
+    let key = (addr_key, deposit_key, reward_key);
     UNCLAIMED_REWARDS
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
@@ -107,7 +107,7 @@ fn test_query_all_pending_rewards() {
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
 
-    let key = (addr_key.clone(), deposit_key.clone(), reward_key.clone());
+    let key = (addr_key, deposit_key, reward_key);
     UNCLAIMED_REWARDS
         .save(deps.storage.borrow_mut(), key, &Uint128::new(1))
         .unwrap();
