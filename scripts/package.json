@@ -1,6 +1,26 @@
 {
+  "name": "alliance-contract-scripts",
+  "private": false,
+  "scripts": {
+    "protocol:store" : "ts-node protocol/store-code.ts",
+    "protocol:migrate" : "ts-node protocol/migrate-contracts.ts",
+    "protocol:whitelist" : "ts-node protocol/whitelist.ts",
+    "protocol:delegate" : "ts-node protocol/delegate-alliance-asset.ts",
+    "protocol:feeshare" : "ts-node protocol/feeshare.ts",
+
+    "lp-hub:store" : "ts-node lp-hub/store-code.ts",
+    "lp-hub:instantiate" : "ts-node lp-hub/instantiate.ts",
+    "lp-hub:modify-pairs" : "ts-node lp-hub/modify-pairs.ts",
+    "lp-hub:create-alliance": "ts-node lp-hub/create-alliance.ts",
+    "lp-hub:unstake": "ts-node lp-hub/unstake.ts",
+    "lp-hub:stake": "ts-node lp-hub/stake.ts",
+    "lp-hub:migrate": "ts-node lp-hub/migrate.ts",
+    "lp-hub:delegate-alliance": "ts-node lp-hub/delegate-alliance.ts",
+    "lp-hub:update-rewards": "ts-node lp-hub/update-rewards.ts",
+    "lp-hub:claim-rewards": "ts-node lp-hub/claim-rewards.ts"
+  },
   "dependencies": {
-    "@terra-money/feather.js": "2.0.0-beta.7",
+    "@terra-money/feather.js": "^2.0.2",
     "dotenv": "^16.1.4",
     "ts-node": "^10.9.1"
   }

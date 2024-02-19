@@ -1,7 +1,7 @@
 node_modules
 # Build results
 /target
-/artifacts
+artifacts
 # Cargo+Git helper file (https://github.com/rust-lang/cargo/blob/0.44.1/src/cargo/sources/git/utils.rs#L320-L327)
 .cargo-ok
 
@@ -21,3 +21,7 @@ node_modules
 # Metadata from deployments
 scripts/.oracle_address.log
 scripts/.hub_address.log
+scripts/.lp-hub-addr.log
+scripts/.lp-hub-code-id.log
+# Code coverage file
+lcov.info

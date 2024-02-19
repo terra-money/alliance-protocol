@@ -99,7 +99,10 @@ fn test_stake_invalid() {
     let msg = ExecuteMsg::Stake {};
     let info = mock_info("user1", &[coin(100, "asset2")]);
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(err, ContractError::AssetNotWhitelisted("native:asset2".to_string()));
+    assert_eq!(
+        err,
+        ContractError::AssetNotWhitelisted("native:asset2".to_string())
+    );
 
     // Stake multiple assets in a single call
     let msg = ExecuteMsg::Stake {};
@@ -215,7 +218,7 @@ fn test_unstake_invalid() {
     let info = mock_info("user2", &[]);
     let msg = ExecuteMsg::Unstake(Asset::native("asset1", 100u128));
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(err, ContractError::InsufficientBalance {});
+    assert_eq!(err, ContractError::AssetNotStaked {});
 
     // User unstakes more than they have
     let info = mock_info("user1", &[]);

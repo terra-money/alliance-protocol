@@ -19,6 +19,9 @@ args = ["test", "--locked"]
 [tasks.test-cover]
 script = """docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin"""
 
+[tasks.test-cover-to-file]
+script = "cargo tarpaulin --out Lcov"
+
 [tasks.lint]
 command = "cargo"
 args = ["clippy", "--tests", "--", "-D", "warnings"]
@@ -50,14 +53,7 @@ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   ${image}:0.14.0
-"""
 
-[tasks.store-code]
-script = """
-ts-node ./scripts/store-code.ts
-"""
-
-[tasks.migrate-contracts]
-script = """
-ts-node ./scripts/execute-migrate-contracts.ts
+rm -rf scripts/artifacts
+mv artifacts/ scripts/
 """

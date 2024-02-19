@@ -1,6 +1,9 @@
+mod alliance;
 mod helpers;
 mod instantiate;
-mod stake_unstake;
-mod rewards;
-mod alliance;
 mod mock_querier;
+mod modify_asset;
+mod query_rewards;
+mod query_stake;
+mod rewards;
+mod stake_unstake;

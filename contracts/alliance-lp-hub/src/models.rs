@@ -1,73 +1,70 @@
 use alliance_protocol::alliance_protocol::{
-        AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
+    AllianceDelegateMsg, AllianceRedelegateMsg, AllianceUndelegateMsg, AssetDistribution,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_asset::{Asset, AssetInfo};
-use std::collections::{HashMap, HashSet};
-use alliance_protocol::alliance_oracle_types::EmissionsDistribution;
+use std::collections::HashSet;
 
 pub type AssetDenom = String;
 
 #[cw_serde]
 pub struct Config {
-    pub governance: Addr,
-    pub controller: Addr,
-    pub fee_collector: Addr,
-    pub astro_incentives: Addr,
+    pub governance_addr: Addr,
+    pub controller_addr: Addr,
+
+    pub astro_incentives_addr: Addr,
+    pub alliance_reward_denom: AssetInfo,
+
     pub alliance_token_denom: String,
     pub alliance_token_supply: Uint128,
-    pub reward_denom: String,
 }
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub governance: String,
-    pub controller: String,
-    pub fee_collector_address: String,
-    pub astro_incentives_address: String,
-    pub reward_denom: String,
+    pub governance_addr: String,
+    pub controller_addr: String,
+
+    pub astro_incentives_addr: String,
+    pub alliance_reward_denom: AssetInfo,
+
+    pub alliance_token_subdenom: String,
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    // Privileged function used to whitelist,
+    // modify or delete assets from the allowed list
+    ModifyAssetPairs(Vec<ModifyAssetPair>),
+
     // Both functions are used to stake,
     // - Stake is used for CosmosSDK::Coin
     // - Receive is used for CW20 tokens
-    Stake {},
     Receive(Cw20ReceiveMsg),
+    Stake {},
 
-    // Used to do the other operations
-    // for staked assets
+    // Used to do the other operations for staked assets
     Unstake(Asset),
+    UnstakeCallback(Asset, Addr),
     ClaimRewards(AssetInfo),
-    UpdateRewards {},
-    UpdateRewardsCallback {},
 
-    // Privileged functions
-    ModifyAssets(Vec<ModifyAsset>),
-
+    // Alliance interactions used to delegate, undelegate and redelegate
     AllianceDelegate(AllianceDelegateMsg),
     AllianceUndelegate(AllianceUndelegateMsg),
     AllianceRedelegate(AllianceRedelegateMsg),
-    RebalanceEmissions(Vec<EmissionsDistribution>),
-    RebalanceEmissionsCallback(Vec<EmissionsDistribution>),
+
+    // Rewards related messages
+    UpdateRewards {},
+    UpdateAllianceRewardsCallback {},
 }
 
 #[cw_serde]
-pub struct ModifyAsset {
+pub struct ModifyAssetPair {
+    pub asset_distribution: Uint128,
     pub asset_info: AssetInfo,
+    pub reward_asset_info: Option<AssetInfo>,
     pub delete: bool,
-}
-
-impl ModifyAsset {
-    pub fn new(asset_info: AssetInfo, delete: bool) -> Self {
-        ModifyAsset {
-            asset_info,
-            delete,
-        }
-    }
 }
 
 #[cw_serde]
@@ -83,50 +80,74 @@ pub enum QueryMsg {
     WhitelistedAssets {},
 
     #[returns(Vec<AssetDistribution>)]
-    RewardDistribution {},
+    AllianceRewardsDistribution {},
+
+    #[returns(Vec<StakedBalanceRes>)]
+    ContractBalances {},
 
     #[returns(StakedBalanceRes)]
-    StakedBalance(AssetQuery),
+    StakedBalance(StakedAssetQuery),
 
-    #[returns(PendingRewardsRes)]
+    #[returns(PendingRewards)]
     PendingRewards(AssetQuery),
 
     #[returns(Vec<StakedBalanceRes>)]
-    AllStakedBalances(AllStakedBalancesQuery),
+    AddressStakedBalances(AddressStakedBalancesQuery),
 
     #[returns(Vec<PendingRewardsRes>)]
-    AllPendingRewards(AllPendingRewardsQuery),
-
-    #[returns(Vec<StakedBalanceRes>)]
-    TotalStakedBalances {},
+    AddressPendingRewards(AddressPendingRewardsQuery),
 }
-pub type WhitelistedAssetsResponse = HashMap<AssetDenom, Vec<AssetInfo>>;
+pub type WhitelistedAssetsResponse = Vec<AssetInfo>;
 
 #[cw_serde]
-pub struct AllPendingRewardsQuery {
+pub struct AddressPendingRewardsQuery {
     pub address: String,
 }
 
 #[cw_serde]
-pub struct AllStakedBalancesQuery {
+pub struct AddressStakedBalancesQuery {
     pub address: String,
 }
 
 #[cw_serde]
 pub struct PendingRewardsRes {
-    pub staked_asset: AssetInfo,
+    pub deposit_asset: AssetInfo,
     pub reward_asset: AssetInfo,
     pub rewards: Uint128,
 }
 
 #[cw_serde]
+pub struct PendingRewards {
+    pub deposit_asset: Option<AssetInfo>,
+    pub reward_asset: Option<AssetInfo>,
+    pub rewards: Uint128,
+}
+
+impl PendingRewards {
+    pub fn new(deposit_asset: AssetInfo, reward_asset: AssetInfo, rewards: Uint128) -> Self {
+        PendingRewards {
+            deposit_asset: Some(deposit_asset),
+            reward_asset: Some(reward_asset),
+            rewards,
+        }
+    }
+}
+
+#[cw_serde]
 pub struct AssetQuery {
     pub address: String,
-    pub asset: AssetInfo,
+    pub deposit_asset: AssetInfo,
+    pub reward_asset: AssetInfo,
+}
+
+#[cw_serde]
+pub struct StakedAssetQuery {
+    pub address: String,
+    pub deposit_asset: AssetInfo,
 }
 
 #[cw_serde]
 pub struct StakedBalanceRes {
-    pub asset: AssetInfo,
+    pub deposit_asset: AssetInfo,
     pub balance: Uint128,
 }

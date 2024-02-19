@@ -44,10 +44,23 @@
     {
       "type": "object",
       "required": [
-        "reward_distribution"
+        "alliance_rewards_distribution"
       ],
       "properties": {
-        "reward_distribution": {
+        "alliance_rewards_distribution": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "contract_balances"
+      ],
+      "properties": {
+        "contract_balances": {
           "type": "object",
           "additionalProperties": false
         }
@@ -61,7 +74,7 @@
       ],
       "properties": {
         "staked_balance": {
-          "$ref": "#/definitions/AssetQuery"
+          "$ref": "#/definitions/StakedAssetQuery"
         }
       },
       "additionalProperties": false
@@ -81,11 +94,11 @@
     {
       "type": "object",
       "required": [
-        "all_staked_balances"
+        "address_staked_balances"
       ],
       "properties": {
-        "all_staked_balances": {
-          "$ref": "#/definitions/AllStakedBalancesQuery"
+        "address_staked_balances": {
+          "$ref": "#/definitions/AddressStakedBalancesQuery"
         }
       },
       "additionalProperties": false
@@ -93,24 +106,11 @@
     {
       "type": "object",
       "required": [
-        "all_pending_rewards"
+        "address_pending_rewards"
       ],
       "properties": {
-        "all_pending_rewards": {
-          "$ref": "#/definitions/AllPendingRewardsQuery"
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "total_staked_balances"
-      ],
-      "properties": {
-        "total_staked_balances": {
-          "type": "object",
-          "additionalProperties": false
+        "address_pending_rewards": {
+          "$ref": "#/definitions/AddressPendingRewardsQuery"
         }
       },
       "additionalProperties": false
@@ -121,7 +121,7 @@
       "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
       "type": "string"
     },
-    "AllPendingRewardsQuery": {
+    "AddressPendingRewardsQuery": {
       "type": "object",
       "required": [
         "address"
@@ -133,7 +133,7 @@
       },
       "additionalProperties": false
     },
-    "AllStakedBalancesQuery": {
+    "AddressStakedBalancesQuery": {
       "type": "object",
       "required": [
         "address"
@@ -200,13 +200,33 @@
       "type": "object",
       "required": [
         "address",
-        "asset"
+        "deposit_asset",
+        "reward_asset"
       ],
       "properties": {
         "address": {
           "type": "string"
         },
-        "asset": {
+        "deposit_asset": {
+          "$ref": "#/definitions/AssetInfoBase_for_Addr"
+        },
+        "reward_asset": {
+          "$ref": "#/definitions/AssetInfoBase_for_Addr"
+        }
+      },
+      "additionalProperties": false
+    },
+    "StakedAssetQuery": {
+      "type": "object",
+      "required": [
+        "address",
+        "deposit_asset"
+      ],
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "deposit_asset": {
           "$ref": "#/definitions/AssetInfoBase_for_Addr"
         }
       },

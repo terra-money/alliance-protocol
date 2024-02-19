@@ -1,7 +1,7 @@
 use crate::contract::{execute, instantiate};
 use crate::models::{
-    AllPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, PendingRewardsRes,
-    QueryMsg, StakedBalanceRes, ModifyAsset,
+    AddressPendingRewardsQuery, AssetQuery, Config, ExecuteMsg, InstantiateMsg, ModifyAssetPair,
+    PendingRewardsRes, QueryMsg, StakedBalanceRes,
 };
 use crate::query::query;
 use crate::state::CONFIG;
@@ -9,11 +9,12 @@ use alliance_protocol::alliance_protocol::{
     AllianceDelegateMsg, AllianceDelegation, AllianceRedelegateMsg, AllianceRedelegation,
     AllianceUndelegateMsg,
 };
+use alliance_protocol::error::ContractError;
 use alliance_protocol::token_factory::CustomExecuteMsg;
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{coin, from_json, Deps, DepsMut, Response, StdResult, Uint128, Binary, Addr};
+use cosmwasm_std::{coin, from_json, Addr, Binary, Deps, DepsMut, Response, StdResult, Uint128};
 use cw20::Cw20ReceiveMsg;
-use cw_asset::{Asset, AssetInfo};
+use cw_asset::{Asset, AssetInfo, AssetInfoBase};
 
 pub const DENOM: &str = "token_factory/token";
 
@@ -22,11 +23,12 @@ pub fn setup_contract(deps: DepsMut) -> Response<CustomExecuteMsg> {
     let env = mock_env();
 
     let init_msg = InstantiateMsg {
-        governance: "gov".to_string(),
-        fee_collector_address: "collector_address".to_string(),
-        astro_incentives_address : "astro_incentives".to_string(),
-        controller: "controller".to_string(),
-        reward_denom: "uluna".to_string(),
+        governance_addr: "gov".to_string(),
+        controller_addr: "controller".to_string(),
+
+        astro_incentives_addr: "astro_incentives".to_string(),
+        alliance_reward_denom: AssetInfoBase::Native("uluna".to_string()),
+        alliance_token_subdenom: "ualliancelp".to_string(),
     };
     instantiate(deps, env, info, init_msg).unwrap()
 }
@@ -43,42 +45,63 @@ pub fn set_alliance_asset(deps: DepsMut) {
         .unwrap();
 }
 
-pub fn modify_asset(deps: DepsMut, assets: Vec<ModifyAsset>) -> Response {
+pub fn modify_asset(
+    deps: DepsMut,
+    assets: Vec<ModifyAssetPair>,
+) -> Result<Response, ContractError> {
     let info = mock_info("gov", &[]);
     let env = mock_env();
 
-    let msg = ExecuteMsg::ModifyAssets(assets);
-    execute(deps, env, info, msg).unwrap()
+    let msg = ExecuteMsg::ModifyAssetPairs(assets);
+    execute(deps, env, info, msg)
 }
 
-
-pub fn stake(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
+pub fn stake(
+    deps: DepsMut,
+    user: &str,
+    amount: u128,
+    denom: &str,
+) -> Result<Response, ContractError> {
     let info = mock_info(user, &[coin(amount, denom)]);
     let env = mock_env();
     let msg = ExecuteMsg::Stake {};
-    execute(deps, env, info, msg).unwrap()
+    execute(deps, env, info, msg)
 }
 
-
-pub fn stake_cw20(deps: DepsMut, user: &str, amount: u128, denom: &str) -> Response {
+pub fn stake_cw20(
+    deps: DepsMut,
+    user: &str,
+    amount: u128,
+    denom: &str,
+) -> Result<Response, ContractError> {
     let mut info = mock_info(user, &[]);
     let env = mock_env();
-    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg{
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: String::from(user),
         amount: Uint128::new(amount),
         msg: Binary::default(),
     });
     info.sender = Addr::unchecked(denom.to_owned());
-    execute(deps, env, info, msg).unwrap()
+    execute(deps, env, info, msg)
 }
 
-pub fn unstake(deps: DepsMut, user: &str, asset: Asset) -> Response {
+pub fn unstake(deps: DepsMut, user: &str, asset: Asset) -> Result<Response, ContractError> {
     let info = mock_info(user, &[]);
     let env = mock_env();
     let msg = ExecuteMsg::Unstake(asset);
-    let res = execute(deps, env, info, msg);
+    execute(deps, env, info, msg)
+}
 
-    res.unwrap()
+pub fn unstake_callback(
+    deps: DepsMut,
+    sender: &str,
+    user: &str,
+    asset: Asset,
+) -> Result<Response, ContractError> {
+    let info = mock_info(sender, &[]);
+    let env = mock_env();
+    let msg = ExecuteMsg::UnstakeCallback(asset, Addr::unchecked(user));
+    execute(deps, env, info, msg)
 }
 
 pub fn alliance_delegate(deps: DepsMut, delegations: Vec<(&str, u128)>) -> Response {
@@ -133,14 +156,20 @@ pub fn claim_rewards(deps: DepsMut, user: &str, denom: &str) -> Response {
     execute(deps, env, info, msg).unwrap()
 }
 
-pub fn query_rewards(deps: Deps, user: &str, denom: &str) -> PendingRewardsRes {
+pub fn query_rewards(
+    deps: Deps,
+    user: &str,
+    deposit_asset: &str,
+    reward_asset: &str,
+) -> PendingRewardsRes {
     from_json(
         query(
             deps,
             mock_env(),
             QueryMsg::PendingRewards(AssetQuery {
                 address: user.to_string(),
-                asset: AssetInfo::Native(denom.to_string()),
+                deposit_asset: AssetInfo::Native(deposit_asset.to_string()),
+                reward_asset: AssetInfo::Native(reward_asset.to_string()),
             }),
         )
         .unwrap(),
@@ -153,7 +182,7 @@ pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
         query(
             deps,
             mock_env(),
-            QueryMsg::AllPendingRewards(AllPendingRewardsQuery {
+            QueryMsg::AddressPendingRewards(AddressPendingRewardsQuery {
                 address: user.to_string(),
             }),
         )
@@ -162,6 +191,6 @@ pub fn query_all_rewards(deps: Deps, user: &str) -> Vec<PendingRewardsRes> {
     .unwrap()
 }
 
-pub fn query_all_staked_balances(deps: Deps) -> Vec<StakedBalanceRes> {
-    from_json(query(deps, mock_env(), QueryMsg::TotalStakedBalances {}).unwrap()).unwrap()
+pub fn query_contract_balances(deps: Deps) -> Vec<StakedBalanceRes> {
+    from_json(query(deps, mock_env(), QueryMsg::ContractBalances {}).unwrap()).unwrap()
 }

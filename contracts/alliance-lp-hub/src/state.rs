@@ -7,14 +7,40 @@ use std::collections::HashSet;
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const WHITELIST: Map<AssetInfoKey, Decimal> = Map::new("whitelist");
 
-pub const BALANCES: Map<(Addr, AssetInfoKey), Uint128> = Map::new("balances");
+// Used to keep track of all staked tokens
+// by total balances and by user balances
+// when staking and unstaking this two maps
+// must be addedup or subtracted
 pub const TOTAL_BALANCES: Map<AssetInfoKey, Uint128> = Map::new("total_balances");
+pub const USER_BALANCES: Map<(Addr, AssetInfoKey), Uint128> = Map::new("user_balances");
 
+// Keeps track of the alliance validators where the
+// alliance virtual token is being staked that way
+// it can easily operate the operations like unstake.
 pub const VALIDATORS: Item<HashSet<String>> = Item::new("validators");
 
-pub const ASSET_REWARD_RATE: Map<AssetInfoKey, Decimal> = Map::new("asset_reward_rate");
-pub const USER_ASSET_REWARD_RATE: Map<(Addr, AssetInfoKey), Decimal> =
-    Map::new("user_asset_reward_rate");
-pub const UNCLAIMED_REWARDS: Map<(Addr, AssetInfoKey), Uint128> = Map::new("unclaimed_rewards");
+// The following map is used to store the rewards
+// with the following structure:
+// - AssetInfoKey: is the asset that is being deposited,
+// - AssetInfoKey: is the asset that is being rewarded,
+// - Decimal: is the reward rate,
+pub const TOTAL_ASSET_REWARD_RATE: Map<(AssetInfoKey, AssetInfoKey), Decimal> =
+    Map::new("total_asset_reward_rate");
 
-pub const TEMP_BALANCE: Item<Uint128> = Item::new("temp_balance");
+// The following map is used to store the user rewards
+// with the following structure:
+// - Addr: is the address of the user,
+// - AssetInfoKey: is the asset that is being deposited,
+// - AssetInfoKey: is the asset that is being rewarded,
+pub const USER_ASSET_REWARD_RATE: Map<(Addr, AssetInfoKey, AssetInfoKey), Decimal> =
+    Map::new("user_asset_reward_rate");
+
+// The following map is used to keep track of the unclaimed rewards
+// - Addr: is the address of the user,
+// - AssetInfoKey: is the asset that is being deposited,
+// - AssetInfoKey: is the asset that is being rewarded,
+// - Decimal: is the reward rate,
+pub const UNCLAIMED_REWARDS: Map<(Addr, AssetInfoKey, AssetInfoKey), Uint128> =
+    Map::new("unclaimed_rewards");
+
+pub const TEMP_BALANCE: Map<AssetInfoKey, Uint128> = Map::new("temp_balance");

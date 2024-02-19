@@ -1,8 +1,6 @@
-use cosmwasm_schema::{QueryResponses, cw_serde};
-use cosmwasm_std::{Decimal, Addr};
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
-
-
 
 #[cw_serde]
 pub enum ExecuteAstroMsg {
@@ -11,6 +9,17 @@ pub enum ExecuteAstroMsg {
     /// Stake LP tokens in the Generator. LP tokens staked on behalf of recipient if recipient is set.
     /// Otherwise LP tokens are staked on behalf of message sender.
     Deposit { recipient: Option<String> },
+    /// Update rewards and return it to user.
+    ClaimRewards {
+        /// The LP token cw20 address or token factory denom
+        lp_tokens: Vec<String>,
+    },
+    Withdraw {
+        /// The LP token cw20 address or token factory denom
+        lp_token: String,
+        /// The amount to withdraw. Must not exceed total staked amount.
+        amount: Uint128,
+    },
 }
 
 #[cw_serde]
@@ -23,13 +32,33 @@ pub enum Cw20Msg {
     DepositFor(String),
 }
 
-
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryAstroMsg {
     /// RewardInfo returns reward information for a specified LP token
     #[returns(Vec<RewardInfo>)]
     RewardInfo { lp_token: String },
+    /// PendingToken returns the amount of rewards that can be claimed by an account that deposited a specific LP token in a generator
+    #[returns(Vec<PendingAssetRewards>)]
+    PendingRewards { lp_token: String, user: String },
+    /// Deposit returns the LP token amount deposited in a specific generator
+    #[returns(Uint128)]
+    Deposit { lp_token: String, user: String },
+}
+#[cw_serde]
+pub struct PendingAssetRewards {
+    /// Information about an asset stored in a [`AssetInfo`] struct
+    pub info: AstroAssetInfo,
+    /// A token amount
+    pub amount: Uint128,
+}
+#[cw_serde]
+#[derive(Hash, Eq)]
+pub enum AstroAssetInfo {
+    /// Non-native Token
+    Token { contract_addr: Addr },
+    /// Native token
+    NativeToken { denom: String },
 }
 
 #[cw_serde]
@@ -58,14 +87,4 @@ pub enum AstroRewardType {
         /// Time when next schedule should start
         next_update_ts: u64,
     },
-}
-
-/// This enum describes available Token types.
-#[cw_serde]
-#[derive(Hash, Eq)]
-pub enum AstroAssetInfo {
-    /// Non-native Token
-    Token { contract_addr: Addr },
-    /// Native token
-    NativeToken { denom: String },
 }

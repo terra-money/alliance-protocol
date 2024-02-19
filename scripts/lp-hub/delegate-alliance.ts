@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv'
-import { MnemonicKey, LCDClient, MsgExecuteContract, ExecuteContractProposal, MsgSubmitProposal, Coins } from '@terra-money/feather.js';
+import { MnemonicKey, LCDClient, MsgExecuteContract } from '@terra-money/feather.js';
 import * as fs from 'fs';
 
 dotenv.config()
@@ -7,14 +7,23 @@ dotenv.config()
 const init = async () => {
     // Check if the hub contract is deployed
     // and with the proper information stored in the file
-    if (!fs.existsSync('./scripts/.hub_address.log')
-        || fs.readFileSync('./scripts/.hub_address.log').toString('utf-8') == "") {
-        console.log(`Pleae deploy the hub contract first or add it's address to the ./scripts/.hub_address.log file to run this script`);
+    if (!fs.existsSync('.lp-hub-addr.log')
+        || fs.readFileSync('.lp-hub-addr.log').toString('utf-8') == "") {
+        console.log(`Pleae deploy the hub contract first or add it's address to the .lp-hub-addr.log file to run this script`);
         return;
     }
-
     // Create the LCD Client to interact with the blockchain
-    const lcd = LCDClient.fromDefaultConfig("testnet");
+    const lcd = new LCDClient({
+        "pisco-1": {
+            chainID : "pisco-1",
+            gasAdjustment : 1.5,
+            gasPrices : {
+                uluna: 0.02
+            },
+            lcd: "http://192.168.2.101:1317/",
+            prefix: "terra"
+        }
+    });
 
     // Get all information from the deployer wallet
     const mk = new MnemonicKey({ mnemonic: process.env.MNEMONIC});
@@ -22,7 +31,7 @@ const init = async () => {
     const accAddress = wallet.key.accAddress("terra");
 
     try {
-        const hubAddress = fs.readFileSync('./scripts/.hub_address.log').toString('utf-8');
+        const hubAddress = fs.readFileSync('.lp-hub-addr.log').toString('utf-8');
         const msgExecute = new MsgExecuteContract(
             accAddress,
             hubAddress, 
@@ -30,7 +39,7 @@ const init = async () => {
                 "alliance_delegate" : {
                     "delegations": [{
                         "validator": "terravaloper1zdpgj8am5nqqvht927k3etljyl6a52kwqndjz2",
-                        "amount": "10000000"
+                        "amount": "100000000"
                     }]
                 }
             },
@@ -38,11 +47,11 @@ const init = async () => {
 
         const tx = await wallet.createAndSignTx({
             msgs: [msgExecute],
-            memo: "Stake before creating the alliance",
+            memo: "Stake to Alliance Module",
             chainID: "pisco-1",
         });
-        const result = await lcd.tx.broadcastBlock(tx, "pisco-1");
-        console.log(`Stake before creating the alliance submitted on chain
+        const result = await lcd.tx.broadcastSync(tx, "pisco-1");
+        console.log(`Stake to Alliance Module submitted on chain
         - Tx Hash: ${result.txhash}`);
     }
     catch (e) {

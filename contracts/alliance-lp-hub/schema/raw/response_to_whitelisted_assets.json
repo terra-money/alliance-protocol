@@ -1,12 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Map_of_Array_of_AssetInfoBase_for_Addr",
-  "type": "object",
-  "additionalProperties": {
-    "type": "array",
-    "items": {
-      "$ref": "#/definitions/AssetInfoBase_for_Addr"
-    }
+  "title": "Array_of_AssetInfoBase_for_Addr",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/AssetInfoBase_for_Addr"
   },
   "definitions": {
     "Addr": {

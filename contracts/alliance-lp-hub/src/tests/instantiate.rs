@@ -8,6 +8,7 @@ use cosmwasm_std::{
     from_json, Addr, Binary, CosmosMsg, Reply, Response, SubMsg, SubMsgResponse, SubMsgResult,
     Uint128,
 };
+use cw_asset::AssetInfoBase;
 use terra_proto_rs::traits::MessageExt;
 
 #[test]
@@ -35,11 +36,10 @@ fn test_setup_contract() {
     assert_eq!(
         config,
         Config {
-            governance: Addr::unchecked("gov"),
-            controller: Addr::unchecked("controller"),
-            fee_collector: Addr::unchecked("collector_address"),
-            astro_incentives: Addr::unchecked("astro_incentives"),
-            reward_denom: "uluna".to_string(),
+            governance_addr: Addr::unchecked("gov"),
+            controller_addr: Addr::unchecked("controller"),
+            astro_incentives_addr: Addr::unchecked("astro_incentives"),
+            alliance_reward_denom: AssetInfoBase::Native("uluna".to_string()),
             alliance_token_denom: "".to_string(),
             alliance_token_supply: Uint128::new(0),
         }
@@ -107,11 +107,10 @@ fn test_reply_create_token() {
     assert_eq!(
         config,
         Config {
-            governance: Addr::unchecked("gov"),
-            controller: Addr::unchecked("controller"),
-            fee_collector: Addr::unchecked("collector_address"),
-            astro_incentives: Addr::unchecked("astro_incentives"),
-            reward_denom: "uluna".to_string(),
+            governance_addr: Addr::unchecked("gov"),
+            controller_addr: Addr::unchecked("controller"),
+            astro_incentives_addr: Addr::unchecked("astro_incentives"),
+            alliance_reward_denom: AssetInfoBase::Native("uluna".to_string()),
             alliance_token_denom: "factory/cosmos2contract/ualliancelp".to_string(),
             alliance_token_supply: Uint128::new(1000000000000),
         }
